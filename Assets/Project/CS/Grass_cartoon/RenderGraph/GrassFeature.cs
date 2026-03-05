@@ -111,6 +111,8 @@ public class GrassFeature : ScriptableRendererFeature
     private int m_TotalTileCount;
     private Texture2D m_DensityMap;
     private bool m_TilesInitialized = false;
+    private GraphicsBuffer m_VisibleTilesBuffer;
+    private int m_VisibleTileCount;
     private GrassRenderPass m_RenderPass;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -197,6 +199,9 @@ public class GrassFeature : ScriptableRendererFeature
 
         m_ClumpBuffer?.Release();
         m_ClumpBuffer = null;
+
+        m_VisibleTilesBuffer?.Release();
+        m_VisibleTilesBuffer = null;
     }
 
     private void EnsureBuffers()
@@ -363,6 +368,68 @@ public class GrassFeature : ScriptableRendererFeature
     public int GetTileCountX() => m_TileCountX;
     public int GetTileCountZ() => m_TileCountZ;
 
+    public void UpdateVisibleTiles(Camera camera, Vector3 terrainPosition, Vector3 terrainSize)
+    {
+        if (!m_TilesInitialized || m_TileData == null) return;
+
+        // Get frustum planes
+        Plane[] frustumPlanes = GeometryUtility.CalculateFrustumPlanes(camera);
+
+        // Camera position and cull distance
+        Vector3 camPos = camera.transform.position;
+        float maxDist = 150.0f; // Match existing _MaxDrawDistance
+
+        var visibleTiles = new System.Collections.Generic.List<TileInfo>();
+
+        for (int i = 0; i < m_TileData.Length; i++)
+        {
+            var tile = m_TileData[i];
+
+            // Skip empty tiles
+            if (tile.maxDensity <= 0.01f || tile.targetCount == 0) continue;
+
+            // Distance culling
+            Vector3 tileCenter = (tile.worldMin + tile.worldMax) * 0.5f;
+            float distToCamera = Vector3.Distance(camPos, tileCenter);
+            if (distToCamera > maxDist + settings.tileSize) continue;
+
+            // Frustum culling
+            Bounds tileBounds = new Bounds(
+                (tile.worldMin + tile.worldMax) * 0.5f,
+                tile.worldMax - tile.worldMin);
+            if (!GeometryUtility.TestPlanesAABB(frustumPlanes, tileBounds)) continue;
+
+            visibleTiles.Add(tile);
+        }
+
+        m_VisibleTileCount = visibleTiles.Count;
+
+        // Update buffer
+        if (m_VisibleTileCount > 0)
+        {
+            if (m_VisibleTilesBuffer == null || !m_VisibleTilesBuffer.IsValid() ||
+                m_VisibleTilesBuffer.count < m_VisibleTileCount)
+            {
+                m_VisibleTilesBuffer?.Release();
+                m_VisibleTilesBuffer = new GraphicsBuffer(
+                    GraphicsBuffer.Target.Structured,
+                    m_VisibleTileCount,
+                    System.Runtime.InteropServices.Marshal.SizeOf<TileInfo>());
+            }
+
+            m_VisibleTilesBuffer.SetData(visibleTiles);
+        }
+
+        if (Time.frameCount % 60 == 0)
+        {
+            Debug.Log($"[GrassFeature] Visible tiles: {m_VisibleTileCount} / {m_TotalTileCount} " +
+                      $"({(1.0f - (float)m_VisibleTileCount / m_TotalTileCount) * 100:F1}% culled)");
+        }
+    }
+
+    public GraphicsBuffer GetVisibleTilesBuffer() => m_VisibleTilesBuffer;
+    public int GetVisibleTileCount() => m_VisibleTileCount;
+
     private unsafe void InitializeSingleGrassBuffer()
     {
         var mesh = settings.grassMesh;
@@ -413,5 +480,16 @@ public class GrassFeature : ScriptableRendererFeature
         args[3] = 0;
         args[4] = 0;
         m_ArgsBuffer.SetData(args);
+    }
+
+    // Public accessors for RenderPass
+    public bool AreTilesInitialized() => m_TilesInitialized;
+
+    public void EnsureTilesInitialized(Vector3 terrainSize, Vector3 terrainPosition)
+    {
+        if (!m_TilesInitialized)
+        {
+            InitializeTiles(terrainSize, terrainPosition);
+        }
     }
 }
