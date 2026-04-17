@@ -1,0 +1,1448 @@
+#pragma kernel ClearOccupiedCellRanges
+#pragma kernel ResetOccupiedCellCounter
+#pragma kernel ClearCollisionCellFlags
+#pragma kernel ResetCollisionCellCounter
+#pragma kernel ResetActiveBottleCounter
+#pragma kernel BuildActiveBottleList
+#pragma kernel FinalizeActiveBottleDispatchArgs
+#pragma kernel ClearContactAccum
+#pragma kernel Predict
+#pragma kernel BuildGridKeys
+#pragma kernel ClearRadixHistogram
+#pragma kernel BuildRadixHistogram
+#pragma kernel PrefixRadixHistogram
+#pragma kernel ScatterRadixPairs
+#pragma kernel BlockLocalSort
+#pragma kernel MergeSortedBlocks
+#pragma kernel BuildCellRanges
+#pragma kernel BuildCellPairList
+#pragma kernel FinalizeCellRangesStats
+#pragma kernel SolveStaticColliders
+#pragma kernel SolveCharacterCollider
+#pragma kernel SolveContactsByCellPairList
+#pragma kernel SolveParticleContacts
+#pragma kernel ApplyContactCorrections
+#pragma kernel ApplyShapeMatching
+#pragma kernel FinalizeParticles
+#pragma kernel UpdateBottlePosesFromState
+#pragma kernel UpdateBottleSleepStates
+
+struct ParticleStaticData
+{
+    float3 localRestPosition;
+    float radius;
+    uint bottleIndex;
+    uint localParticleIndex;
+    float inverseMass;
+    float padding;
+};
+
+struct BottlePoseData
+{
+    float3 center;
+    float padding0;
+    float3 axisX;
+    float padding1;
+    float3 axisY;
+    float padding2;
+    float3 axisZ;
+    float padding3;
+};
+
+struct CharacterColliderData
+{
+    float3 center;
+    float pushStrength;
+    float3 halfExtents;
+    float tangentialDamping;
+    float3 axisX;
+    float padding0;
+    float3 axisY;
+    float padding1;
+    float3 axisZ;
+    float padding2;
+    float3 deltaPosition;
+    float padding3;
+};
+
+struct MatrixRows
+{
+    float4 row0;
+    float4 row1;
+    float4 row2;
+};
+
+struct ContactAccumData
+{
+    float3 correction;
+    float count;
+};
+
+StructuredBuffer<ParticleStaticData> _ParticleStaticBuffer;
+RWStructuredBuffer<float4> _ParticlePositionBuffer;
+RWStructuredBuffer<float4> _ParticleVelocityBuffer;
+StructuredBuffer<float4> _ParticlePositionReadBuffer;
+StructuredBuffer<float4> _ParticleVelocityReadBuffer;
+StructuredBuffer<float4> _PredictedReadBuffer;
+RWStructuredBuffer<float4> _PredictedWriteBuffer;
+RWStructuredBuffer<uint2> _GridKeyIndexBuffer;
+StructuredBuffer<uint2> _GridKeyIndexReadBuffer;
+StructuredBuffer<uint2> _RadixInputBuffer;
+RWStructuredBuffer<uint2> _RadixOutputBuffer;
+RWStructuredBuffer<uint> _RadixHistogramBuffer;
+RWStructuredBuffer<uint> _RadixOffsetBuffer;
+RWStructuredBuffer<uint> _CellStartBuffer;
+RWStructuredBuffer<uint> _CellEndBuffer;
+RWStructuredBuffer<uint> _OccupiedCellBuffer;
+RWStructuredBuffer<uint> _OccupiedCellCounterBuffer;
+RWStructuredBuffer<uint2> _CellPairBuffer;
+RWStructuredBuffer<uint> _CellPairCountBuffer;
+RWStructuredBuffer<uint> _CollisionCellBuffer;
+RWStructuredBuffer<uint> _CollisionCellCounterBuffer;
+RWStructuredBuffer<uint> _CollisionCellFlagBuffer;
+RWStructuredBuffer<BottlePoseData> _BottlePoseBuffer;
+RWStructuredBuffer<uint> _BottleFlagsBuffer;
+RWStructuredBuffer<uint> _BottleSleepCounterBuffer;
+RWStructuredBuffer<uint> _BottleWakeRequestBuffer;
+RWStructuredBuffer<uint> _ActiveBottleListBuffer;
+RWStructuredBuffer<uint> _ActiveBottleCounterBuffer;
+RWStructuredBuffer<uint> _ActiveBottleDispatchArgsBuffer;
+StructuredBuffer<uint> _CellStartReadBuffer;
+StructuredBuffer<uint> _CellEndReadBuffer;
+StructuredBuffer<uint> _OccupiedCellReadBuffer;
+StructuredBuffer<uint> _OccupiedCellCounterReadBuffer;
+StructuredBuffer<uint2> _CellPairReadBuffer;
+StructuredBuffer<uint> _CellPairCountReadBuffer;
+StructuredBuffer<uint> _CollisionCellReadBuffer;
+StructuredBuffer<uint> _CollisionCellCounterReadBuffer;
+StructuredBuffer<uint> _CollisionCellFlagReadBuffer;
+StructuredBuffer<BottlePoseData> _BottlePoseReadBuffer;
+StructuredBuffer<uint> _ActiveBottleListReadBuffer;
+StructuredBuffer<uint> _ActiveBottleCounterReadBuffer;
+StructuredBuffer<CharacterColliderData> _CharacterColliderBuffer;
+RWStructuredBuffer<MatrixRows> _InstanceTransformBuffer;
+RWStructuredBuffer<ContactAccumData> _ContactAccumBuffer;
+StructuredBuffer<ContactAccumData> _ContactAccumReadBuffer;
+RWStructuredBuffer<uint> _DebugStatsBuffer;
+
+int _ParticleCount;
+int _BottleCount;
+int _ParticlesPerBottle;
+int _PaddedParticleCount;
+int _CharacterColliderCount;
+int3 _GridDim;
+int _GridCellCount;
+float _CellSize;
+float _InvCellSize;
+int _SortMergeRunWidth;
+int _RadixShift;
+float _DeltaTime;
+float _SubstepDeltaTime;
+float4 _Gravity;
+float _VelocityDamping;
+float _ShapeStiffness;
+float _ContactSlop;
+float _MaxSpeed;
+int _SleepFrameThreshold;
+float _SleepSpeedThreshold;
+float _SleepCharacterWakeRadius;
+float _SleepActiveNeighborWakeRadius;
+int _UseCollisionCellFilter;
+float3 _GridBoundsMin;
+float3 _GridBoundsMax;
+float3 _SimulationBoundsMin;
+float3 _SimulationBoundsMax;
+float3 _RenderScale;
+float3 _MeshOffset;
+int _EnableDebugStats;
+
+static const uint BottleSleepingFlag = 1u;
+static const uint SortTileSize = 64u;
+static const uint MaxCellPairsPerOccupiedCell = 27u;
+groupshared uint2 _SortTilePairs[64];
+
+bool TryGetCellCoord(float3 position, out int3 coord)
+{
+    coord = 0;
+    if (any(position < _GridBoundsMin) || any(position >= _GridBoundsMax))
+        return false;
+
+    coord = (int3)floor((position - _GridBoundsMin) * _InvCellSize);
+    coord = clamp(coord, 0, _GridDim - 1);
+    return true;
+}
+
+uint GetCellKey(int3 coord)
+{
+    return (uint)(coord.x + coord.y * _GridDim.x + coord.z * _GridDim.x * _GridDim.y);
+}
+
+int3 GetCoordFromCellKey(uint cellKey)
+{
+    int xy = _GridDim.x * _GridDim.y;
+    int z = (int)(cellKey / (uint)xy);
+    uint rem = cellKey - (uint)(z * xy);
+    int y = (int)(rem / (uint)_GridDim.x);
+    int x = (int)(rem - (uint)(y * _GridDim.x));
+    return int3(x, y, z);
+}
+
+bool IsBottleSleeping(uint bottleIndex)
+{
+    return (_BottleFlagsBuffer[bottleIndex] & BottleSleepingFlag) != 0u;
+}
+
+bool TryGetActiveBottleIndex(uint dispatchIndex, out uint bottleIndex)
+{
+    bottleIndex = 0u;
+    uint activeBottleCount = _ActiveBottleCounterReadBuffer[0];
+    if (dispatchIndex >= activeBottleCount)
+        return false;
+
+    bottleIndex = _ActiveBottleListReadBuffer[dispatchIndex];
+    return bottleIndex < (uint)_BottleCount;
+}
+
+bool HasActiveNeighborBottle(uint bottleIndex, float3 bottleCenter, float wakeRadius)
+{
+    if (wakeRadius <= 0.0)
+        return false;
+
+    float wakeRadiusSquared = wakeRadius * wakeRadius;
+    int cellRadius = max(1, (int)ceil(wakeRadius * _InvCellSize));
+    int3 originCoord;
+    if (!TryGetCellCoord(bottleCenter, originCoord))
+        return false;
+
+    [loop]
+    for (int z = -cellRadius; z <= cellRadius; z++)
+    {
+        [loop]
+        for (int y = -cellRadius; y <= cellRadius; y++)
+        {
+            [loop]
+            for (int x = -cellRadius; x <= cellRadius; x++)
+            {
+                int3 neighborCoord = originCoord + int3(x, y, z);
+                if (any(neighborCoord < 0) || any(neighborCoord >= _GridDim))
+                    continue;
+
+                uint cellKey = GetCellKey(neighborCoord);
+                uint rangeStart = _CellStartReadBuffer[cellKey];
+                uint rangeEnd = _CellEndReadBuffer[cellKey];
+                if (rangeStart == 0xFFFFFFFFu || rangeEnd == 0xFFFFFFFFu || rangeEnd <= rangeStart)
+                    continue;
+
+                [loop]
+                for (uint sortedIndex = rangeStart; sortedIndex < rangeEnd; sortedIndex++)
+                {
+                    uint neighborParticleIndex = _GridKeyIndexReadBuffer[sortedIndex].y;
+                    if (neighborParticleIndex == 0xFFFFFFFFu)
+                        continue;
+
+                    uint neighborBottleIndex = _ParticleStaticBuffer[neighborParticleIndex].bottleIndex;
+                    if (neighborBottleIndex == bottleIndex)
+                        continue;
+
+                    bool neighborActive = !IsBottleSleeping(neighborBottleIndex) || _BottleWakeRequestBuffer[neighborBottleIndex] != 0u;
+                    if (!neighborActive)
+                        continue;
+
+                    float3 otherCenter = _BottlePoseReadBuffer[neighborBottleIndex].center;
+                    float3 centerOffset = otherCenter - bottleCenter;
+                    if (dot(centerOffset, centerOffset) <= wakeRadiusSquared)
+                        return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+bool IsGridPairLess(uint2 lhs, uint2 rhs)
+{
+    if (lhs.x != rhs.x)
+        return lhs.x < rhs.x;
+
+    return lhs.y < rhs.y;
+}
+
+uint2 GetGridPairOrSentinel(uint index)
+{
+    if (index >= (uint)_PaddedParticleCount)
+        return uint2(0xFFFFFFFFu, 0xFFFFFFFFu);
+
+    return _GridKeyIndexReadBuffer[index];
+}
+
+uint GetRadixBucket(uint key)
+{
+    return (key >> (uint)_RadixShift) & 0xFFu;
+}
+
+float SignNotZero(float value, float fallbackSign)
+{
+    if (abs(value) > 1e-5)
+        return sign(value);
+
+    return fallbackSign >= 0.0 ? 1.0 : -1.0;
+}
+
+float3 SafeNormalize(float3 value, float3 fallbackValue)
+{
+    float lengthSquared = dot(value, value);
+    if (lengthSquared < 1e-8)
+        return fallbackValue;
+
+    return value * rsqrt(lengthSquared);
+}
+
+float3 ToBoxLocal(float3 worldOffset, CharacterColliderData characterCollider)
+{
+    return float3(
+        dot(worldOffset, characterCollider.axisX),
+        dot(worldOffset, characterCollider.axisY),
+        dot(worldOffset, characterCollider.axisZ));
+}
+
+float3 FromBoxLocal(float3 localPosition, CharacterColliderData characterCollider)
+{
+    return characterCollider.axisX * localPosition.x
+        + characterCollider.axisY * localPosition.y
+        + characterCollider.axisZ * localPosition.z;
+}
+
+float DistanceSquaredToCharacterCollider(float3 position, CharacterColliderData characterCollider)
+{
+    if (any(characterCollider.halfExtents <= 0.0))
+        return 1e20;
+
+    float3 localPosition = ToBoxLocal(position - characterCollider.center, characterCollider);
+    float3 clampedLocal = clamp(localPosition, -characterCollider.halfExtents, characterCollider.halfExtents);
+    float3 closestPoint = characterCollider.center + FromBoxLocal(clampedLocal, characterCollider);
+    float3 offset = position - closestPoint;
+    return dot(offset, offset);
+}
+
+bool IsNearAnyCharacterCollider(float3 position, float radius)
+{
+    if (_CharacterColliderCount <= 0)
+        return false;
+
+    float radiusSquared = radius * radius;
+    [loop]
+    for (int colliderIndex = 0; colliderIndex < _CharacterColliderCount; colliderIndex++)
+    {
+        if (DistanceSquaredToCharacterCollider(position, _CharacterColliderBuffer[colliderIndex]) <= radiusSquared)
+            return true;
+    }
+
+    return false;
+}
+
+BottlePoseData BuildPoseFromPositions(uint bottleIndex, bool useParticlePositionBuffer)
+{
+    uint start = bottleIndex * _ParticlesPerBottle;
+
+    float3 positions[6];
+    [unroll]
+    for (uint poseSampleIndex = 0u; poseSampleIndex < 6u; poseSampleIndex++)
+    {
+        uint particleIndex = start + poseSampleIndex;
+        positions[poseSampleIndex] = useParticlePositionBuffer
+            ? _ParticlePositionReadBuffer[particleIndex].xyz
+            : _PredictedReadBuffer[particleIndex].xyz;
+    }
+
+    float3 center = 0.0;
+    [unroll]
+    for (uint centerSampleIndex = 0u; centerSampleIndex < 6u; centerSampleIndex++)
+    {
+        center += positions[centerSampleIndex];
+    }
+    center /= 6.0;
+
+    float3 up = SafeNormalize(positions[0] - positions[1], float3(0.0, 1.0, 0.0));
+    float3 right = SafeNormalize(positions[2] - positions[3], float3(1.0, 0.0, 0.0));
+    float3 forwardHint = SafeNormalize(positions[4] - positions[5], float3(0.0, 0.0, 1.0));
+
+    right = SafeNormalize(right - up * dot(right, up), float3(1.0, 0.0, 0.0));
+    float3 forward = SafeNormalize(cross(right, up), forwardHint);
+
+    if (dot(forward, forwardHint) < 0.0)
+        forward *= -1.0;
+
+    right = SafeNormalize(cross(up, forward), right);
+
+    BottlePoseData pose;
+    pose.center = center;
+    pose.padding0 = 0.0;
+    pose.axisX = right;
+    pose.padding1 = 0.0;
+    pose.axisY = up;
+    pose.padding2 = 0.0;
+    pose.axisZ = forward;
+    pose.padding3 = 0.0;
+    return pose;
+}
+
+[numthreads(64, 1, 1)]
+void ClearOccupiedCellRanges(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint occupiedIndex = dispatchThreadId.x;
+    uint occupiedCellCount = _OccupiedCellCounterReadBuffer[0];
+    if (occupiedIndex >= occupiedCellCount)
+        return;
+
+    uint cellKey = _OccupiedCellReadBuffer[occupiedIndex];
+    if (cellKey >= (uint)_GridCellCount)
+        return;
+
+    _CellStartBuffer[cellKey] = 0xFFFFFFFFu;
+    _CellEndBuffer[cellKey] = 0xFFFFFFFFu;
+}
+
+[numthreads(64, 1, 1)]
+void ResetOccupiedCellCounter(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    if (dispatchThreadId.x != 0u)
+        return;
+
+    _OccupiedCellCounterBuffer[0] = 0u;
+}
+
+[numthreads(64, 1, 1)]
+void ClearCollisionCellFlags(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint collisionIndex = dispatchThreadId.x;
+    uint collisionCellCount = _CollisionCellCounterReadBuffer[0];
+    if (collisionIndex >= collisionCellCount)
+        return;
+
+    uint cellKey = _CollisionCellReadBuffer[collisionIndex];
+    if (cellKey >= (uint)_GridCellCount)
+        return;
+
+    _CollisionCellFlagBuffer[cellKey] = 0u;
+}
+
+[numthreads(64, 1, 1)]
+void ResetCollisionCellCounter(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    if (dispatchThreadId.x != 0u)
+        return;
+
+    _CollisionCellCounterBuffer[0] = 0u;
+}
+
+[numthreads(64, 1, 1)]
+void ResetActiveBottleCounter(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    if (dispatchThreadId.x != 0u)
+        return;
+
+    _ActiveBottleCounterBuffer[0] = 0u;
+}
+
+[numthreads(64, 1, 1)]
+void BuildActiveBottleList(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bottleIndex = dispatchThreadId.x;
+    if (bottleIndex >= (uint)_BottleCount)
+        return;
+
+    bool isSleeping = IsBottleSleeping(bottleIndex);
+    bool wakeRequested = _BottleWakeRequestBuffer[bottleIndex] != 0u;
+    bool nearCharacter = IsNearAnyCharacterCollider(_BottlePoseReadBuffer[bottleIndex].center, _SleepCharacterWakeRadius);
+    bool shouldActivate = !isSleeping || wakeRequested || nearCharacter;
+
+    if (!shouldActivate)
+        return;
+
+    if (isSleeping)
+    {
+        _BottleFlagsBuffer[bottleIndex] = 0u;
+        _BottleSleepCounterBuffer[bottleIndex] = 0u;
+    }
+
+    uint writeIndex = 0u;
+    InterlockedAdd(_ActiveBottleCounterBuffer[0], 1u, writeIndex);
+    _ActiveBottleListBuffer[writeIndex] = bottleIndex;
+}
+
+[numthreads(64, 1, 1)]
+void FinalizeActiveBottleDispatchArgs(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    if (dispatchThreadId.x != 0u)
+        return;
+
+    uint activeBottleCount = _ActiveBottleCounterReadBuffer[0];
+    uint groupCount = max(1u, (activeBottleCount + 63u) / 64u);
+    _ActiveBottleDispatchArgsBuffer[0] = groupCount;
+    _ActiveBottleDispatchArgsBuffer[1] = 1u;
+    _ActiveBottleDispatchArgsBuffer[2] = 1u;
+}
+
+[numthreads(64, 1, 1)]
+void ClearContactAccum(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint particleIndex = dispatchThreadId.x;
+    if (particleIndex >= (uint)_ParticleCount)
+        return;
+
+    ContactAccumData accum;
+    accum.correction = 0.0;
+    accum.count = 0.0;
+    _ContactAccumBuffer[particleIndex] = accum;
+}
+
+[numthreads(64, 1, 1)]
+void ClearRadixHistogram(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bucketIndex = dispatchThreadId.x;
+    if (bucketIndex >= 256u)
+        return;
+
+    _RadixHistogramBuffer[bucketIndex] = 0u;
+    _RadixOffsetBuffer[bucketIndex] = 0u;
+}
+
+[numthreads(64, 1, 1)]
+void Predict(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bottleIndex;
+    if (!TryGetActiveBottleIndex(dispatchThreadId.x, bottleIndex))
+        return;
+
+    uint start = bottleIndex * _ParticlesPerBottle;
+    bool bottleSleeping = IsBottleSleeping(bottleIndex);
+
+    [unroll]
+    for (uint localIndex = 0u; localIndex < 6u; localIndex++)
+    {
+        uint particleIndex = start + localIndex;
+        if (bottleSleeping)
+        {
+            _PredictedWriteBuffer[particleIndex] = _ParticlePositionReadBuffer[particleIndex];
+            continue;
+        }
+
+        float3 position = _ParticlePositionReadBuffer[particleIndex].xyz;
+        float3 velocity = _ParticleVelocityReadBuffer[particleIndex].xyz + _Gravity.xyz * _SubstepDeltaTime;
+        velocity *= _VelocityDamping;
+
+        float speed = length(velocity);
+        if (speed > _MaxSpeed)
+        {
+            velocity *= _MaxSpeed / max(speed, 1e-5);
+        }
+
+        float3 predicted = position + velocity * _SubstepDeltaTime;
+        _PredictedWriteBuffer[particleIndex] = float4(predicted, 1.0);
+    }
+}
+
+[numthreads(64, 1, 1)]
+void BuildGridKeys(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint particleIndex = dispatchThreadId.x;
+    if (particleIndex >= (uint)_PaddedParticleCount)
+        return;
+
+    if (_EnableDebugStats != 0 && particleIndex == 0u)
+    {
+        InterlockedAdd(_DebugStatsBuffer[2], 1u);
+    }
+
+    if (particleIndex >= (uint)_ParticleCount)
+    {
+        _GridKeyIndexBuffer[particleIndex] = uint2(0xFFFFFFFFu, 0xFFFFFFFFu);
+        return;
+    }
+
+        ParticleStaticData staticData = _ParticleStaticBuffer[particleIndex];
+        if (IsBottleSleeping(staticData.bottleIndex) && _BottleWakeRequestBuffer[staticData.bottleIndex] == 0u)
+        {
+            _GridKeyIndexBuffer[particleIndex] = uint2(0xFFFFFFFFu, 0xFFFFFFFFu);
+            return;
+        }
+
+    float3 predicted = _PredictedReadBuffer[particleIndex].xyz;
+    int3 coord;
+    if (!TryGetCellCoord(predicted, coord))
+    {
+        _GridKeyIndexBuffer[particleIndex] = uint2(0xFFFFFFFFu, 0xFFFFFFFFu);
+        return;
+    }
+
+    uint cellKey = GetCellKey(coord);
+    _GridKeyIndexBuffer[particleIndex] = uint2(cellKey, particleIndex);
+}
+
+[numthreads(64, 1, 1)]
+void BuildRadixHistogram(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint index = dispatchThreadId.x;
+    if (index >= (uint)_PaddedParticleCount)
+        return;
+
+    uint key = _RadixInputBuffer[index].x;
+    uint bucket = GetRadixBucket(key);
+    InterlockedAdd(_RadixHistogramBuffer[bucket], 1u);
+}
+
+[numthreads(1, 1, 1)]
+void PrefixRadixHistogram(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    if (dispatchThreadId.x != 0u)
+        return;
+
+    uint prefix = 0u;
+    [loop]
+    for (uint bucket = 0u; bucket < 256u; bucket++)
+    {
+        uint count = _RadixHistogramBuffer[bucket];
+        _RadixOffsetBuffer[bucket] = prefix;
+        prefix += count;
+    }
+}
+
+[numthreads(64, 1, 1)]
+void ScatterRadixPairs(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint index = dispatchThreadId.x;
+    if (index >= (uint)_PaddedParticleCount)
+        return;
+
+    uint2 pair = _RadixInputBuffer[index];
+    uint bucket = GetRadixBucket(pair.x);
+    uint scatterIndex = 0u;
+    InterlockedAdd(_RadixOffsetBuffer[bucket], 1u, scatterIndex);
+    _RadixOutputBuffer[scatterIndex] = pair;
+}
+
+[numthreads(64, 1, 1)]
+void BlockLocalSort(uint3 groupThreadId : SV_GroupThreadID, uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint localIndex = groupThreadId.x;
+    uint globalIndex = dispatchThreadId.x;
+    _SortTilePairs[localIndex] = GetGridPairOrSentinel(globalIndex);
+    GroupMemoryBarrierWithGroupSync();
+
+    [unroll]
+    for (uint level = 2u; level <= SortTileSize; level <<= 1u)
+    {
+        [unroll]
+        for (uint levelMask = level >> 1u; levelMask > 0u; levelMask >>= 1u)
+        {
+            uint partnerIndex = localIndex ^ levelMask;
+            if (partnerIndex > localIndex)
+            {
+                uint2 selfValue = _SortTilePairs[localIndex];
+                uint2 partnerValue = _SortTilePairs[partnerIndex];
+                bool ascending = (localIndex & level) == 0u;
+                bool shouldSwap = ascending
+                    ? IsGridPairLess(partnerValue, selfValue)
+                    : IsGridPairLess(selfValue, partnerValue);
+
+                if (shouldSwap)
+                {
+                    _SortTilePairs[localIndex] = partnerValue;
+                    _SortTilePairs[partnerIndex] = selfValue;
+                }
+            }
+
+            GroupMemoryBarrierWithGroupSync();
+        }
+    }
+
+    if (globalIndex < (uint)_PaddedParticleCount)
+        _GridKeyIndexBuffer[globalIndex] = _SortTilePairs[localIndex];
+}
+
+[numthreads(64, 1, 1)]
+void MergeSortedBlocks(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint outputIndex = dispatchThreadId.x;
+    if (outputIndex >= (uint)_PaddedParticleCount)
+        return;
+
+    uint leftRunWidth = (uint)_SortMergeRunWidth;
+    if (leftRunWidth == 0u)
+        return;
+
+    uint mergedRunWidth = leftRunWidth << 1u;
+    uint blockStart = (outputIndex / mergedRunWidth) * mergedRunWidth;
+    uint blockOffset = outputIndex - blockStart;
+    uint leftStart = blockStart;
+    uint rightStart = min(leftStart + leftRunWidth, (uint)_PaddedParticleCount);
+    uint leftCount = min(leftRunWidth, (uint)_PaddedParticleCount - leftStart);
+    uint rightCount = min(leftRunWidth, (uint)_PaddedParticleCount - rightStart);
+
+    int low = max(0, (int)blockOffset - (int)rightCount);
+    int high = min((int)blockOffset, (int)leftCount);
+
+    while (low <= high)
+    {
+        int leftPrefix = (low + high) >> 1;
+        int rightPrefix = (int)blockOffset - leftPrefix;
+
+        bool moveLeft = leftPrefix > 0
+            && rightPrefix < (int)rightCount
+            && IsGridPairLess(
+                _GridKeyIndexReadBuffer[rightStart + (uint)rightPrefix],
+                _GridKeyIndexReadBuffer[leftStart + (uint)(leftPrefix - 1)]);
+        if (moveLeft)
+        {
+            high = leftPrefix - 1;
+            continue;
+        }
+
+        bool moveRight = rightPrefix > 0
+            && leftPrefix < (int)leftCount
+            && IsGridPairLess(
+                _GridKeyIndexReadBuffer[leftStart + (uint)leftPrefix],
+                _GridKeyIndexReadBuffer[rightStart + (uint)(rightPrefix - 1)]);
+        if (moveRight)
+        {
+            low = leftPrefix + 1;
+            continue;
+        }
+
+        low = leftPrefix;
+        break;
+    }
+
+    int leftPrefixResult = clamp(low, 0, (int)leftCount);
+    int rightPrefixResult = (int)blockOffset - leftPrefixResult;
+    bool hasLeft = leftPrefixResult < (int)leftCount;
+    bool hasRight = rightPrefixResult < (int)rightCount;
+
+    uint2 mergedValue;
+    if (!hasLeft)
+    {
+        mergedValue = _GridKeyIndexReadBuffer[rightStart + (uint)rightPrefixResult];
+    }
+    else if (!hasRight)
+    {
+        mergedValue = _GridKeyIndexReadBuffer[leftStart + (uint)leftPrefixResult];
+    }
+    else
+    {
+        uint2 leftValue = _GridKeyIndexReadBuffer[leftStart + (uint)leftPrefixResult];
+        uint2 rightValue = _GridKeyIndexReadBuffer[rightStart + (uint)rightPrefixResult];
+        mergedValue = IsGridPairLess(rightValue, leftValue) ? rightValue : leftValue;
+    }
+
+    _GridKeyIndexBuffer[outputIndex] = mergedValue;
+}
+
+[numthreads(64, 1, 1)]
+void BuildCellRanges(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint sortedIndex = dispatchThreadId.x;
+    if (sortedIndex >= (uint)_PaddedParticleCount)
+        return;
+
+    uint2 pair = _GridKeyIndexReadBuffer[sortedIndex];
+    uint cellKey = pair.x;
+    if (cellKey == 0xFFFFFFFFu || cellKey >= (uint)_GridCellCount)
+        return;
+
+    uint previousKey = sortedIndex > 0u
+        ? _GridKeyIndexReadBuffer[sortedIndex - 1u].x
+        : 0xFFFFFFFFu;
+    uint nextKey = sortedIndex + 1u < (uint)_PaddedParticleCount
+        ? _GridKeyIndexReadBuffer[sortedIndex + 1u].x
+        : 0xFFFFFFFFu;
+
+    if (cellKey != previousKey)
+    {
+        _CellStartBuffer[cellKey] = sortedIndex;
+
+        uint occupiedCellWriteIndex = 0u;
+        InterlockedAdd(_OccupiedCellCounterBuffer[0], 1u, occupiedCellWriteIndex);
+        _OccupiedCellBuffer[occupiedCellWriteIndex] = cellKey;
+    }
+
+    if (cellKey != nextKey)
+        _CellEndBuffer[cellKey] = sortedIndex + 1u;
+}
+
+[numthreads(64, 1, 1)]
+void BuildCellPairList(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint occupiedIndex = dispatchThreadId.x;
+    uint occupiedCellCount = _OccupiedCellCounterReadBuffer[0];
+    if (occupiedIndex >= occupiedCellCount)
+        return;
+
+    uint cellKey = _OccupiedCellReadBuffer[occupiedIndex];
+    if (cellKey >= (uint)_GridCellCount)
+        return;
+
+    uint rangeStart = _CellStartReadBuffer[cellKey];
+    uint rangeEnd = _CellEndReadBuffer[cellKey];
+    if (rangeStart == 0xFFFFFFFFu || rangeEnd == 0xFFFFFFFFu || rangeEnd <= rangeStart)
+    {
+        _CellPairCountBuffer[occupiedIndex] = 0u;
+        return;
+    }
+
+    uint pairBaseIndex = occupiedIndex * MaxCellPairsPerOccupiedCell;
+    uint pairCount = 0u;
+    int3 coord = GetCoordFromCellKey(cellKey);
+
+    [loop]
+    for (int z = -1; z <= 1; z++)
+    {
+        [loop]
+        for (int y = -1; y <= 1; y++)
+        {
+            [loop]
+            for (int x = -1; x <= 1; x++)
+            {
+                int3 neighborCoord = coord + int3(x, y, z);
+                if (any(neighborCoord < 0) || any(neighborCoord >= _GridDim))
+                    continue;
+
+                uint neighborKey = GetCellKey(neighborCoord);
+                uint neighborStart = _CellStartReadBuffer[neighborKey];
+                uint neighborEnd = _CellEndReadBuffer[neighborKey];
+                if (neighborStart == 0xFFFFFFFFu || neighborEnd == 0xFFFFFFFFu || neighborEnd <= neighborStart)
+                    continue;
+
+                bool isSelfPair = x == 0 && y == 0 && z == 0;
+                if (isSelfPair && rangeEnd - rangeStart < 2u)
+                    continue;
+
+                _CellPairBuffer[pairBaseIndex + pairCount] = uint2(cellKey, neighborKey);
+                pairCount++;
+            }
+        }
+    }
+
+    _CellPairCountBuffer[occupiedIndex] = pairCount;
+}
+
+[numthreads(64, 1, 1)]
+void FinalizeCellRangesStats(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    if (_EnableDebugStats == 0)
+        return;
+
+    uint occupiedIndex = dispatchThreadId.x;
+    uint occupiedCellCount = _OccupiedCellCounterReadBuffer[0];
+
+    if (occupiedIndex == 0u)
+        _DebugStatsBuffer[1] = occupiedCellCount;
+
+    if (occupiedIndex >= occupiedCellCount)
+        return;
+
+    uint cellKey = _OccupiedCellReadBuffer[occupiedIndex];
+    if (cellKey >= (uint)_GridCellCount)
+        return;
+
+    uint rangeStart = _CellStartReadBuffer[cellKey];
+    uint rangeEnd = _CellEndReadBuffer[cellKey];
+    if (rangeStart == 0xFFFFFFFFu || rangeEnd == 0xFFFFFFFFu || rangeEnd <= rangeStart)
+        return;
+
+    InterlockedMax(_DebugStatsBuffer[0], rangeEnd - rangeStart);
+}
+
+[numthreads(64, 1, 1)]
+void SolveStaticColliders(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bottleIndex;
+    if (!TryGetActiveBottleIndex(dispatchThreadId.x, bottleIndex))
+        return;
+
+    uint start = bottleIndex * _ParticlesPerBottle;
+    bool bottleSleeping = IsBottleSleeping(bottleIndex);
+
+    [unroll]
+    for (uint localIndex = 0u; localIndex < 6u; localIndex++)
+    {
+        uint particleIndex = start + localIndex;
+        ParticleStaticData staticData = _ParticleStaticBuffer[particleIndex];
+        float3 position = _PredictedReadBuffer[particleIndex].xyz;
+        if (bottleSleeping)
+        {
+            _PredictedWriteBuffer[particleIndex] = float4(position, 1.0);
+            continue;
+        }
+
+        float radius = staticData.radius;
+
+        position.x = clamp(position.x, _SimulationBoundsMin.x + radius, _SimulationBoundsMax.x - radius);
+        position.y = clamp(position.y, _SimulationBoundsMin.y + radius, _SimulationBoundsMax.y - radius);
+        position.z = clamp(position.z, _SimulationBoundsMin.z + radius, _SimulationBoundsMax.z - radius);
+
+        _PredictedWriteBuffer[particleIndex] = float4(position, 1.0);
+    }
+}
+
+[numthreads(64, 1, 1)]
+void SolveCharacterCollider(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bottleIndex;
+    if (!TryGetActiveBottleIndex(dispatchThreadId.x, bottleIndex))
+        return;
+
+    uint start = bottleIndex * _ParticlesPerBottle;
+
+    if (_CharacterColliderCount <= 0)
+    {
+        [unroll]
+        for (uint passthroughParticleLocalIndex = 0u; passthroughParticleLocalIndex < 6u; passthroughParticleLocalIndex++)
+        {
+            uint particleIndex = start + passthroughParticleLocalIndex;
+            float3 position = _PredictedReadBuffer[particleIndex].xyz;
+            _PredictedWriteBuffer[particleIndex] = float4(position, 1.0);
+        }
+        return;
+    }
+
+    bool bottleSleeping = IsBottleSleeping(bottleIndex);
+
+    [unroll]
+    for (uint characterParticleLocalIndex = 0u; characterParticleLocalIndex < 6u; characterParticleLocalIndex++)
+    {
+        uint particleIndex = start + characterParticleLocalIndex;
+        float3 position = _PredictedReadBuffer[particleIndex].xyz;
+        ParticleStaticData staticData = _ParticleStaticBuffer[particleIndex];
+        [loop]
+        for (int colliderIndex = 0; colliderIndex < _CharacterColliderCount; colliderIndex++)
+        {
+            CharacterColliderData characterCollider = _CharacterColliderBuffer[colliderIndex];
+            if (any(characterCollider.halfExtents <= 0.0))
+                continue;
+
+            float3 halfExtents = max(characterCollider.halfExtents, float3(1e-4, 1e-4, 1e-4));
+            float3 localPosition = ToBoxLocal(position - characterCollider.center, characterCollider);
+            float3 clampedLocal = clamp(localPosition, -halfExtents, halfExtents);
+            bool insideBox = all(abs(localPosition) <= halfExtents);
+
+            if (insideBox)
+            {
+                float3 distanceToFaces = halfExtents - abs(localPosition);
+                uint axisIndex = 0u;
+                float minDistance = distanceToFaces.x;
+
+                if (distanceToFaces.y < minDistance)
+                {
+                    axisIndex = 1u;
+                    minDistance = distanceToFaces.y;
+                }
+
+                if (distanceToFaces.z < minDistance)
+                    axisIndex = 2u;
+
+                float3 localNormal = 0.0;
+                if (axisIndex == 0u)
+                    localNormal.x = SignNotZero(localPosition.x, dot(characterCollider.deltaPosition, characterCollider.axisX));
+                else if (axisIndex == 1u)
+                    localNormal.y = SignNotZero(localPosition.y, dot(characterCollider.deltaPosition, characterCollider.axisY));
+                else
+                    localNormal.z = SignNotZero(localPosition.z, dot(characterCollider.deltaPosition, characterCollider.axisZ));
+
+                float3 normal = SafeNormalize(FromBoxLocal(localNormal, characterCollider), characterCollider.axisZ);
+                if (bottleSleeping)
+                    _BottleWakeRequestBuffer[bottleIndex] = 1u;
+
+                float3 correctedLocal = localPosition + localNormal * staticData.radius;
+                if (axisIndex == 0u)
+                    correctedLocal.x = localNormal.x * (halfExtents.x + staticData.radius);
+                else if (axisIndex == 1u)
+                    correctedLocal.y = localNormal.y * (halfExtents.y + staticData.radius);
+                else
+                    correctedLocal.z = localNormal.z * (halfExtents.z + staticData.radius);
+
+                position = characterCollider.center + FromBoxLocal(correctedLocal, characterCollider);
+                if (characterCollider.pushStrength > 0.0)
+                {
+                    position += characterCollider.deltaPosition * characterCollider.pushStrength;
+                    position -= normal * dot(characterCollider.deltaPosition, normal) * characterCollider.tangentialDamping;
+                }
+                continue;
+            }
+
+            float3 closestPoint = characterCollider.center + FromBoxLocal(clampedLocal, characterCollider);
+            float3 offset = position - closestPoint;
+            float distanceSquared = dot(offset, offset);
+            float particleRadius = staticData.radius;
+
+            if (distanceSquared < particleRadius * particleRadius)
+            {
+                float3 normal = SafeNormalize(offset, SafeNormalize(position - characterCollider.center, characterCollider.axisZ));
+                if (bottleSleeping)
+                    _BottleWakeRequestBuffer[bottleIndex] = 1u;
+                position = closestPoint + normal * particleRadius;
+                if (characterCollider.pushStrength > 0.0)
+                {
+                    position += characterCollider.deltaPosition * characterCollider.pushStrength;
+                    position -= normal * dot(characterCollider.deltaPosition, normal) * characterCollider.tangentialDamping;
+                }
+            }
+        }
+
+        _PredictedWriteBuffer[particleIndex] = float4(position, 1.0);
+    }
+}
+
+[numthreads(64, 1, 1)]
+void SolveParticleContacts(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bottleIndex;
+    if (!TryGetActiveBottleIndex(dispatchThreadId.x, bottleIndex))
+        return;
+
+    uint start = bottleIndex * _ParticlesPerBottle;
+    bool bottleSleeping = IsBottleSleeping(bottleIndex);
+    bool bottleWakeRequested = _BottleWakeRequestBuffer[bottleIndex] != 0u;
+    if (bottleSleeping && !bottleWakeRequested)
+    {
+        [unroll]
+        for (uint sleepingParticleLocalIndex = 0u; sleepingParticleLocalIndex < 6u; sleepingParticleLocalIndex++)
+        {
+            uint particleIndex = start + sleepingParticleLocalIndex;
+            float3 position = _PredictedReadBuffer[particleIndex].xyz;
+            _PredictedWriteBuffer[particleIndex] = float4(position, 1.0);
+        }
+        return;
+    }
+
+    [unroll]
+    for (uint contactParticleLocalIndex = 0u; contactParticleLocalIndex < 6u; contactParticleLocalIndex++)
+    {
+        uint particleIndex = start + contactParticleLocalIndex;
+        ParticleStaticData staticData = _ParticleStaticBuffer[particleIndex];
+        float3 position = _PredictedReadBuffer[particleIndex].xyz;
+
+        int3 originCoord;
+        if (!TryGetCellCoord(position, originCoord))
+        {
+            _PredictedWriteBuffer[particleIndex] = float4(position, 1.0);
+            continue;
+        }
+
+        float3 correction = 0.0;
+        uint correctionCount = 0;
+        bool useCollisionCellFilter = _UseCollisionCellFilter != 0;
+        bool hasCollisionNeighbor = !useCollisionCellFilter;
+
+        [loop]
+        for (int z = -1; z <= 1 && !hasCollisionNeighbor; z++)
+        {
+            [loop]
+            for (int y = -1; y <= 1 && !hasCollisionNeighbor; y++)
+            {
+                [loop]
+                for (int x = -1; x <= 1; x++)
+                {
+                    int3 neighborCoord = originCoord + int3(x, y, z);
+                    if (any(neighborCoord < 0) || any(neighborCoord >= _GridDim))
+                        continue;
+
+                    uint neighborKey = GetCellKey(neighborCoord);
+                    if (_CollisionCellFlagReadBuffer[neighborKey] != 0u)
+                    {
+                        hasCollisionNeighbor = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!hasCollisionNeighbor)
+        {
+            _PredictedWriteBuffer[particleIndex] = float4(position, 1.0);
+            continue;
+        }
+
+        [loop]
+        for (int z = -1; z <= 1; z++)
+        {
+            [loop]
+            for (int y = -1; y <= 1; y++)
+            {
+                [loop]
+                for (int x = -1; x <= 1; x++)
+                {
+                    int3 neighborCoord = originCoord + int3(x, y, z);
+                    if (any(neighborCoord < 0) || any(neighborCoord >= _GridDim))
+                        continue;
+
+                    uint cellKey = GetCellKey(neighborCoord);
+                    if (useCollisionCellFilter && _CollisionCellFlagReadBuffer[cellKey] == 0u)
+                        continue;
+
+                    uint rangeStart = _CellStartReadBuffer[cellKey];
+                    uint rangeEnd = _CellEndReadBuffer[cellKey];
+                    if (rangeStart == 0xFFFFFFFFu || rangeEnd == 0xFFFFFFFFu || rangeEnd <= rangeStart)
+                        continue;
+
+                    [loop]
+                    for (uint sortedIndex = rangeStart; sortedIndex < rangeEnd; sortedIndex++)
+                    {
+                        uint neighborIndex = _GridKeyIndexReadBuffer[sortedIndex].y;
+                        if (neighborIndex == 0xFFFFFFFFu || neighborIndex == particleIndex)
+                            continue;
+
+                        ParticleStaticData neighborStatic = _ParticleStaticBuffer[neighborIndex];
+                        if (neighborStatic.bottleIndex == staticData.bottleIndex)
+                            continue;
+
+                        bool neighborSleeping = IsBottleSleeping(neighborStatic.bottleIndex);
+
+                        float3 neighborPosition = _PredictedReadBuffer[neighborIndex].xyz;
+                        float combinedRadius = staticData.radius + neighborStatic.radius;
+                        float3 delta = position - neighborPosition;
+                        float distanceSquared = dot(delta, delta);
+
+                        if (distanceSquared >= combinedRadius * combinedRadius)
+                            continue;
+
+                        float distance = sqrt(max(distanceSquared, 1e-8));
+                        float penetration = combinedRadius - distance;
+                        if (penetration <= _ContactSlop)
+                            continue;
+
+                        float3 normal = delta / max(distance, 1e-4);
+                        if (neighborSleeping)
+                        {
+                            InterlockedMax(_BottleWakeRequestBuffer[neighborStatic.bottleIndex], 1u);
+                        }
+
+                        float correctionWeight = neighborSleeping ? 1.0 : 0.5;
+                        correction += normal * (penetration - _ContactSlop) * correctionWeight;
+                        correctionCount++;
+
+                        if (_EnableDebugStats != 0)
+                        {
+                            InterlockedAdd(_DebugStatsBuffer[3], 1);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (correctionCount > 0)
+        {
+            position += correction / correctionCount;
+        }
+
+        _PredictedWriteBuffer[particleIndex] = float4(position, 1.0);
+    }
+}
+
+[numthreads(64, 1, 1)]
+void SolveContactsByCellPairList(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint occupiedIndex = dispatchThreadId.x;
+    uint occupiedCellCount = _OccupiedCellCounterReadBuffer[0];
+    if (occupiedIndex >= occupiedCellCount)
+        return;
+
+    uint sourceCellKey = _OccupiedCellReadBuffer[occupiedIndex];
+    if (sourceCellKey >= (uint)_GridCellCount)
+        return;
+
+    uint rangeStart = _CellStartReadBuffer[sourceCellKey];
+    uint rangeEnd = _CellEndReadBuffer[sourceCellKey];
+    if (rangeStart == 0xFFFFFFFFu || rangeEnd == 0xFFFFFFFFu || rangeEnd <= rangeStart)
+        return;
+
+    uint pairCount = _CellPairCountReadBuffer[occupiedIndex];
+    if (pairCount == 0u)
+        return;
+
+    uint pairBaseIndex = occupiedIndex * MaxCellPairsPerOccupiedCell;
+
+    [loop]
+    for (uint sortedIndex = rangeStart; sortedIndex < rangeEnd; sortedIndex++)
+    {
+        uint particleIndex = _GridKeyIndexReadBuffer[sortedIndex].y;
+        if (particleIndex == 0xFFFFFFFFu || particleIndex >= (uint)_ParticleCount)
+            continue;
+
+        ParticleStaticData staticData = _ParticleStaticBuffer[particleIndex];
+        bool bottleSleeping = IsBottleSleeping(staticData.bottleIndex);
+        bool bottleWakeRequested = _BottleWakeRequestBuffer[staticData.bottleIndex] != 0u;
+        if (bottleSleeping && !bottleWakeRequested)
+            continue;
+
+        float3 position = _PredictedReadBuffer[particleIndex].xyz;
+        float3 correction = 0.0;
+        uint correctionCount = 0u;
+
+        [loop]
+        for (uint pairIndex = 0u; pairIndex < pairCount; pairIndex++)
+        {
+            uint2 cellPair = _CellPairReadBuffer[pairBaseIndex + pairIndex];
+            uint neighborKey = cellPair.y;
+            uint neighborStart = _CellStartReadBuffer[neighborKey];
+            uint neighborEnd = _CellEndReadBuffer[neighborKey];
+            if (neighborStart == 0xFFFFFFFFu || neighborEnd == 0xFFFFFFFFu || neighborEnd <= neighborStart)
+                continue;
+
+            [loop]
+            for (uint neighborSortedIndex = neighborStart; neighborSortedIndex < neighborEnd; neighborSortedIndex++)
+            {
+                uint neighborIndex = _GridKeyIndexReadBuffer[neighborSortedIndex].y;
+                if (neighborIndex == 0xFFFFFFFFu || neighborIndex == particleIndex)
+                    continue;
+
+                ParticleStaticData neighborStatic = _ParticleStaticBuffer[neighborIndex];
+                if (neighborStatic.bottleIndex == staticData.bottleIndex)
+                    continue;
+
+                bool neighborSleeping = IsBottleSleeping(neighborStatic.bottleIndex);
+                float3 neighborPosition = _PredictedReadBuffer[neighborIndex].xyz;
+                float combinedRadius = staticData.radius + neighborStatic.radius;
+                float3 delta = position - neighborPosition;
+                float distanceSquared = dot(delta, delta);
+
+                if (distanceSquared >= combinedRadius * combinedRadius)
+                    continue;
+
+                float distance = sqrt(max(distanceSquared, 1e-8));
+                float penetration = combinedRadius - distance;
+                if (penetration <= _ContactSlop)
+                    continue;
+
+                float3 normal = delta / max(distance, 1e-4);
+                if (neighborSleeping)
+                {
+                    InterlockedMax(_BottleWakeRequestBuffer[neighborStatic.bottleIndex], 1u);
+                }
+
+                float correctionWeight = neighborSleeping ? 1.0 : 0.5;
+                correction += normal * (penetration - _ContactSlop) * correctionWeight;
+                correctionCount++;
+
+                if (_EnableDebugStats != 0)
+                {
+                    InterlockedAdd(_DebugStatsBuffer[3], 1u);
+                }
+            }
+        }
+
+        ContactAccumData accum;
+        accum.correction = correction;
+        accum.count = (float)correctionCount;
+        _ContactAccumBuffer[particleIndex] = accum;
+    }
+}
+
+[numthreads(64, 1, 1)]
+void ApplyContactCorrections(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bottleIndex;
+    if (!TryGetActiveBottleIndex(dispatchThreadId.x, bottleIndex))
+        return;
+
+    uint start = bottleIndex * _ParticlesPerBottle;
+    bool bottleSleeping = IsBottleSleeping(bottleIndex);
+    bool bottleWakeRequested = _BottleWakeRequestBuffer[bottleIndex] != 0u;
+    if (bottleSleeping && !bottleWakeRequested)
+    {
+        [unroll]
+        for (uint sleepingParticleLocalIndex = 0u; sleepingParticleLocalIndex < 6u; sleepingParticleLocalIndex++)
+        {
+            uint particleIndex = start + sleepingParticleLocalIndex;
+            _PredictedWriteBuffer[particleIndex] = _PredictedReadBuffer[particleIndex];
+        }
+        return;
+    }
+
+    [unroll]
+    for (uint correctedParticleLocalIndex = 0u; correctedParticleLocalIndex < 6u; correctedParticleLocalIndex++)
+    {
+        uint particleIndex = start + correctedParticleLocalIndex;
+        float3 position = _PredictedReadBuffer[particleIndex].xyz;
+        ContactAccumData accum = _ContactAccumReadBuffer[particleIndex];
+        if (accum.count > 0.0)
+        {
+            position += accum.correction / accum.count;
+        }
+
+        _PredictedWriteBuffer[particleIndex] = float4(position, 1.0);
+    }
+}
+
+[numthreads(64, 1, 1)]
+void ApplyShapeMatching(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bottleIndex;
+    if (!TryGetActiveBottleIndex(dispatchThreadId.x, bottleIndex))
+        return;
+
+    uint start = bottleIndex * _ParticlesPerBottle;
+    bool bottleSleeping = IsBottleSleeping(bottleIndex);
+    bool wakeRequested = _BottleWakeRequestBuffer[bottleIndex] != 0u;
+    if (bottleSleeping && !wakeRequested)
+    {
+        [unroll]
+        for (uint sleepingParticleLocalIndex = 0u; sleepingParticleLocalIndex < 6u; sleepingParticleLocalIndex++)
+        {
+            uint particleIndex = start + sleepingParticleLocalIndex;
+            _PredictedWriteBuffer[particleIndex] = _PredictedReadBuffer[particleIndex];
+        }
+        return;
+    }
+
+    BottlePoseData pose = BuildPoseFromPositions(bottleIndex, false);
+    [unroll]
+    for (uint shapeParticleLocalIndex = 0u; shapeParticleLocalIndex < 6u; shapeParticleLocalIndex++)
+    {
+        uint particleIndex = start + shapeParticleLocalIndex;
+        ParticleStaticData staticData = _ParticleStaticBuffer[particleIndex];
+        float3 currentPosition = _PredictedReadBuffer[particleIndex].xyz;
+        float3 goalPosition = pose.center
+            + pose.axisX * staticData.localRestPosition.x
+            + pose.axisY * staticData.localRestPosition.y
+            + pose.axisZ * staticData.localRestPosition.z;
+
+        float3 position = lerp(currentPosition, goalPosition, _ShapeStiffness);
+        _PredictedWriteBuffer[particleIndex] = float4(position, 1.0);
+    }
+}
+
+[numthreads(64, 1, 1)]
+void FinalizeParticles(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bottleIndex;
+    if (!TryGetActiveBottleIndex(dispatchThreadId.x, bottleIndex))
+        return;
+
+    uint start = bottleIndex * _ParticlesPerBottle;
+    bool isSleeping = IsBottleSleeping(bottleIndex);
+    bool wakeRequested = _BottleWakeRequestBuffer[bottleIndex] != 0u;
+    if (isSleeping && !wakeRequested)
+    {
+        [unroll]
+        for (uint sleepingParticleLocalIndex = 0u; sleepingParticleLocalIndex < 6u; sleepingParticleLocalIndex++)
+        {
+            uint particleIndex = start + sleepingParticleLocalIndex;
+            _ParticleVelocityBuffer[particleIndex] = float4(0.0, 0.0, 0.0, 0.0);
+        }
+        return;
+    }
+
+    float settleSpeedThreshold = max(_SleepSpeedThreshold * 2.0, 1e-4);
+    [unroll]
+    for (uint finalizedParticleLocalIndex = 0u; finalizedParticleLocalIndex < 6u; finalizedParticleLocalIndex++)
+    {
+        uint particleIndex = start + finalizedParticleLocalIndex;
+        float3 statePosition = _ParticlePositionBuffer[particleIndex].xyz;
+        float3 newPosition = _PredictedReadBuffer[particleIndex].xyz;
+        float3 velocity = (newPosition - statePosition) / max(_SubstepDeltaTime, 1e-4);
+        velocity *= _VelocityDamping;
+
+        float speed = length(velocity);
+        if (speed < settleSpeedThreshold)
+        {
+            float settleBlend = saturate(1.0 - speed / settleSpeedThreshold);
+            velocity *= lerp(1.0, 0.25, settleBlend);
+            speed = length(velocity);
+        }
+
+        if (!wakeRequested && speed < _SleepSpeedThreshold * 0.5)
+        {
+            velocity = 0.0;
+            speed = 0.0;
+        }
+
+        if (speed > _MaxSpeed)
+        {
+            velocity *= _MaxSpeed / max(speed, 1e-4);
+        }
+
+        _ParticlePositionBuffer[particleIndex] = float4(newPosition, 1.0);
+        _ParticleVelocityBuffer[particleIndex] = float4(velocity, 0.0);
+    }
+}
+
+[numthreads(64, 1, 1)]
+void UpdateBottlePosesFromState(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bottleIndex;
+    if (!TryGetActiveBottleIndex(dispatchThreadId.x, bottleIndex))
+        return;
+
+    bool bottleSleeping = IsBottleSleeping(bottleIndex);
+    bool wakeRequested = _BottleWakeRequestBuffer[bottleIndex] != 0u;
+    if (bottleSleeping && !wakeRequested)
+        return;
+
+    BottlePoseData pose = BuildPoseFromPositions(bottleIndex, true);
+    _BottlePoseBuffer[bottleIndex] = pose;
+
+    float3 center = pose.center
+        + pose.axisX * _MeshOffset.x
+        + pose.axisY * _MeshOffset.y
+        + pose.axisZ * _MeshOffset.z;
+
+    MatrixRows rows;
+    rows.row0 = float4(pose.axisX * _RenderScale.x, center.x);
+    rows.row1 = float4(pose.axisY * _RenderScale.y, center.y);
+    rows.row2 = float4(pose.axisZ * _RenderScale.z, center.z);
+    _InstanceTransformBuffer[bottleIndex] = rows;
+}
+
+[numthreads(64, 1, 1)]
+void UpdateBottleSleepStates(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint bottleIndex = dispatchThreadId.x;
+    if (bottleIndex >= (uint)_BottleCount)
+        return;
+
+    uint start = bottleIndex * _ParticlesPerBottle;
+    float maxSpeedSquared = 0.0;
+    float speedSquaredSum = 0.0;
+
+    [unroll]
+    for (uint speedSampleLocalIndex = 0u; speedSampleLocalIndex < 6u; speedSampleLocalIndex++)
+    {
+        float3 velocity = _ParticleVelocityBuffer[start + speedSampleLocalIndex].xyz;
+        float speedSquared = dot(velocity, velocity);
+        maxSpeedSquared = max(maxSpeedSquared, speedSquared);
+        speedSquaredSum += speedSquared;
+    }
+
+    float sleepThresholdSquared = _SleepSpeedThreshold * _SleepSpeedThreshold;
+    float averageSpeedSquared = speedSquaredSum / max((float)_ParticlesPerBottle, 1.0);
+    bool nearCharacter = IsNearAnyCharacterCollider(_BottlePoseReadBuffer[bottleIndex].center, _SleepCharacterWakeRadius);
+    bool wakeRequested = _BottleWakeRequestBuffer[bottleIndex] != 0u;
+    bool moving = maxSpeedSquared > sleepThresholdSquared * 4.0 || averageSpeedSquared > sleepThresholdSquared;
+    bool nearActiveNeighbor = !wakeRequested && !nearCharacter && !moving
+        ? HasActiveNeighborBottle(bottleIndex, _BottlePoseReadBuffer[bottleIndex].center, _SleepActiveNeighborWakeRadius)
+        : false;
+
+    if (wakeRequested || nearCharacter || moving || nearActiveNeighbor)
+    {
+        _BottleFlagsBuffer[bottleIndex] = 0u;
+        _BottleSleepCounterBuffer[bottleIndex] = 0u;
+        _BottleWakeRequestBuffer[bottleIndex] = 0u;
+        return;
+    }
+
+    uint sleepCounter = _BottleSleepCounterBuffer[bottleIndex] + 1u;
+    _BottleSleepCounterBuffer[bottleIndex] = sleepCounter;
+    if (sleepCounter >= (uint)_SleepFrameThreshold)
+    {
+        _BottleFlagsBuffer[bottleIndex] = BottleSleepingFlag;
+        [unroll]
+        for (uint sleepingParticleLocalIndex = 0u; sleepingParticleLocalIndex < 6u; sleepingParticleLocalIndex++)
+        {
+            uint particleIndex = start + sleepingParticleLocalIndex;
+            _ParticleVelocityBuffer[particleIndex] = float4(0.0, 0.0, 0.0, 0.0);
+        }
+    }
+
+    _BottleWakeRequestBuffer[bottleIndex] = 0u;
+}

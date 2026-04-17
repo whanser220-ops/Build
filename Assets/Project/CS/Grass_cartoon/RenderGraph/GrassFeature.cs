@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -6,7 +7,9 @@ using UnityEngine.Rendering.Universal;
 
 public class GrassFeature : ScriptableRendererFeature
 {
-    [System.Serializable]
+    private const int k_DefaultPoissonMaxAttempts = 30;
+
+    [Serializable]
     public class GrassClumpSettings
     {
         [Header("簇分布")]
@@ -22,6 +25,10 @@ public class GrassFeature : ScriptableRendererFeature
         [Range(0.0f, 1.0f)]
         public float orientationUniformity = 0.8f;
 
+        [Tooltip("类型级朝向一致性：0=每簇随机朝向，1=同类型簇朝向一致")]
+        [Range(0.0f, 1.0f)]
+        public float typeOrientationUniformity = 0.0f;
+
         [Header("基础形态")]
         public float baseHeight = 1.0f;
         public float baseWidth = 0.1f;
@@ -33,9 +40,30 @@ public class GrassFeature : ScriptableRendererFeature
         [Range(0, 1)] public float widthVar = 0.3f;
         [Range(0, 1)] public float tiltVar = 0.3f;
         [Range(0, 1)] public float bendVar = 0.3f;
+
+        [Header("聚类分布")]
+        [Tooltip("簇半径：草叶分布的范围")]
+        public float clusterRadius = 6.0f;
+
+        [Tooltip("高斯分布缩放：控制簇内密度衰减，0.1=非常紧密，1.5=非常分散")]
+        [Range(0.1f, 1.5f)]
+        public float clusterSigmaScale = 0.5f;
+
+        [Tooltip("每簇最大草叶数")]
+        public int maxBladesPerCluster = 512;
     }
 
-    [System.Serializable]
+    [Serializable]
+    public class WindSettings
+    {
+        public Texture2D windTexture;
+        [Range(0.001f, 1f)] public float windScale = 0.1f;
+        [Range(0f, 10f)] public float windSpeed = 1f;
+        [Range(0f, 1f)] public float windRotateAmount = 0.5f;
+        [Range(0f, 2f)] public float windStrength = 0.3f;
+    }
+
+    [Serializable]
     public class Settings
     {
         [Header("Shader")]
@@ -45,57 +73,57 @@ public class GrassFeature : ScriptableRendererFeature
         public Material grassMaterial;
         public Mesh grassMesh;
         public int grassCount = 100000;
-        public Bounds renderBounds = new Bounds(Vector3.zero, Vector3.one * 100);
-        public float _width;
-        public float _height;
-        public float _tilt;
-        public float _bend;
-
-        [Header("风场")]
-        public Texture2D windMask;
-        [Tooltip("风场遮罩平铺系数，1 表示覆盖一整块地形")]
-        public float windMaskTiling = 1.0f;
 
         [Header("距离密度衰减")]
         public float densityFadeStart = 40.0f;
         public float densityFadeEnd = 100.0f;
         public float minDensity = 0.2f;
 
-        [Header("簇采样")]
-        [Range(0.0f, 1.0f)]
-        [Tooltip("簇中心随机抖动，减少规则网格感")]
-        public float clusterSampleJitter = 0.7f;
-        [Range(0.1f, 2.0f)]
-        [Tooltip("簇内样本密度缩放，值越大草越密")]
-        public float clusterDensityScale = 1.0f;
-
         [Header("簇参数")]
         public List<GrassClumpSettings> ClumpParameters = new List<GrassClumpSettings>();
 
-        [Header("Tile-Based Generation")]
-        [Tooltip("Size of each tile in world units")]
-        public float tileSize = 8.0f;
+        [Header("聚类中心生成")]
+        public int clusterSeed = 12345;
+        public float clusterMinDistance = 8.0f;
+        public int maxClusterCount = 512;
 
-        [Tooltip("Resolution of the density map (higher = more accurate)")]
-        public int densityMapResolution = 128;
+        [Header("风场设置")]
+        public WindSettings windSettings = new WindSettings();
 
-        [Tooltip("Maximum grass blades per tile")]
-        public int maxBladesPerTile = 256;
+        [Header("弯曲控制")]
+        [Range(0f, 2f)] public float p1Weight = 0.1f;
+        [Range(0f, 2f)] public float p2Weight = 0.6f;
+        [Range(0f, 2f)] public float p3Weight = 1.0f;
+        [Range(1f, 4f)] public float stiffnessCurve = 2.5f;
+        [Range(0f, 1f)] public float tipBias = 0.3f;
+        [Range(0f, 5f)] public float swayFrequency = 1.0f;
 
         [Header("渲染")]
         public RenderPassEvent renderPassEvent = RenderPassEvent.AfterRenderingOpaques;
     }
 
-    [System.Serializable]
-    public struct TileInfo
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DispatchClusterInfo
     {
-        public Vector2 uvMin;
-        public Vector2 uvMax;
-        public Vector3 worldMin;
-        public Vector3 worldMax;
-        public float maxDensity;
+        public Vector3 worldCenter;
+        public float radius;
+        public float sigma;
         public uint targetCount;
         public uint seed;
+        public uint sampleOffset;
+        public uint clumpIndex;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ClusterCenter
+    {
+        public Vector3 worldCenter;
+        public float radius;
+        public float sigma;
+        public float weight;
+        public uint seed;
+        public uint clumpIndex;
+        public uint targetCount;
     }
 
     public Settings settings = new Settings();
@@ -105,14 +133,12 @@ public class GrassFeature : ScriptableRendererFeature
     private GraphicsBuffer m_ArgsBuffer;
     private GraphicsBuffer m_ClumpBuffer;
     private GrassClumpParamsGPU[] m_ClumpDataArray;
-    private TileInfo[] m_TileData;
-    private int m_TileCountX;
-    private int m_TileCountZ;
-    private int m_TotalTileCount;
-    private Texture2D m_DensityMap;
-    private bool m_TilesInitialized = false;
-    private GraphicsBuffer m_VisibleTilesBuffer;
-    private int m_VisibleTileCount;
+
+    private ClusterCenter[] m_Clusters;
+    private bool m_ClustersInitialized;
+    private GraphicsBuffer m_DispatchClustersBuffer;
+    private int m_DispatchClusterCount;
+
     private GrassRenderPass m_RenderPass;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -128,12 +154,12 @@ public class GrassFeature : ScriptableRendererFeature
         private float hash;
         private Vector3 position;
         private float facing;
-        private float windForce;
         private float height;
         private float width;
         private float tilt;
         private float bend;
         private float sideBend;
+        private float windForce;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -142,6 +168,7 @@ public class GrassFeature : ScriptableRendererFeature
         public float voronoiScale;
         public float clusterTightness;
         public float orientationUniformity;
+        public float typeOrientationUniformity;
         public float baseHeight;
         public float baseWidth;
         public float tilt;
@@ -150,12 +177,15 @@ public class GrassFeature : ScriptableRendererFeature
         public float widthVar;
         public float tiltVar;
         public float bendVar;
+        public float clusterRadius;
+        public float clusterSigmaScale;
+        public uint maxBladesPerCluster;
     }
 
     public override void Create()
     {
         EnsureBuffers();
-        m_RenderPass = new GrassRenderPass(settings, m_ArgsBuffer, m_CullingOutputBuffer, m_SingleGrassBuffer, m_ClumpBuffer);
+        m_RenderPass = new GrassRenderPass(this, settings, m_ArgsBuffer, m_CullingOutputBuffer, m_SingleGrassBuffer, m_ClumpBuffer);
         m_RenderPass.renderPassEvent = settings.renderPassEvent;
     }
 
@@ -168,11 +198,11 @@ public class GrassFeature : ScriptableRendererFeature
             EnsureBuffers();
 
         var provider = GrassTerrainProvider.Instance;
-        if (provider == null || provider.terrain == null || provider.HeightMap == null || provider.NormalMap == null)
+        if (provider == null || provider.terrain == null || provider.HeightMap == null)
             return;
 
         m_RenderPass.renderPassEvent = settings.renderPassEvent;
-        m_RenderPass.SetupTerrainData(provider.HeightMap, provider.NormalMap, provider.terrain);
+        m_RenderPass.SetupTerrainData(provider.HeightMap, provider.terrain);
         renderer.EnqueuePass(m_RenderPass);
     }
 
@@ -181,12 +211,8 @@ public class GrassFeature : ScriptableRendererFeature
         m_RenderPass?.Dispose();
         m_RenderPass = null;
 
-        if (m_DensityMap != null)
-        {
-            DestroyImmediate(m_DensityMap);
-            m_DensityMap = null;
-        }
-        m_TilesInitialized = false;
+        m_ClustersInitialized = false;
+        m_Clusters = null;
 
         m_CullingOutputBuffer?.Release();
         m_CullingOutputBuffer = null;
@@ -200,8 +226,8 @@ public class GrassFeature : ScriptableRendererFeature
         m_ClumpBuffer?.Release();
         m_ClumpBuffer = null;
 
-        m_VisibleTilesBuffer?.Release();
-        m_VisibleTilesBuffer = null;
+        m_DispatchClustersBuffer?.Release();
+        m_DispatchClustersBuffer = null;
     }
 
     private void EnsureBuffers()
@@ -224,9 +250,7 @@ public class GrassFeature : ScriptableRendererFeature
         }
 
         if (m_ArgsBuffer == null || !m_ArgsBuffer.IsValid())
-        {
             m_ArgsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, 5 * sizeof(uint));
-        }
 
         InitializeArgsBuffer(count);
         UpdateClumpBuffer();
@@ -258,6 +282,7 @@ public class GrassFeature : ScriptableRendererFeature
                 voronoiScale = src.voronoiScale,
                 clusterTightness = src.clusterTightness,
                 orientationUniformity = src.orientationUniformity,
+                typeOrientationUniformity = src.typeOrientationUniformity,
                 baseHeight = src.baseHeight,
                 baseWidth = src.baseWidth,
                 tilt = src.tilt,
@@ -265,170 +290,242 @@ public class GrassFeature : ScriptableRendererFeature
                 heightVar = src.heightVar,
                 widthVar = src.widthVar,
                 tiltVar = src.tiltVar,
-                bendVar = src.bendVar
+                bendVar = src.bendVar,
+                clusterRadius = src.clusterRadius,
+                clusterSigmaScale = src.clusterSigmaScale,
+                maxBladesPerCluster = (uint)Mathf.Max(1, src.maxBladesPerCluster)
             };
         }
 
         m_ClumpBuffer.SetData(m_ClumpDataArray);
     }
 
-    public void InitializeTiles(Vector3 terrainSize, Vector3 terrainPosition)
+    public void InitializeClusters(Vector3 terrainSize, Vector3 terrainPosition)
     {
-        if (m_TilesInitialized) return;
+        if (m_ClustersInitialized)
+            return;
 
-        // Generate density map using DensityMapGenerator
-        var clumpArray = settings.ClumpParameters?.ToArray() ?? new GrassClumpSettings[0];
-        if (clumpArray.Length == 0)
+        float minDistance = Mathf.Max(0.5f, settings.clusterMinDistance);
+        int maxClusters = Mathf.Max(1, settings.maxClusterCount);
+        int maxAttempts = Mathf.Max(4, k_DefaultPoissonMaxAttempts);
+
+        var points = GeneratePoissonPoints(
+            new Rect(terrainPosition.x, terrainPosition.z, terrainSize.x, terrainSize.z),
+            minDistance,
+            maxClusters,
+            maxAttempts,
+            settings.clusterSeed);
+
+        if (points.Count == 0)
+            points.Add(new Vector2(terrainPosition.x + terrainSize.x * 0.5f, terrainPosition.z + terrainSize.z * 0.5f));
+
+        int clumpCount = Mathf.Max(1, settings.ClumpParameters.Count);
+        var rng = new System.Random(settings.clusterSeed * 17 + 13);
+
+        m_Clusters = new ClusterCenter[points.Count];
+        float weightSum = 0f;
+
+        for (int i = 0; i < points.Count; i++)
         {
-            clumpArray = new GrassClumpSettings[] { new GrassClumpSettings() };
-        }
+            uint clumpIndex = (uint)rng.Next(0, clumpCount);
+            var clumpSettings = settings.ClumpParameters[(int)clumpIndex];
 
-        if (m_DensityMap != null)
-        {
-            DestroyImmediate(m_DensityMap);
-        }
-        m_DensityMap = DensityMapGenerator.GenerateDensityMap(
-            terrainSize, clumpArray, settings.densityMapResolution);
+            float weight = 0.7f + (float)rng.NextDouble() * 0.6f;
+            float radius = Mathf.Max(0.5f, clumpSettings.clusterRadius);
+            float sigma = Mathf.Max(0.05f, clumpSettings.clusterRadius * clumpSettings.clusterSigmaScale);
 
-        // Calculate tile grid
-        m_TileCountX = Mathf.Max(1, Mathf.CeilToInt(terrainSize.x / settings.tileSize));
-        m_TileCountZ = Mathf.Max(1, Mathf.CeilToInt(terrainSize.z / settings.tileSize));
-        m_TotalTileCount = m_TileCountX * m_TileCountZ;
-
-        m_TileData = new TileInfo[m_TotalTileCount];
-
-        // Initialize each tile
-        for (int z = 0; z < m_TileCountZ; z++)
-        {
-            for (int x = 0; x < m_TileCountX; x++)
+            var center = new ClusterCenter
             {
-                int index = z * m_TileCountX + x;
-                var tile = new TileInfo();
+                worldCenter = new Vector3(points[i].x, terrainPosition.y, points[i].y),
+                radius = radius,
+                sigma = sigma,
+                weight = weight,
+                seed = unchecked((uint)rng.Next()),
+                clumpIndex = clumpIndex,
+                targetCount = 0u
+            };
 
-                // UV bounds
-                tile.uvMin = new Vector2(
-                    x / (float)m_TileCountX,
-                    z / (float)m_TileCountZ);
-                tile.uvMax = new Vector2(
-                    (x + 1) / (float)m_TileCountX,
-                    (z + 1) / (float)m_TileCountZ);
-
-                // World bounds
-                tile.worldMin = terrainPosition + new Vector3(
-                    tile.uvMin.x * terrainSize.x,
-                    0,
-                    tile.uvMin.y * terrainSize.z);
-                tile.worldMax = terrainPosition + new Vector3(
-                    tile.uvMax.x * terrainSize.x,
-                    terrainSize.y,
-                    tile.uvMax.y * terrainSize.z);
-
-                // Calculate max density within this tile
-                tile.maxDensity = CalculateTileMaxDensity(tile);
-
-                // Calculate target count based on density and budget
-                uint budgetPerTile = (uint)Mathf.Max(1, settings.grassCount / m_TotalTileCount);
-                tile.targetCount = (uint)Mathf.Min(settings.maxBladesPerTile,
-                    (int)(budgetPerTile * tile.maxDensity));
-
-                // Random seed for this tile
-                tile.seed = (uint)(x * 73856093u) ^ (uint)(z * 19349663u);
-
-                m_TileData[index] = tile;
-            }
+            m_Clusters[i] = center;
+            weightSum += weight;
         }
 
-        m_TilesInitialized = true;
-        Debug.Log($"[GrassFeature] Initialized {m_TotalTileCount} tiles ({m_TileCountX}x{m_TileCountZ}), " +
-                  $"density map {settings.densityMapResolution}x{settings.densityMapResolution}");
+        AssignClusterBudgetsPerType(weightSum);
+        m_ClustersInitialized = true;
     }
 
-    private float CalculateTileMaxDensity(TileInfo tile)
+    private void AssignClusterBudgetsPerType(float weightSum)
     {
-        int samples = 4; // Sample corners of tile
-        float maxDensity = 0;
+        if (m_Clusters == null || m_Clusters.Length == 0)
+            return;
 
-        for (int i = 0; i < samples; i++)
+        uint grassBudget = (uint)Mathf.Max(1, settings.grassCount);
+
+        for (int i = 0; i < m_Clusters.Length; i++)
         {
-            for (int j = 0; j < samples; j++)
-            {
-                float u = Mathf.Lerp(tile.uvMin.x, tile.uvMax.x, i / (float)(samples - 1));
-                float v = Mathf.Lerp(tile.uvMin.y, tile.uvMax.y, j / (float)(samples - 1));
+            var c = m_Clusters[i];
+            var clumpSettings = settings.ClumpParameters[(int)(c.clumpIndex % settings.ClumpParameters.Count)];
 
-                Color pixel = m_DensityMap.GetPixelBilinear(u, v);
-                maxDensity = Mathf.Max(maxDensity, pixel.r);
-            }
+            float normalizedWeight = weightSum > 0.0001f ? c.weight / weightSum : 1.0f / m_Clusters.Length;
+            uint target = (uint)Mathf.RoundToInt(grassBudget * normalizedWeight);
+
+            // 使用该类型自己的 maxBladesPerCluster 作为上限
+            uint maxPerCluster = (uint)Mathf.Max(1, clumpSettings.maxBladesPerCluster);
+            c.targetCount = Math.Min(maxPerCluster, Math.Max(1u, target));
+            m_Clusters[i] = c;
         }
-
-        return maxDensity;
     }
 
-    public Texture2D GetDensityMap() => m_DensityMap;
-    public TileInfo[] GetTileData() => m_TileData;
-    public int GetTileCountX() => m_TileCountX;
-    public int GetTileCountZ() => m_TileCountZ;
-
-    public void UpdateVisibleTiles(Camera camera, Vector3 terrainPosition, Vector3 terrainSize)
+    public void UpdateVisibleClusters(Camera camera)
     {
-        if (!m_TilesInitialized || m_TileData == null) return;
+        if (!m_ClustersInitialized || m_Clusters == null)
+            return;
 
-        // Get frustum planes
         Plane[] frustumPlanes = GeometryUtility.CalculateFrustumPlanes(camera);
-
-        // Camera position and cull distance
         Vector3 camPos = camera.transform.position;
-        float maxDist = 150.0f; // Match existing _MaxDrawDistance
+        const float maxDist = 150.0f;
 
-        var visibleTiles = new System.Collections.Generic.List<TileInfo>();
+        var dispatchClusters = new List<DispatchClusterInfo>(m_Clusters.Length * 2);
 
-        for (int i = 0; i < m_TileData.Length; i++)
+        for (int i = 0; i < m_Clusters.Length; i++)
         {
-            var tile = m_TileData[i];
+            var cluster = m_Clusters[i];
+            if (cluster.targetCount == 0u)
+                continue;
 
-            // Skip empty tiles
-            if (tile.maxDensity <= 0.01f || tile.targetCount == 0) continue;
+            float distToCamera = Vector3.Distance(camPos, cluster.worldCenter);
+            if (distToCamera > maxDist + cluster.radius)
+                continue;
 
-            // Distance culling
-            Vector3 tileCenter = (tile.worldMin + tile.worldMax) * 0.5f;
-            float distToCamera = Vector3.Distance(camPos, tileCenter);
-            if (distToCamera > maxDist + settings.tileSize) continue;
+            Bounds clusterBounds = new Bounds(cluster.worldCenter, Vector3.one * (cluster.radius * 2.0f));
+            if (!GeometryUtility.TestPlanesAABB(frustumPlanes, clusterBounds))
+                continue;
 
-            // Frustum culling
-            Bounds tileBounds = new Bounds(
-                (tile.worldMin + tile.worldMax) * 0.5f,
-                tile.worldMax - tile.worldMin);
-            if (!GeometryUtility.TestPlanesAABB(frustumPlanes, tileBounds)) continue;
-
-            visibleTiles.Add(tile);
+            uint groupCount = (cluster.targetCount + 63u) / 64u;
+            for (uint g = 0; g < groupCount; g++)
+            {
+                dispatchClusters.Add(new DispatchClusterInfo
+                {
+                    worldCenter = cluster.worldCenter,
+                    radius = cluster.radius,
+                    sigma = cluster.sigma,
+                    targetCount = cluster.targetCount,
+                    seed = cluster.seed,
+                    sampleOffset = g * 64u,
+                    clumpIndex = cluster.clumpIndex
+                });
+            }
         }
 
-        m_VisibleTileCount = visibleTiles.Count;
+        m_DispatchClusterCount = dispatchClusters.Count;
 
-        // Update buffer
-        if (m_VisibleTileCount > 0)
+        if (m_DispatchClusterCount > 0)
         {
-            if (m_VisibleTilesBuffer == null || !m_VisibleTilesBuffer.IsValid() ||
-                m_VisibleTilesBuffer.count < m_VisibleTileCount)
+            if (m_DispatchClustersBuffer == null || !m_DispatchClustersBuffer.IsValid() || m_DispatchClustersBuffer.count < m_DispatchClusterCount)
             {
-                m_VisibleTilesBuffer?.Release();
-                m_VisibleTilesBuffer = new GraphicsBuffer(
-                    GraphicsBuffer.Target.Structured,
-                    m_VisibleTileCount,
-                    System.Runtime.InteropServices.Marshal.SizeOf<TileInfo>());
+                m_DispatchClustersBuffer?.Release();
+                m_DispatchClustersBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, m_DispatchClusterCount, Marshal.SizeOf<DispatchClusterInfo>());
             }
 
-            m_VisibleTilesBuffer.SetData(visibleTiles);
-        }
-
-        if (Time.frameCount % 60 == 0)
-        {
-            Debug.Log($"[GrassFeature] Visible tiles: {m_VisibleTileCount} / {m_TotalTileCount} " +
-                      $"({(1.0f - (float)m_VisibleTileCount / m_TotalTileCount) * 100:F1}% culled)");
+            m_DispatchClustersBuffer.SetData(dispatchClusters);
         }
     }
 
-    public GraphicsBuffer GetVisibleTilesBuffer() => m_VisibleTilesBuffer;
-    public int GetVisibleTileCount() => m_VisibleTileCount;
+    public bool ClustersInitialized => m_ClustersInitialized;
+    public GraphicsBuffer GetDispatchClustersBuffer() => m_DispatchClustersBuffer;
+    public int GetDispatchClusterCount() => m_DispatchClusterCount;
+
+    private static List<Vector2> GeneratePoissonPoints(Rect area, float minDistance, int maxPoints, int maxAttempts, int seed)
+    {
+        float cellSize = minDistance / Mathf.Sqrt(2f);
+        int gridW = Mathf.Max(1, Mathf.CeilToInt(area.width / cellSize));
+        int gridH = Mathf.Max(1, Mathf.CeilToInt(area.height / cellSize));
+
+        int[] grid = new int[gridW * gridH];
+        for (int i = 0; i < grid.Length; i++)
+            grid[i] = -1;
+
+        var rng = new System.Random(seed);
+        var points = new List<Vector2>(maxPoints);
+        var active = new List<Vector2>(maxPoints);
+
+        Vector2 first = new Vector2(
+            area.xMin + (float)rng.NextDouble() * area.width,
+            area.yMin + (float)rng.NextDouble() * area.height);
+
+        points.Add(first);
+        active.Add(first);
+        SetGrid(first, 0, area, cellSize, gridW, gridH, grid);
+
+        while (active.Count > 0 && points.Count < maxPoints)
+        {
+            int activeIndex = rng.Next(active.Count);
+            Vector2 center = active[activeIndex];
+            bool found = false;
+
+            for (int k = 0; k < maxAttempts; k++)
+            {
+                float angle = (float)rng.NextDouble() * Mathf.PI * 2f;
+                float radius = minDistance * (1f + (float)rng.NextDouble());
+                Vector2 candidate = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+
+                if (!area.Contains(candidate))
+                    continue;
+
+                if (!IsValidCandidate(candidate, points, area, minDistance, cellSize, gridW, gridH, grid))
+                    continue;
+
+                points.Add(candidate);
+                active.Add(candidate);
+                SetGrid(candidate, points.Count - 1, area, cellSize, gridW, gridH, grid);
+                found = true;
+
+                if (points.Count >= maxPoints)
+                    break;
+            }
+
+            if (!found)
+                active.RemoveAt(activeIndex);
+        }
+
+        return points;
+    }
+
+    private static bool IsValidCandidate(Vector2 candidate, List<Vector2> points, Rect area, float minDistance, float cellSize, int gridW, int gridH, int[] grid)
+    {
+        int gx = Mathf.Clamp((int)((candidate.x - area.xMin) / cellSize), 0, gridW - 1);
+        int gy = Mathf.Clamp((int)((candidate.y - area.yMin) / cellSize), 0, gridH - 1);
+
+        int minX = Mathf.Max(0, gx - 2);
+        int maxX = Mathf.Min(gridW - 1, gx + 2);
+        int minY = Mathf.Max(0, gy - 2);
+        int maxY = Mathf.Min(gridH - 1, gy + 2);
+
+        float minDistSqr = minDistance * minDistance;
+
+        for (int y = minY; y <= maxY; y++)
+        {
+            for (int x = minX; x <= maxX; x++)
+            {
+                int idx = grid[y * gridW + x];
+                if (idx < 0)
+                    continue;
+
+                if ((points[idx] - candidate).sqrMagnitude < minDistSqr)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static void SetGrid(Vector2 point, int pointIndex, Rect area, float cellSize, int gridW, int gridH, int[] grid)
+    {
+        int gx = Mathf.Clamp((int)((point.x - area.xMin) / cellSize), 0, gridW - 1);
+        int gy = Mathf.Clamp((int)((point.y - area.yMin) / cellSize), 0, gridH - 1);
+        int flat = gy * gridW + gx;
+        if (flat >= 0 && flat < grid.Length)
+            grid[flat] = pointIndex;
+    }
 
     private unsafe void InitializeSingleGrassBuffer()
     {
@@ -476,20 +573,6 @@ public class GrassFeature : ScriptableRendererFeature
         uint[] args = new uint[5];
         args[0] = 42;
         args[1] = (uint)count;
-        args[2] = 0;
-        args[3] = 0;
-        args[4] = 0;
         m_ArgsBuffer.SetData(args);
-    }
-
-    // Public accessors for RenderPass
-    public bool AreTilesInitialized() => m_TilesInitialized;
-
-    public void EnsureTilesInitialized(Vector3 terrainSize, Vector3 terrainPosition)
-    {
-        if (!m_TilesInitialized)
-        {
-            InitializeTiles(terrainSize, terrainPosition);
-        }
     }
 }

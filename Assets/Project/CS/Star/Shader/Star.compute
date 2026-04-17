@@ -1,0 +1,106 @@
+#pragma kernel CSMain
+
+struct StarData
+{
+    float3 position;
+    float3 scale;
+    float3 rotation;
+    float seed;
+};
+AppendStructuredBuffer<StarData> CullingOutputBuffer;
+
+//参数
+float4x4 _VP;
+float3 cameraPos;
+float3 cameraDir;
+float cameraHalfFov;
+float maxViewDistance;
+float Time;
+int Count;
+float _speed;
+float _range;
+
+float uint_to_float(uint x) {
+    return x * 2.3283064365386963e-10; // 1.0 / 2^32
+}
+// 快速、高质量的 uint 哈希函数 (Wang hash 变体)
+uint hash_uint(uint x)
+{
+    x += (x << 10u);
+    x ^= (x >> 6u);
+    x += (x << 3u);
+    x ^= (x >> 11u);
+    x += (x << 15u);
+    return x;
+}
+// 生成一个  范围内的 float
+float hash(uint x)
+{
+    return uint_to_float(hash_uint(x));
+}
+// 生成一个 float3 向量，每个分量在  范围内
+float3 hash3(uint x)
+{
+    return float3(hash(x), hash(x + 1u), hash(x + 2u));
+}
+
+[numthreads(32,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint Idx = id.x;
+    if (Idx>=Count)
+    {
+        return;
+    }
+
+    //float3 xDir = normalize(hash3(id.x)-0.5);
+    //float3 ver = normalize(hash3(id.x+71.49)-0.5);
+    //float3 yDir = normalize(cross(xDir, ver));
+
+    float3 xDir = normalize(float3(hash(id.x)-0.5,0,hash(id.x+43)-0.5));
+    float3 ver  = normalize(float3(0,1,0));
+    float3 yDir = normalize(cross(xDir, ver));
+    
+    float basePhase  = hash(Idx+14) * 6.2831853;
+    float scaledTime = Time * _speed + basePhase;
+
+    // 轨道位置
+    float orbitRadius = lerp(_range * 0.5, _range, hash(Idx + 100u));
+    float3 pos = (xDir * sin(scaledTime) + yDir * cos(scaledTime)) * orbitRadius;
+
+    // 自转
+    float spinSpeed = lerp(2.0, 8.0, hash(Idx+37.21));
+    float angleRad  = scaledTime * spinSpeed;
+    float3 axisAngle = xDir * angleRad;
+
+    // 缩放
+    float rand01 = hash(Idx + 19.87);
+    float s = lerp(1, 2, rand01);
+    float3 scl = float3(s,s,s);
+
+    StarData data;
+    data.position = pos;
+    data.scale = scl;
+    data.rotation = axisAngle;
+    data.seed = hash(Idx);
+
+    //裁剪
+    float4 clip = mul(_VP, float4(data.position,1));
+    if (clip.w>maxViewDistance)
+    {
+        return;
+    }
+    else
+    {
+        float3 ndc = clip.xyz/clip.w;
+        float ndcSize =1.5;
+        if (abs(ndc.x)>ndcSize||abs(ndc.y)>ndcSize||abs(ndc.z)>ndcSize||ndc.z<0)
+        {
+            return;
+        }
+        CullingOutputBuffer.Append(data);
+    }
+}
+
+// 修正：确保与C#结构体内存布局一致
+

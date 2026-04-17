@@ -1,0 +1,259 @@
+#pragma kernel Main
+
+static const float kTwoPi = 6.28318530718;
+
+struct CrownControlPointGPU
+{
+    float3 centerLS;
+    uint shapeType;
+    float4 rotationLS;
+    float3 scaleLS;
+    float density;
+    uint seed;
+    uint treeId;
+    uint startIndex;
+    uint leafCount;
+    float leafSizeScale;
+    float shellInner;
+    float shellExponent;
+    float noiseAmount;
+    float heightTintWeight;
+    float overlapAtten;
+    float2 padding;
+};
+
+struct LeafInstance
+{
+    float3 positionLS;
+    float size;
+    float3 crownCenterLS;
+    float crownRadiusLS;
+    float3 crownExtentsLS;
+    float rotation;
+    float variation;
+    float radial01;
+    float localHeight01;
+    float heightTintWeight;
+    float shellWeight;
+    uint treeId;
+    float2 padding;
+};
+
+struct ShapeSample
+{
+    float3 localOffsetLS;
+    float3 normalizedCoord;
+    float radial01;
+    float localHeight01;
+    float shellWeight;
+};
+
+StructuredBuffer<CrownControlPointGPU> _ControlPoints;
+RWStructuredBuffer<LeafInstance> _LeafInstances;
+
+uint _PointCount;
+uint _TotalLeafCount;
+float2 _LeafSizeRange;
+uint _RandomSeed;
+
+uint Hash(uint value)
+{
+    value ^= 2747636419u;
+    value *= 2654435769u;
+    value ^= value >> 16;
+    value *= 2654435769u;
+    value ^= value >> 16;
+    value *= 2654435769u;
+    return value;
+}
+
+float Random01(inout uint state)
+{
+    state = Hash(state);
+    return (state & 0x00FFFFFFu) / 16777216.0;
+}
+
+float3 RandomUnitVector(inout uint state)
+{
+    float z = Random01(state) * 2.0 - 1.0;
+    float theta = Random01(state) * kTwoPi;
+    float planar = sqrt(saturate(1.0 - z * z));
+    return float3(cos(theta) * planar, z, sin(theta) * planar);
+}
+
+float3 RotateVector(float3 value, float4 quaternionValue)
+{
+    float3 t = 2.0 * cross(quaternionValue.xyz, value);
+    return value + quaternionValue.w * t + cross(quaternionValue.xyz, t);
+}
+
+float Hash31(float3 value)
+{
+    value = frac(value * 0.1031);
+    value += dot(value, value.yzx + 33.33);
+    return frac((value.x + value.y) * value.z);
+}
+
+float ValueNoise(float3 value)
+{
+    float3 baseValue = floor(value);
+    float3 fraction = frac(value);
+    float3 smoothFraction = fraction * fraction * (3.0 - 2.0 * fraction);
+
+    float n000 = Hash31(baseValue + float3(0.0, 0.0, 0.0));
+    float n100 = Hash31(baseValue + float3(1.0, 0.0, 0.0));
+    float n010 = Hash31(baseValue + float3(0.0, 1.0, 0.0));
+    float n110 = Hash31(baseValue + float3(1.0, 1.0, 0.0));
+    float n001 = Hash31(baseValue + float3(0.0, 0.0, 1.0));
+    float n101 = Hash31(baseValue + float3(1.0, 0.0, 1.0));
+    float n011 = Hash31(baseValue + float3(0.0, 1.0, 1.0));
+    float n111 = Hash31(baseValue + float3(1.0, 1.0, 1.0));
+
+    float x00 = lerp(n000, n100, smoothFraction.x);
+    float x10 = lerp(n010, n110, smoothFraction.x);
+    float x01 = lerp(n001, n101, smoothFraction.x);
+    float x11 = lerp(n011, n111, smoothFraction.x);
+    float y0 = lerp(x00, x10, smoothFraction.y);
+    float y1 = lerp(x01, x11, smoothFraction.y);
+    return lerp(y0, y1, smoothFraction.z);
+}
+
+float SampleShellRadius01(CrownControlPointGPU controlPoint, inout uint state)
+{
+    float shellExponent = max(controlPoint.shellExponent, 0.01);
+    float shellSample = pow(max(Random01(state), 1e-6), shellExponent);
+    return saturate(lerp(controlPoint.shellInner, 1.0, shellSample));
+}
+
+float3 GetShapeExtents(CrownControlPointGPU controlPoint)
+{
+    if (controlPoint.shapeType == 0u)
+    {
+        float radius = max(max(controlPoint.scaleLS.x, controlPoint.scaleLS.y), controlPoint.scaleLS.z) * 0.5;
+        return float3(radius, radius, radius);
+    }
+
+    if (controlPoint.shapeType == 1u || controlPoint.shapeType == 2u)
+        return max(controlPoint.scaleLS * 0.5, 1e-4);
+
+    float capsuleRadius = max(controlPoint.scaleLS.x, controlPoint.scaleLS.z) * 0.5;
+    float halfLine = max(controlPoint.scaleLS.y * 0.5 - capsuleRadius, 0.0);
+    return float3(capsuleRadius, halfLine + capsuleRadius, capsuleRadius);
+}
+
+float ComputeCrownRadiusLS(CrownControlPointGPU controlPoint)
+{
+    float3 extents = GetShapeExtents(controlPoint);
+    return max(max(extents.x, extents.y), extents.z);
+}
+
+ShapeSample SampleSphereLike(CrownControlPointGPU controlPoint, bool useRotation, inout uint state)
+{
+    ShapeSample sample;
+    float3 extents = GetShapeExtents(controlPoint);
+    float shellRadius01 = SampleShellRadius01(controlPoint, state);
+
+    float3 baseDirection = RandomUnitVector(state);
+    float3 noiseDirection = RandomUnitVector(state);
+    float noiseStrength = saturate(controlPoint.noiseAmount) * 0.45;
+    float3 direction = normalize(baseDirection + noiseDirection * noiseStrength);
+
+    float3 shapeLocal = direction * (extents * shellRadius01);
+    sample.normalizedCoord = shapeLocal / max(extents, 1e-4);
+    sample.radial01 = saturate(length(sample.normalizedCoord));
+    sample.localHeight01 = saturate(sample.normalizedCoord.y * 0.5 + 0.5);
+    sample.shellWeight = saturate((sample.radial01 - controlPoint.shellInner) / max(1.0 - controlPoint.shellInner, 1e-4));
+    sample.localOffsetLS = useRotation ? RotateVector(shapeLocal, controlPoint.rotationLS) : shapeLocal;
+    return sample;
+}
+
+ShapeSample SampleCapsule(CrownControlPointGPU controlPoint, inout uint state)
+{
+    ShapeSample sample;
+    float3 extents = GetShapeExtents(controlPoint);
+    float radius = extents.x;
+    float halfLine = max(extents.y - radius, 0.0);
+    float shellRadius01 = SampleShellRadius01(controlPoint, state);
+
+    float lineNoise = (Random01(state) * 2.0 - 1.0) * controlPoint.noiseAmount * 0.2;
+    float lineT = saturate(Random01(state) + lineNoise);
+    float3 spinePoint = float3(0.0, lerp(-halfLine, halfLine, lineT), 0.0);
+
+    float3 radialDirection = RandomUnitVector(state);
+    float3 noiseDirection = RandomUnitVector(state);
+    radialDirection = normalize(radialDirection + noiseDirection * controlPoint.noiseAmount * 0.35);
+
+    float3 shapeLocal = spinePoint + radialDirection * (shellRadius01 * radius);
+    sample.normalizedCoord = float3(
+        shapeLocal.x / max(radius, 1e-4),
+        shapeLocal.y / max(extents.y, 1e-4),
+        shapeLocal.z / max(radius, 1e-4));
+    sample.radial01 = saturate(shellRadius01);
+    sample.localHeight01 = saturate(sample.normalizedCoord.y * 0.5 + 0.5);
+    sample.shellWeight = saturate((sample.radial01 - controlPoint.shellInner) / max(1.0 - controlPoint.shellInner, 1e-4));
+    sample.localOffsetLS = RotateVector(shapeLocal, controlPoint.rotationLS);
+    return sample;
+}
+
+ShapeSample SampleShape(CrownControlPointGPU controlPoint, inout uint state)
+{
+    if (controlPoint.shapeType == 0u)
+        return SampleSphereLike(controlPoint, false, state);
+
+    if (controlPoint.shapeType == 1u)
+        return SampleSphereLike(controlPoint, false, state);
+
+    if (controlPoint.shapeType == 2u)
+        return SampleSphereLike(controlPoint, true, state);
+
+    return SampleCapsule(controlPoint, state);
+}
+
+uint FindControlPointIndex(uint leafIndex)
+{
+    for (uint i = 0u; i < _PointCount; i++)
+    {
+        CrownControlPointGPU controlPoint = _ControlPoints[i];
+        uint endIndex = controlPoint.startIndex + controlPoint.leafCount;
+        if (leafIndex >= controlPoint.startIndex && leafIndex < endIndex)
+            return i;
+    }
+
+    return 0u;
+}
+
+[numthreads(64, 1, 1)]
+void Main(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint leafIndex = dispatchThreadId.x;
+    if (leafIndex >= _TotalLeafCount)
+        return;
+
+    uint pointIndex = FindControlPointIndex(leafIndex);
+    CrownControlPointGPU controlPoint = _ControlPoints[pointIndex];
+    uint localIndex = leafIndex - controlPoint.startIndex;
+
+    uint state = Hash(
+        localIndex
+        + (controlPoint.seed + 1u) * 747796405u
+        + (_RandomSeed + 1u) * 2891336453u
+        + (controlPoint.treeId + 1u) * 1181783497u);
+
+    ShapeSample sample = SampleShape(controlPoint, state);
+
+    LeafInstance leaf;
+    leaf.positionLS = sample.localOffsetLS + controlPoint.centerLS;
+    leaf.size = lerp(_LeafSizeRange.x, _LeafSizeRange.y, Random01(state)) * controlPoint.leafSizeScale * lerp(0.85, 1.15, Random01(state));
+    leaf.crownCenterLS = controlPoint.centerLS;
+    leaf.crownRadiusLS = max(ComputeCrownRadiusLS(controlPoint), 1e-4);
+    leaf.crownExtentsLS = max(GetShapeExtents(controlPoint), 1e-4);
+    leaf.rotation = Random01(state) * kTwoPi;
+    leaf.variation = Random01(state);
+    leaf.radial01 = sample.radial01;
+    leaf.localHeight01 = sample.localHeight01;
+    leaf.heightTintWeight = controlPoint.heightTintWeight;
+    leaf.shellWeight = sample.shellWeight;
+    leaf.treeId = controlPoint.treeId;
+    leaf.padding = float2(0.0, 0.0);
+    _LeafInstances[leafIndex] = leaf;
+}
