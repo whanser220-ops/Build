@@ -41,14 +41,16 @@ public sealed class CrowdVatFactionControlPoint : MonoBehaviour
 
     private void OnEnable()
     {
-        transform.hasChanged = true;
-        NotifyOwner();
+        transform.hasChanged = !Application.isPlaying;
+        if (!Application.isPlaying)
+            NotifyOwner();
     }
 
     private void OnValidate()
     {
         transform.hasChanged = true;
-        NotifyOwner();
+        if (!Application.isPlaying)
+            NotifyOwner();
     }
 
     private void Update()

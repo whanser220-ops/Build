@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -8,6 +9,14 @@ using UnityEngine.SceneManagement;
 
 public static class CrowdVatDiagnostics
 {
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MatrixRowsDebugData
+    {
+        public Vector4 row0;
+        public Vector4 row1;
+        public Vector4 row2;
+    }
+
     private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
     private const string SampleSceneCrowdObjectName = "QianxiaCrowdIndirect";
     private const string SourceModelAssetPath = "Assets/Project/Characters/Qianxia/SourceModels/LOD2.fbx";
@@ -61,6 +70,15 @@ public static class CrowdVatDiagnostics
         Invoke(renderer, "AdvancePlayback", 0.15f);
         Invoke(renderer, "UpdateGpuBuffers");
 
+        int activeSquadStateCount = GetFieldValue<int>(renderer, "_activeSquadStateCount");
+        int activeAgentSquadDataCount = GetFieldValue<int>(renderer, "_activeAgentSquadDataCount");
+        int activeFormationSlotCount = GetFieldValue<int>(renderer, "_activeFormationSlotCount");
+        bool usesGpuVisibleCompaction = GetFieldValue<bool>(renderer, "_usesGpuVisibleInstanceCompactionThisFrame");
+        bool visibleUnassignedInstances = GetFieldValue<bool>(renderer, "_visibleUnassignedInstancesThisFrame");
+        Array runtimeSquadRenderChunks = GetFieldValue<Array>(renderer, "_runtimeSquadRenderChunks");
+        uint[] visibleRuntimeSquadMask = GetField<uint[]>(renderer, "_visibleRuntimeSquadMaskUploadCache");
+        uint aliveInstanceCountBeforeDraw = ReadCounterValue(GetPrivateFieldValue<ComputeBuffer>(renderer, "_aliveInstanceCounterBuffer"));
+        uint visibleInstanceCountGpuBeforeDraw = ReadCounterValue(GetPrivateFieldValue<ComputeBuffer>(renderer, "_visibleInstanceCounterBuffer"));
         int visibleInstanceCountBeforeDraw = GetFieldValue<int>(renderer, "_visibleInstanceCount");
         bool hasVisibleBounds = GetFieldValue<bool>(renderer, "_hasVisibleBounds");
         Bounds visibleWorldBounds = GetFieldValue<Bounds>(renderer, "_visibleWorldBounds");
@@ -99,8 +117,33 @@ public static class CrowdVatDiagnostics
         }
 
         int visibleInstanceCountAfterDraw = GetFieldValue<int>(renderer, "_visibleInstanceCount");
+        uint visibleInstanceCountGpuAfterDraw = ReadCounterValue(GetPrivateFieldValue<ComputeBuffer>(renderer, "_visibleInstanceCounterBuffer"));
+        bool usesGpuVisibleCompactionAfterDraw = GetFieldValue<bool>(renderer, "_usesGpuVisibleInstanceCompactionThisFrame");
         bool hasVisibleBoundsAfterDraw = GetFieldValue<bool>(renderer, "_hasVisibleBounds");
         Bounds visibleWorldBoundsAfterDraw = GetFieldValue<Bounds>(renderer, "_visibleWorldBounds");
+        ComputeBuffer visibleInstanceIndexBuffer = GetPrivateFieldValue<ComputeBuffer>(renderer, "_visibleInstanceIndexBuffer");
+        GraphicsBuffer[] indirectArgsBufferArray = indirectArgsBuffers as GraphicsBuffer[];
+        uint[] visibleInstanceIndicesGpuAfterDraw = ReadUIntBuffer(
+            visibleInstanceIndexBuffer,
+            Mathf.Min((int)visibleInstanceCountGpuAfterDraw, 3));
+        uint[] indirectArgsAfterDraw = indirectArgsBufferArray != null && indirectArgsBufferArray.Length > 0
+            ? ReadGraphicsUIntBuffer(indirectArgsBufferArray[0], 5)
+            : Array.Empty<uint>();
+        string firstVisibleTransformPreview = "firstVisibleTransform=no-visible-instance";
+        if (visibleInstanceIndicesGpuAfterDraw.Length > 0)
+        {
+            int firstVisibleSourceInstance = (int)visibleInstanceIndicesGpuAfterDraw[0];
+            MatrixRowsDebugData? firstVisibleTransform = ReadMatrixRowsBuffer(
+                GetPrivateFieldValue<ComputeBuffer>(renderer, "_instanceTransformBuffer"),
+                firstVisibleSourceInstance);
+            Vector4? firstVisibleFrameData = ReadVector4Buffer(
+                GetPrivateFieldValue<ComputeBuffer>(renderer, "_instanceFrameDataBuffer"),
+                firstVisibleSourceInstance);
+            firstVisibleTransformPreview = BuildFirstVisibleTransformPreview(
+                firstVisibleSourceInstance,
+                firstVisibleTransform,
+                firstVisibleFrameData);
+        }
 
         StringBuilder builder = new StringBuilder();
         builder.AppendLine($"SampleScene crowd 检查: {scene.path}");
@@ -116,11 +159,20 @@ public static class CrowdVatDiagnostics
         builder.AppendLine(
             $"renderChunkCount={(renderChunks != null ? renderChunks.Length : 0)} expectedVisibleInstanceCount={expectedVisibleInstanceCount}");
         builder.AppendLine(
+            $"runtimeSquadStateCount={activeSquadStateCount} agentSquadDataCount={activeAgentSquadDataCount} formationSlotCount={activeFormationSlotCount} runtimeSquadChunkCount={(runtimeSquadRenderChunks != null ? runtimeSquadRenderChunks.Length : 0)}");
+        builder.AppendLine(
+            $"usesGpuVisibleCompaction={usesGpuVisibleCompaction} visibleUnassignedInstances={visibleUnassignedInstances} aliveInstanceCountBeforeDraw={aliveInstanceCountBeforeDraw} visibleGpuCountBeforeDraw={visibleInstanceCountGpuBeforeDraw}");
+        builder.AppendLine(
             $"visibleInstanceCountBeforeDraw={visibleInstanceCountBeforeDraw} hasVisibleBoundsBeforeDraw={hasVisibleBounds} visibleBoundsBeforeDrawCenter={visibleWorldBounds.center} visibleBoundsBeforeDrawSize={visibleWorldBounds.size}");
         builder.AppendLine(
-            $"drawInvocation={drawInvocation} visibleInstanceCountAfterDraw={visibleInstanceCountAfterDraw} hasVisibleBoundsAfterDraw={hasVisibleBoundsAfterDraw} visibleBoundsAfterDrawCenter={visibleWorldBoundsAfterDraw.center} visibleBoundsAfterDrawSize={visibleWorldBoundsAfterDraw.size}");
+            $"drawInvocation={drawInvocation} visibleInstanceCountAfterDraw={visibleInstanceCountAfterDraw} visibleGpuCountAfterDraw={visibleInstanceCountGpuAfterDraw} usesGpuVisibleCompactionAfterDraw={usesGpuVisibleCompactionAfterDraw} hasVisibleBoundsAfterDraw={hasVisibleBoundsAfterDraw} visibleBoundsAfterDrawCenter={visibleWorldBoundsAfterDraw.center} visibleBoundsAfterDrawSize={visibleWorldBoundsAfterDraw.size}");
+        builder.AppendLine(BuildIndirectArgsPreview(indirectArgsAfterDraw));
+        builder.AppendLine(BuildRuntimeSquadMaskPreview(visibleRuntimeSquadMask));
         builder.AppendLine(BuildRenderChunkDiagnostics(crowdObject.transform.localToWorldMatrix, renderChunks, frustumPlanes));
+        builder.AppendLine(BuildRuntimeSquadChunkDiagnostics(runtimeSquadRenderChunks));
         builder.AppendLine(BuildVisibleInstancePreview(visibleInstanceCountAfterDraw, visibleInstanceIndices));
+        builder.AppendLine(BuildGpuVisibleInstancePreview(visibleInstanceCountGpuAfterDraw, visibleInstanceIndicesGpuAfterDraw));
+        builder.AppendLine(firstVisibleTransformPreview);
         return builder.ToString();
     }
 
@@ -161,6 +213,68 @@ public static class CrowdVatDiagnostics
         return builder.ToString();
     }
 
+    private static string BuildGpuVisibleInstancePreview(uint visibleInstanceCount, uint[] visibleInstanceIndices)
+    {
+        if (visibleInstanceCount == 0 || visibleInstanceIndices == null || visibleInstanceIndices.Length == 0)
+            return "gpu visible preview=no-visible-instance";
+
+        StringBuilder builder = new StringBuilder();
+        builder.Append("gpu visible preview=");
+        for (int previewIndex = 0; previewIndex < visibleInstanceIndices.Length; previewIndex++)
+        {
+            if (previewIndex > 0)
+                builder.Append(" | ");
+
+            builder.Append($"src={visibleInstanceIndices[previewIndex]}");
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildIndirectArgsPreview(uint[] indirectArgsData)
+    {
+        if (indirectArgsData == null || indirectArgsData.Length < 5)
+            return "indirect args=no-data";
+
+        return $"indirect args=indexCountPerInstance={indirectArgsData[0]} instanceCount={indirectArgsData[1]} startIndex={indirectArgsData[2]} baseVertexIndex={indirectArgsData[3]} startInstance={indirectArgsData[4]}";
+    }
+
+    private static string BuildFirstVisibleTransformPreview(
+        int sourceInstanceIndex,
+        MatrixRowsDebugData? transformData,
+        Vector4? frameData)
+    {
+        if (!transformData.HasValue)
+            return $"firstVisibleTransform=unavailable source={sourceInstanceIndex}";
+
+        MatrixRowsDebugData rows = transformData.Value;
+        Vector3 center = new Vector3(rows.row0.w, rows.row1.w, rows.row2.w);
+        Vector3 axisX = new Vector3(rows.row0.x, rows.row0.y, rows.row0.z);
+        Vector3 axisY = new Vector3(rows.row1.x, rows.row1.y, rows.row1.z);
+        Vector3 axisZ = new Vector3(rows.row2.x, rows.row2.y, rows.row2.z);
+        string framePreview = frameData.HasValue ? frameData.Value.ToString("F3") : "null";
+        return $"firstVisibleTransform=source={sourceInstanceIndex} center={center} axisXMag={axisX.magnitude:F3} axisYMag={axisY.magnitude:F3} axisZMag={axisZ.magnitude:F3} frameData={framePreview}";
+    }
+
+    private static string BuildRuntimeSquadMaskPreview(uint[] visibleRuntimeSquadMask)
+    {
+        if (visibleRuntimeSquadMask == null || visibleRuntimeSquadMask.Length == 0)
+            return "runtime squad mask=no-mask";
+
+        int previewCount = Mathf.Min(8, visibleRuntimeSquadMask.Length);
+        StringBuilder builder = new StringBuilder();
+        builder.Append("runtime squad mask=");
+        for (int index = 0; index < previewCount; index++)
+        {
+            if (index > 0)
+                builder.Append(" | ");
+
+            builder.Append($"{index}:{visibleRuntimeSquadMask[index]}");
+        }
+
+        return builder.ToString();
+    }
+
     private static string BuildRenderChunkDiagnostics(Matrix4x4 localToWorldMatrix, Array renderChunks, Plane[] frustumPlanes)
     {
         if (renderChunks == null || renderChunks.Length == 0)
@@ -180,6 +294,29 @@ public static class CrowdVatDiagnostics
 
             builder.AppendLine(
                 $"  chunk[{chunkIndex}] visible={visible} instanceCount={instanceCount} worldCenter={worldBounds.center} worldSize={worldBounds.size}");
+        }
+
+        return builder.ToString().TrimEnd();
+    }
+
+    private static string BuildRuntimeSquadChunkDiagnostics(Array runtimeSquadRenderChunks)
+    {
+        if (runtimeSquadRenderChunks == null || runtimeSquadRenderChunks.Length == 0)
+            return "runtime squad chunk diagnostics=no-runtime-squad-chunk";
+
+        StringBuilder builder = new StringBuilder();
+        builder.AppendLine("runtime squad chunk diagnostics:");
+
+        for (int chunkIndex = 0; chunkIndex < runtimeSquadRenderChunks.Length; chunkIndex++)
+        {
+            object chunk = runtimeSquadRenderChunks.GetValue(chunkIndex);
+            uint[] instanceIndices = GetPrivateFieldValue<uint[]>(chunk, "instanceIndices");
+            int squadIndex = GetPrivateFieldValue<int>(chunk, "squadIndex");
+            bool usesRuntimeBounds = GetPrivateFieldValue<bool>(chunk, "usesRuntimeBounds");
+            bool hasSlotExtents = GetPrivateFieldValue<bool>(chunk, "hasSlotExtents");
+
+            builder.AppendLine(
+                $"  runtimeChunk[{chunkIndex}] squadIndex={squadIndex} instanceCount={(instanceIndices != null ? instanceIndices.Length : 0)} usesRuntimeBounds={usesRuntimeBounds} hasSlotExtents={hasSlotExtents}");
         }
 
         return builder.ToString().TrimEnd();
@@ -210,6 +347,56 @@ public static class CrowdVatDiagnostics
     {
         FieldInfo field = instance.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
         return field != null ? field.GetValue(instance) as T : null;
+    }
+
+    private static uint ReadCounterValue(ComputeBuffer buffer)
+    {
+        if (buffer == null)
+            return 0u;
+
+        uint[] data = new uint[1];
+        buffer.GetData(data, 0, 0, 1);
+        return data[0];
+    }
+
+    private static uint[] ReadUIntBuffer(ComputeBuffer buffer, int count)
+    {
+        if (buffer == null || count <= 0)
+            return Array.Empty<uint>();
+
+        uint[] data = new uint[count];
+        buffer.GetData(data, 0, 0, count);
+        return data;
+    }
+
+    private static uint[] ReadGraphicsUIntBuffer(GraphicsBuffer buffer, int count)
+    {
+        if (buffer == null || count <= 0)
+            return Array.Empty<uint>();
+
+        uint[] data = new uint[count];
+        buffer.GetData(data, 0, 0, count);
+        return data;
+    }
+
+    private static MatrixRowsDebugData? ReadMatrixRowsBuffer(ComputeBuffer buffer, int index)
+    {
+        if (buffer == null || index < 0 || index >= buffer.count)
+            return null;
+
+        MatrixRowsDebugData[] data = new MatrixRowsDebugData[1];
+        buffer.GetData(data, 0, index, 1);
+        return data[0];
+    }
+
+    private static Vector4? ReadVector4Buffer(ComputeBuffer buffer, int index)
+    {
+        if (buffer == null || index < 0 || index >= buffer.count)
+            return null;
+
+        Vector4[] data = new Vector4[1];
+        buffer.GetData(data, 0, index, 1);
+        return data[0];
     }
 
     private static T GetFieldValue<T>(object instance, string fieldName)

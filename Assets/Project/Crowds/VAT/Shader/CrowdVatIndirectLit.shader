@@ -38,6 +38,7 @@ Shader "Project/Crowd/VATIndirectLit"
 
     StructuredBuffer<MatrixRows> _InstanceTransforms;
     StructuredBuffer<float4> _InstanceFrameData;
+    StructuredBuffer<float4> _InstanceFrameBlendData;
     StructuredBuffer<uint> _VisibleInstanceIndices;
 
     CBUFFER_START(UnityPerMaterial)
@@ -75,6 +76,7 @@ Shader "Project/Crowd/VATIndirectLit"
         float3 positionWS : TEXCOORD2;
         float4 shadowCoord : TEXCOORD3;
         float4 tangentWS : TEXCOORD4;
+        float combatFlash : TEXCOORD5;
     };
 
     struct ShadowVaryings
@@ -243,6 +245,60 @@ Shader "Project/Crowd/VATIndirectLit"
         tangentOutput = float4(normalize(lerp(currentTangent.xyz, nextTangent.xyz, frameBlend)), tangentInput.w);
     }
 
+    void ComputeBlendedVatPose(
+        float4 currentFrameData,
+        float4 nextFrameData,
+        float clipBlend,
+        float3 positionInput,
+        float3 normalInput,
+        float4 tangentInput,
+        float4 bonePixelOffsets,
+        float4 boneWeights,
+        out float3 positionOutput,
+        out float3 normalOutput,
+        out float4 tangentOutput)
+    {
+        float3 currentPosition;
+        float3 currentNormal;
+        float4 currentTangent;
+        ComputeVatPose(
+            currentFrameData,
+            positionInput,
+            normalInput,
+            tangentInput,
+            bonePixelOffsets,
+            boneWeights,
+            currentPosition,
+            currentNormal,
+            currentTangent);
+
+        if (clipBlend <= 1e-5)
+        {
+            positionOutput = currentPosition;
+            normalOutput = currentNormal;
+            tangentOutput = currentTangent;
+            return;
+        }
+
+        float3 nextPosition;
+        float3 nextNormal;
+        float4 nextTangent;
+        ComputeVatPose(
+            nextFrameData,
+            positionInput,
+            normalInput,
+            tangentInput,
+            bonePixelOffsets,
+            boneWeights,
+            nextPosition,
+            nextNormal,
+            nextTangent);
+
+        positionOutput = lerp(currentPosition, nextPosition, clipBlend);
+        normalOutput = normalize(lerp(currentNormal, nextNormal, clipBlend));
+        tangentOutput = float4(normalize(lerp(currentTangent.xyz, nextTangent.xyz, clipBlend)), tangentInput.w);
+    }
+
     float3 TransformCrowdRootPosition(float3 positionOS)
     {
         return TransformPositionColumns(_CrowdRootLocalRow0, _CrowdRootLocalRow1, _CrowdRootLocalRow2, positionOS);
@@ -324,12 +380,15 @@ Shader "Project/Crowd/VATIndirectLit"
         uint sourceInstanceID = _VisibleInstanceIndices[visibleInstanceID];
         MatrixRows instanceRows = _InstanceTransforms[sourceInstanceID];
         float4 frameData = _InstanceFrameData[sourceInstanceID];
+        float4 frameBlendData = _InstanceFrameBlendData[sourceInstanceID];
 
         float3 skinnedPositionMS;
         float3 skinnedNormalMS;
         float4 skinnedTangentMS;
-        ComputeVatPose(
+        ComputeBlendedVatPose(
             frameData,
+            frameBlendData,
+            saturate(frameData.w),
             input.positionOS.xyz,
             input.normalOS,
             input.tangentOS,
@@ -353,6 +412,7 @@ Shader "Project/Crowd/VATIndirectLit"
         output.positionWS = positionWS;
         output.shadowCoord = TransformWorldToShadowCoord(positionWS);
         output.tangentWS = float4(tangentWS, skinnedTangentMS.w);
+        output.combatFlash = frameBlendData.w;
         return output;
     }
 
@@ -385,8 +445,13 @@ Shader "Project/Crowd/VATIndirectLit"
             * mainLight.color
             * mainLight.distanceAttenuation
             * mainLight.shadowAttenuation;
+        float muzzleFlash = saturate(input.combatFlash);
+        float3 muzzleGlow = float3(1.0, 0.55, 0.16)
+            * muzzleFlash
+            * (0.35 + lambert * 0.65)
+            * (0.8 + _SpecularStrength);
 
-        return half4(ambient + direct + highlight, baseSample.a);
+        return half4(ambient + direct + highlight + muzzleGlow, baseSample.a);
     }
 
     ShadowVaryings ShadowVert(Attributes input)
@@ -396,12 +461,15 @@ Shader "Project/Crowd/VATIndirectLit"
         uint sourceInstanceID = _VisibleInstanceIndices[visibleInstanceID];
         MatrixRows instanceRows = _InstanceTransforms[sourceInstanceID];
         float4 frameData = _InstanceFrameData[sourceInstanceID];
+        float4 frameBlendData = _InstanceFrameBlendData[sourceInstanceID];
 
         float3 skinnedPositionMS;
         float3 skinnedNormalMS;
         float4 skinnedTangentMS;
-        ComputeVatPose(
+        ComputeBlendedVatPose(
             frameData,
+            frameBlendData,
+            saturate(frameData.w),
             input.positionOS.xyz,
             input.normalOS,
             input.tangentOS,

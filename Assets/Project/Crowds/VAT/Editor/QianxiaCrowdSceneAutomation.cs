@@ -45,6 +45,7 @@ public static class QianxiaCrowdSceneAutomation
         var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
         GameObject qianxiaCharacter = EnsureQianxiaCharacter(characterPrefab);
         GameObject crowdObject = EnsureCrowdObject(vatPrefab, crowdCompute, crowdShader, qianxiaCharacter);
+        EnsureRuntimeSquadControllers(crowdObject, qianxiaCharacter);
 
         EditorUtility.SetDirty(qianxiaCharacter);
         EditorUtility.SetDirty(crowdObject);
@@ -129,7 +130,6 @@ public static class QianxiaCrowdSceneAutomation
         SetInt(serializedObject, "_maxCellOccupancy", 32);
         SetInt(serializedObject, "_solverIterations", 2);
         SetFloat(serializedObject, "_selfCollisionStrength", 0.92f);
-        SetFloat(serializedObject, "_anchorStiffness", 0.08f);
         SetFloat(serializedObject, "_velocityDamping", 0.82f);
         SetFloat(serializedObject, "_maxPushPerStep", 0.22f);
         SetFloat(serializedObject, "_maxDisplacementFromSpawn", 1.4f);
@@ -138,7 +138,7 @@ public static class QianxiaCrowdSceneAutomation
         SetBool(serializedObject, "_autoResolveCharacterController", true);
         SetFloat(serializedObject, "_activeBubbleRadius", 13.0f);
         SetFloat(serializedObject, "_activeBubbleRetentionRadius", 17.0f);
-        SetBool(serializedObject, "_useCharacterAsInteractionSphere", true);
+        SetBool(serializedObject, "_useCharacterAsInteractionSphere", false);
         SetFloat(serializedObject, "_characterInteractionRadiusMultiplier", 2.4f);
         SetFloat(serializedObject, "_characterInteractionStrength", 0.16f);
         SetEnum(serializedObject, "_shadowCastingMode", (int)ShadowCastingMode.Off);
@@ -149,6 +149,44 @@ public static class QianxiaCrowdSceneAutomation
 
         renderer.RebuildCrowdLayout();
         return crowdObject;
+    }
+
+    private static void EnsureRuntimeSquadControllers(GameObject crowdObject, GameObject qianxiaCharacter)
+    {
+        if (crowdObject == null)
+            return;
+
+        CrowdVatIndirectRenderer renderer = crowdObject.GetComponent<CrowdVatIndirectRenderer>();
+        if (renderer == null)
+            return;
+
+        CrowdVatSquadController squadController = crowdObject.GetComponent<CrowdVatSquadController>();
+        if (squadController == null)
+            squadController = crowdObject.AddComponent<CrowdVatSquadController>();
+
+        SerializedObject squadSerializedObject = new SerializedObject(squadController);
+        SetObjectReference(squadSerializedObject, "_renderer", renderer);
+        SetBool(squadSerializedObject, "_autoResolveRenderer", true);
+        squadSerializedObject.ApplyModifiedPropertiesWithoutUndo();
+
+        if (!squadController.HasAnchorTransforms())
+            squadController.CreateDefaultTacticalSquads();
+
+        if (qianxiaCharacter == null)
+            return;
+
+        CrowdVatSquadCommandController commandController = qianxiaCharacter.GetComponent<CrowdVatSquadCommandController>();
+        if (commandController == null)
+            commandController = qianxiaCharacter.AddComponent<CrowdVatSquadCommandController>();
+
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+            mainCamera = UnityEngine.Object.FindFirstObjectByType<Camera>();
+
+        SerializedObject commandSerializedObject = new SerializedObject(commandController);
+        SetObjectReference(commandSerializedObject, "_squadController", squadController);
+        SetObjectReference(commandSerializedObject, "_targetCamera", mainCamera);
+        commandSerializedObject.ApplyModifiedPropertiesWithoutUndo();
     }
 
     private static CrowdVatPlayer ResolveTemplatePlayer(GameObject vatPrefab)

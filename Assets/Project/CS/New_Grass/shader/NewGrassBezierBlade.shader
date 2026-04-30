@@ -141,12 +141,18 @@ Shader "New_Grass/BezierBlade"
                 float width;
                 float tilt;
                 float bend;
-                float3 surfaceNorm;
-                float windForce;
-                float sideBend;
             };
 
-            StructuredBuffer<GrassBlade> _GrassBlades;
+            struct VisibleGrassInstance
+            {
+                uint bladeIndex;
+                float rotAngle;
+                float windForce;
+                float padding;
+            };
+
+            StructuredBuffer<VisibleGrassInstance> _GrassBlades;
+            StructuredBuffer<GrassBlade> _GeneratedGrassBlades;
 #endif
 
             void ConfigureProcedural()
@@ -279,15 +285,16 @@ Shader "New_Grass/BezierBlade"
                 float3 bladePositionWS = 0.0;
 
 #if defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
-                GrassBlade blade = _GrassBlades[IN.instanceID];
+                VisibleGrassInstance visible = _GrassBlades[IN.instanceID];
+                GrassBlade blade = _GeneratedGrassBlades[visible.bladeIndex];
                 height = blade.height;
                 widthBase = blade.width;
                 tilt = blade.tilt;
-                bend = blade.bend;
-                sideBend = blade.sideBend;
-                rotationAngle = blade.rotAngle;
+                bend = blade.bend + visible.windForce;
+                sideBend = 0.0;
+                rotationAngle = visible.rotAngle;
                 bladeHash = blade.hash;
-                windForce = blade.windForce;
+                windForce = visible.windForce;
                 bladePositionWS = blade.positionWS;
 #endif
 

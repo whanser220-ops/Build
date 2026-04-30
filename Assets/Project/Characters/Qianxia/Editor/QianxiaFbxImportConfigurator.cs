@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -7,6 +6,7 @@ public class QianxiaFbxImportConfigurator : AssetPostprocessor
 {
     public const string ModelAssetPath = "Assets/Project/Characters/Qianxia/SourceModels/Qianxia_Rokoko_BlenderClean.fbx";
     public const string WalkAssetPath = "Assets/Project/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
+    public const string SourceAnimationsRoot = "Assets/Project/Characters/Qianxia/SourceAnimations/";
 
     private void OnPreprocessModel()
     {
@@ -19,8 +19,8 @@ public class QianxiaFbxImportConfigurator : AssetPostprocessor
             return;
         }
 
-        if (string.Equals(assetPath, WalkAssetPath, StringComparison.OrdinalIgnoreCase))
-            ConfigureWalkAnimation(importer);
+        if (IsSourceAnimationAsset(assetPath))
+            ConfigureAnimationAsset(importer, assetPath);
     }
 
     private static void ConfigureCharacterModel(ModelImporter importer)
@@ -30,7 +30,7 @@ public class QianxiaFbxImportConfigurator : AssetPostprocessor
         importer.importAnimation = true;
     }
 
-    private static void ConfigureWalkAnimation(ModelImporter importer)
+    private static void ConfigureAnimationAsset(ModelImporter importer, string importedAssetPath)
     {
         importer.animationType = ModelImporterAnimationType.Human;
         importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
@@ -43,12 +43,12 @@ public class QianxiaFbxImportConfigurator : AssetPostprocessor
         if (sourceClips == null || sourceClips.Length == 0)
             return;
 
+        bool shouldLoop = ShouldLoopAnimation(importedAssetPath);
         for (int i = 0; i < sourceClips.Length; i++)
         {
             ModelImporterClipAnimation clip = sourceClips[i];
-            clip.name = "Qianxia_Walk_Slow";
-            clip.loopTime = true;
-            clip.loopPose = true;
+            clip.loopTime = shouldLoop;
+            clip.loopPose = shouldLoop;
             clip.lockRootRotation = true;
             clip.lockRootHeightY = true;
             clip.lockRootPositionXZ = true;
@@ -60,5 +60,21 @@ public class QianxiaFbxImportConfigurator : AssetPostprocessor
         }
 
         importer.clipAnimations = sourceClips;
+    }
+
+    private static bool IsSourceAnimationAsset(string importedAssetPath)
+    {
+        return !string.IsNullOrWhiteSpace(importedAssetPath) &&
+            importedAssetPath.StartsWith(SourceAnimationsRoot, StringComparison.OrdinalIgnoreCase) &&
+            importedAssetPath.EndsWith(".fbx", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldLoopAnimation(string importedAssetPath)
+    {
+        if (string.IsNullOrWhiteSpace(importedAssetPath))
+            return true;
+
+        string normalizedPath = importedAssetPath.Replace('\\', '/');
+        return normalizedPath.IndexOf("/OneShot/", StringComparison.OrdinalIgnoreCase) < 0;
     }
 }

@@ -22,6 +22,13 @@ public static class CrowdVatBaker
         public Material[] Materials { get; set; }
     }
 
+    public sealed class ClipSource
+    {
+        public AnimationClip Clip { get; set; }
+        public GameObject MotionSourceAsset { get; set; }
+        public string ClipNameOverride { get; set; }
+    }
+
     public static BakeResult BakeSkinnedMeshToVat(
         GameObject sourceModelAsset,
         GameObject motionSourceAsset,
@@ -30,10 +37,39 @@ public static class CrowdVatBaker
         string outputName,
         Shader shader)
     {
+        if (clips == null)
+            throw new ArgumentNullException(nameof(clips));
+
+        List<ClipSource> clipSources = new List<ClipSource>(clips.Count);
+        for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+        {
+            clipSources.Add(new ClipSource
+            {
+                Clip = clips[clipIndex],
+                MotionSourceAsset = motionSourceAsset,
+                ClipNameOverride = clips[clipIndex] != null ? clips[clipIndex].name : string.Empty
+            });
+        }
+
+        return BakeSkinnedMeshToVat(
+            sourceModelAsset,
+            clipSources,
+            outputFolder,
+            outputName,
+            shader);
+    }
+
+    public static BakeResult BakeSkinnedMeshToVat(
+        GameObject sourceModelAsset,
+        IReadOnlyList<ClipSource> clipSources,
+        string outputFolder,
+        string outputName,
+        Shader shader)
+    {
         if (sourceModelAsset == null)
             throw new ArgumentNullException(nameof(sourceModelAsset));
 
-        if (clips == null || clips.Count == 0)
+        if (clipSources == null || clipSources.Count == 0)
             throw new InvalidOperationException("No animation clips were provided for VAT baking.");
 
         if (shader == null)
@@ -44,20 +80,15 @@ public static class CrowdVatBaker
         EnsureFolder(materialFolder);
 
         GameObject sampleRoot = null;
-        GameObject motionRoot = null;
         Mesh bakedBoundsMesh = null;
+        Dictionary<GameObject, GameObject> motionRootsByAsset = null;
 
         try
         {
             sampleRoot = InstantiateAsset(sourceModelAsset);
             sampleRoot.hideFlags = HideFlags.HideAndDontSave;
 
-            motionRoot = motionSourceAsset != null
-                ? InstantiateAsset(motionSourceAsset)
-                : sampleRoot;
-
-            if (motionRoot != null && motionRoot != sampleRoot)
-                motionRoot.hideFlags = HideFlags.HideAndDontSave;
+            motionRootsByAsset = InstantiateMotionRoots(clipSources, sampleRoot);
 
             SkinnedMeshRenderer sampleRenderer = sampleRoot.GetComponentInChildren<SkinnedMeshRenderer>(true);
             if (sampleRenderer == null)
@@ -95,9 +126,9 @@ public static class CrowdVatBaker
             Bounds bakedBounds;
             Texture2D boneTexture = BakeBoneAnimationTexture(
                 sampleRoot,
-                motionRoot,
                 sampleRenderer,
-                clips,
+                clipSources,
+                motionRootsByAsset,
                 bakedBoundsMesh,
                 out clipInfos,
                 out bakedBounds,
@@ -159,8 +190,7 @@ public static class CrowdVatBaker
             if (sampleRoot != null)
                 UnityEngine.Object.DestroyImmediate(sampleRoot);
 
-            if (motionRoot != null && motionRoot != sampleRoot)
-                UnityEngine.Object.DestroyImmediate(motionRoot);
+            ReleaseMotionRoots(motionRootsByAsset, sampleRoot);
         }
     }
 
@@ -171,6 +201,49 @@ public static class CrowdVatBaker
             return instance;
 
         return UnityEngine.Object.Instantiate(sourceModelAsset);
+    }
+
+    private static Dictionary<GameObject, GameObject> InstantiateMotionRoots(
+        IReadOnlyList<ClipSource> clipSources,
+        GameObject sampleRoot)
+    {
+        Dictionary<GameObject, GameObject> motionRootsByAsset = new Dictionary<GameObject, GameObject>();
+        if (clipSources == null)
+            return motionRootsByAsset;
+
+        for (int clipIndex = 0; clipIndex < clipSources.Count; clipIndex++)
+        {
+            ClipSource clipSource = clipSources[clipIndex];
+            if (clipSource == null || clipSource.MotionSourceAsset == null)
+                continue;
+
+            if (motionRootsByAsset.ContainsKey(clipSource.MotionSourceAsset))
+                continue;
+
+            GameObject motionRoot = InstantiateAsset(clipSource.MotionSourceAsset);
+            if (motionRoot != null && motionRoot != sampleRoot)
+                motionRoot.hideFlags = HideFlags.HideAndDontSave;
+
+            motionRootsByAsset.Add(clipSource.MotionSourceAsset, motionRoot);
+        }
+
+        return motionRootsByAsset;
+    }
+
+    private static void ReleaseMotionRoots(
+        IReadOnlyDictionary<GameObject, GameObject> motionRootsByAsset,
+        GameObject sampleRoot)
+    {
+        if (motionRootsByAsset == null)
+            return;
+
+        foreach (GameObject motionRoot in motionRootsByAsset.Values.Distinct())
+        {
+            if (motionRoot == null || motionRoot == sampleRoot)
+                continue;
+
+            UnityEngine.Object.DestroyImmediate(motionRoot);
+        }
     }
 
     private static Mesh CreateBakedMesh(Mesh sourceMesh, string outputName)
@@ -206,15 +279,15 @@ public static class CrowdVatBaker
 
     private static Texture2D BakeBoneAnimationTexture(
         GameObject sampleRoot,
-        GameObject motionRoot,
         SkinnedMeshRenderer sampleRenderer,
-        IReadOnlyList<AnimationClip> clips,
+        IReadOnlyList<ClipSource> clipSources,
+        IReadOnlyDictionary<GameObject, GameObject> motionRootsByAsset,
         Mesh bakedBoundsMesh,
         out CrowdVatAnimationAsset.ClipInfo[] clipInfos,
         out Bounds bakedBounds,
         string outputName)
     {
-        List<ClipBakeInfo> bakeInfos = BuildClipBakeInfos(clips);
+        List<ClipBakeInfo> bakeInfos = BuildClipBakeInfos(clipSources, motionRootsByAsset, sampleRoot);
         int totalFrameCount = bakeInfos.Sum(item => item.FrameCount);
         int textureWidth = sampleRenderer.bones.Length * RowsPerBone;
 
@@ -230,7 +303,7 @@ public static class CrowdVatBaker
         bakedBounds = default;
         Matrix4x4 rootWorldToLocal = sampleRenderer.transform.worldToLocalMatrix;
         Matrix4x4[] bindPoses = sampleRenderer.sharedMesh.bindposes;
-        PoseCopyPair[] poseCopyPairs = BuildPoseCopyPairs(motionRoot, sampleRoot, sampleRenderer);
+        Dictionary<GameObject, PoseCopyPair[]> poseCopyPairsByMotionRoot = new Dictionary<GameObject, PoseCopyPair[]>();
 
         try
         {
@@ -241,16 +314,22 @@ public static class CrowdVatBaker
             {
                 ClipBakeInfo bakeInfo = bakeInfos[clipIndex];
                 clipInfos[clipIndex] = new CrowdVatAnimationAsset.ClipInfo(
-                    bakeInfo.Clip.name,
+                    bakeInfo.ClipName,
                     frameCursor,
                     bakeInfo.FrameCount,
                     bakeInfo.Clip.length,
                     bakeInfo.Loop);
 
+                if (!poseCopyPairsByMotionRoot.TryGetValue(bakeInfo.MotionRoot, out PoseCopyPair[] poseCopyPairs))
+                {
+                    poseCopyPairs = BuildPoseCopyPairs(bakeInfo.MotionRoot, sampleRoot, sampleRenderer);
+                    poseCopyPairsByMotionRoot.Add(bakeInfo.MotionRoot, poseCopyPairs);
+                }
+
                 for (int localFrameIndex = 0; localFrameIndex < bakeInfo.FrameCount; localFrameIndex++)
                 {
                     float sampleTime = CalculateSampleTime(bakeInfo, localFrameIndex);
-                    bakeInfo.Clip.SampleAnimation(motionRoot, sampleTime);
+                    bakeInfo.Clip.SampleAnimation(bakeInfo.MotionRoot, sampleTime);
                     ApplyPoseCopyPairs(poseCopyPairs);
 
                     for (int boneIndex = 0; boneIndex < sampleRenderer.bones.Length; boneIndex++)
@@ -578,12 +657,16 @@ public static class CrowdVatBaker
         }
     }
 
-    private static List<ClipBakeInfo> BuildClipBakeInfos(IReadOnlyList<AnimationClip> clips)
+    private static List<ClipBakeInfo> BuildClipBakeInfos(
+        IReadOnlyList<ClipSource> clipSources,
+        IReadOnlyDictionary<GameObject, GameObject> motionRootsByAsset,
+        GameObject sampleRoot)
     {
-        List<ClipBakeInfo> bakeInfos = new List<ClipBakeInfo>(clips.Count);
-        for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+        List<ClipBakeInfo> bakeInfos = new List<ClipBakeInfo>(clipSources.Count);
+        for (int clipIndex = 0; clipIndex < clipSources.Count; clipIndex++)
         {
-            AnimationClip clip = clips[clipIndex];
+            ClipSource clipSource = clipSources[clipIndex];
+            AnimationClip clip = clipSource?.Clip;
             if (clip == null)
                 continue;
 
@@ -592,7 +675,9 @@ public static class CrowdVatBaker
 
             bool loop = clip.isLooping;
             int frameCount = CalculateFrameCount(clip, loop);
-            bakeInfos.Add(new ClipBakeInfo(clip, frameCount, loop));
+            GameObject motionRoot = ResolveMotionRoot(clipSource, motionRootsByAsset, sampleRoot);
+            string clipName = ResolveClipName(clipSource, clipIndex);
+            bakeInfos.Add(new ClipBakeInfo(clip, motionRoot, clipName, frameCount, loop));
         }
 
         if (bakeInfos.Count == 0)
@@ -608,6 +693,35 @@ public static class CrowdVatBaker
             return Mathf.Max(2, baseFrameCount);
 
         return Mathf.Max(2, baseFrameCount + 1);
+    }
+
+    private static GameObject ResolveMotionRoot(
+        ClipSource clipSource,
+        IReadOnlyDictionary<GameObject, GameObject> motionRootsByAsset,
+        GameObject sampleRoot)
+    {
+        if (clipSource == null || clipSource.MotionSourceAsset == null)
+            return sampleRoot;
+
+        if (motionRootsByAsset != null &&
+            motionRootsByAsset.TryGetValue(clipSource.MotionSourceAsset, out GameObject motionRoot) &&
+            motionRoot != null)
+        {
+            return motionRoot;
+        }
+
+        return sampleRoot;
+    }
+
+    private static string ResolveClipName(ClipSource clipSource, int clipIndex)
+    {
+        if (!string.IsNullOrWhiteSpace(clipSource?.ClipNameOverride))
+            return clipSource.ClipNameOverride;
+
+        if (clipSource?.Clip != null)
+            return clipSource.Clip.name;
+
+        return $"Clip_{clipIndex:00}";
     }
 
     private static float CalculateSampleTime(ClipBakeInfo bakeInfo, int localFrameIndex)
@@ -718,14 +832,23 @@ public static class CrowdVatBaker
 
     private readonly struct ClipBakeInfo
     {
-        public ClipBakeInfo(AnimationClip clip, int frameCount, bool loop)
+        public ClipBakeInfo(
+            AnimationClip clip,
+            GameObject motionRoot,
+            string clipName,
+            int frameCount,
+            bool loop)
         {
             Clip = clip;
+            MotionRoot = motionRoot;
+            ClipName = clipName;
             FrameCount = frameCount;
             Loop = loop;
         }
 
         public AnimationClip Clip { get; }
+        public GameObject MotionRoot { get; }
+        public string ClipName { get; }
         public int FrameCount { get; }
         public bool Loop { get; }
     }

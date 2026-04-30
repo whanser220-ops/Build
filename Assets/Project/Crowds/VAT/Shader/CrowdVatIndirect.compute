@@ -1,10 +1,22 @@
+#pragma kernel BuildAliveInstanceList
+#pragma kernel BuildAliveDispatchArgs
+#pragma kernel BuildActiveInstanceList
+#pragma kernel BuildActiveDispatchArgs
+#pragma kernel BuildVisibleRuntimeInstanceList
+#pragma kernel BuildVisibleChunkInstanceList
+#pragma kernel BuildVisibleIndirectArgs
 #pragma kernel PredictInstances
 #pragma kernel ClearGrid
 #pragma kernel BuildGrid
+#pragma kernel BuildSpatialElements
 #pragma kernel SolveCrowdCollisions
+#pragma kernel ResolveTargetAcquisition
+#pragma kernel ResolveInstanceCombat
 #pragma kernel ClearSpatialQueryResults
 #pragma kernel ResolveSpatialQueries
 #pragma kernel FinalizeInstances
+#pragma kernel CaptureAiDebugGpuStage
+#pragma kernel DiscoverAiDebugGpuCandidates
 
 struct InstanceSpawnData
 {
@@ -33,6 +45,26 @@ struct MatrixRows
     float4 row0;
     float4 row1;
     float4 row2;
+};
+
+struct AnimationClipGpuData
+{
+    int startFrame;
+    int frameCount;
+    float lengthSeconds;
+    int loop;
+};
+
+struct InstanceAnimationStateGpuData
+{
+    int currentClipIndex;
+    int nextClipIndex;
+    int isBlending;
+    int padding0;
+    float currentClipTime;
+    float nextClipTime;
+    float transitionElapsed;
+    float transitionDuration;
 };
 
 struct SpatialElementData
@@ -79,25 +111,180 @@ struct SpatialQueryHitData
     uint padding1;
 };
 
+struct SquadStateData
+{
+    float4 localCenterAndAnchorBlend;
+    float4 localForwardAndMoveSpeed;
+    float4 localTargetAndSpacingX;
+    float4 metadata0;
+    float4 metadata1;
+};
+
+struct AgentSquadData
+{
+    float4 squadAndSlotAndRoleAndFlags;
+    float4 slotOffsetAndWeight;
+};
+
+struct FormationSlotData
+{
+    float4 localOffsetAndRoleAndRank;
+    float4 preferredDistanceAndPadding;
+};
+
+struct InstanceCombatStateData
+{
+    float4 localOriginAndDistance;
+    float4 localTargetAndCooldown;
+    float4 localImpactNormalAndHit;
+    float4 healthAndHitFeedback;
+    float muzzleFlash;
+    int targetIndex;
+    uint flags;
+    uint debugShotInfoPacked;
+};
+
+struct TargetAcquisitionStateData
+{
+    float4 lastKnownTargetAndScore;
+    float4 timers;
+    float4 debugRejectCounts0;
+    float4 debugRejectCounts1;
+    int currentTargetIndex;
+    int lastAttackerIndex;
+    uint flags;
+    int debugVisibleSampleIndex;
+};
+
+struct CrowdVatAiDebugGpuStageRecord
+{
+    uint frameIndex;
+    uint stageId;
+    int solverIteration;
+    uint targetSlot;
+    uint instanceIndex;
+    uint active;
+    uint deathState;
+    uint gridCellKey;
+    uint gridOccupantCount;
+    uint gridOverflow;
+    uint combatFlags;
+    uint acquisitionFlags;
+    int combatTargetIndex;
+    int acquisitionTargetIndex;
+    int acquisitionLastAttackerIndex;
+    uint valid;
+    float4 localPositionYaw;
+    float4 velocityScaleHealth;
+    float4 combatDistanceCooldownMuzzleHit;
+    float4 combatImpactDamageNormalizedHealth;
+    float4 acquisitionLastKnownScore;
+    float4 acquisitionTimers;
+    float4 acquisitionRejectCounts0;
+    float4 acquisitionRejectCounts1;
+    float4 combatDebugShotInfo;
+};
+
+struct CrowdVatAiDebugGpuCandidateRecord
+{
+    uint frameIndex;
+    uint candidateSlot;
+    uint instanceIndex;
+    uint reasonMask;
+    float score;
+    uint active;
+    uint deathState;
+    uint gridCellKey;
+    uint gridOccupantCount;
+    uint gridOverflow;
+    uint combatFlags;
+    uint acquisitionFlags;
+    int combatTargetIndex;
+    int acquisitionTargetIndex;
+    uint valid;
+    uint reserved0;
+    float4 localPositionYaw;
+    float4 velocityScaleHealth;
+    float4 acquisitionRejectCounts0;
+    float4 acquisitionRejectCounts1;
+    float4 combatDistanceCooldownMuzzleHit;
+};
+
+struct CrowdVatAiDebugDiscoveryHistoryRecord
+{
+    float4 localPositionFrame;
+    float4 velocityStuck;
+};
+
+struct IndirectDrawIndexedArgsData
+{
+    uint indexCountPerInstance;
+    uint instanceCount;
+    uint startIndex;
+    uint baseVertexIndex;
+    uint startInstance;
+};
+
 StructuredBuffer<InstanceSpawnData> _SpawnData;
-StructuredBuffer<InstanceSimulationState> _SimulationReadBuffer;
-RWStructuredBuffer<InstanceSimulationState> _SimulationWriteBuffer;
+StructuredBuffer<float4> _SimulationPositionYawReadBuffer;
+RWStructuredBuffer<float4> _SimulationPositionYawWriteBuffer;
+StructuredBuffer<float> _SimulationScaleReadBuffer;
+RWStructuredBuffer<float> _SimulationScaleWriteBuffer;
+StructuredBuffer<float2> _SimulationVelocityReadBuffer;
+RWStructuredBuffer<float2> _SimulationVelocityWriteBuffer;
 RWStructuredBuffer<uint> _ActiveStateBuffer;
+RWStructuredBuffer<uint> _DeathStateBuffer;
+RWStructuredBuffer<uint> _AliveInstanceIndexBuffer;
+RWStructuredBuffer<uint> _AliveInstanceCounterBuffer;
+RWStructuredBuffer<uint> _AliveInstanceDispatchArgsBuffer;
+StructuredBuffer<uint> _AliveInstanceIndexReadBuffer;
+StructuredBuffer<uint> _AliveInstanceCounterReadBuffer;
+RWStructuredBuffer<uint> _ActiveInstanceIndexBuffer;
+RWStructuredBuffer<uint> _ActiveInstanceCounterBuffer;
+RWStructuredBuffer<uint> _ActiveInstanceDispatchArgsBuffer;
 StructuredBuffer<InteractionSphereData> _InteractionSphereBuffer;
+StructuredBuffer<SquadStateData> _SquadStateBuffer;
+StructuredBuffer<AgentSquadData> _AgentSquadDataBuffer;
+StructuredBuffer<FormationSlotData> _FormationSlotBuffer;
+StructuredBuffer<AnimationClipGpuData> _AnimationClipMetadataBuffer;
+StructuredBuffer<InstanceAnimationStateGpuData> _InstanceAnimationStateBuffer;
 RWStructuredBuffer<MatrixRows> _InstanceTransforms;
 RWStructuredBuffer<float4> _InstanceFrameData;
+RWStructuredBuffer<float4> _InstanceFrameBlendData;
+RWStructuredBuffer<uint> _VisibleInstanceIndices;
+RWStructuredBuffer<uint> _VisibleInstanceCounterBuffer;
 RWStructuredBuffer<uint> _GridCounterBuffer;
 RWStructuredBuffer<uint> _GridOccupantBuffer;
-RWStructuredBuffer<SpatialElementData> _SpatialElementBuffer;
+RWStructuredBuffer<float4> _SpatialCapsuleStartRadiusBuffer;
+RWStructuredBuffer<float4> _SpatialCapsuleEndHeightBuffer;
+RWStructuredBuffer<uint> _SpatialOwnerIndexBuffer;
+RWStructuredBuffer<uint> _SpatialTargetMaskBuffer;
+RWStructuredBuffer<uint> _SpatialFlagsBuffer;
+RWStructuredBuffer<uint> _SpatialFactionBuffer;
+RWStructuredBuffer<uint> _SquadAliveCountBuffer;
 StructuredBuffer<SpatialQueryData> _SpatialQueryBuffer;
 RWStructuredBuffer<SpatialQueryResultData> _SpatialQueryResultBuffer;
 RWStructuredBuffer<SpatialQueryHitData> _SpatialQueryHitBuffer;
+RWStructuredBuffer<InstanceCombatStateData> _CombatStateBuffer;
+RWStructuredBuffer<TargetAcquisitionStateData> _TargetAcquisitionStateBuffer;
+StructuredBuffer<uint> _AiDebugTargetIndexBuffer;
+RWStructuredBuffer<CrowdVatAiDebugGpuStageRecord> _AiDebugStageRecordBuffer;
+RWStructuredBuffer<uint> _AiDebugCandidateCounterBuffer;
+RWStructuredBuffer<CrowdVatAiDebugGpuCandidateRecord> _AiDebugCandidateRecordBuffer;
+RWStructuredBuffer<CrowdVatAiDebugDiscoveryHistoryRecord> _AiDebugDiscoveryHistoryBuffer;
+StructuredBuffer<uint> _InstanceRenderChunkBuffer;
+RWStructuredBuffer<uint> _VisibleRuntimeSquadMaskBuffer;
+StructuredBuffer<uint> _VisibleRenderChunkMaskBuffer;
+RWStructuredBuffer<IndirectDrawIndexedArgsData> _VisibleRenderArgsBuffer;
 Texture2D<float4> _TerrainHeightmap;
 SamplerState sampler_TerrainHeightmap;
 Texture3D<float4> _StaticSdfTexture;
 SamplerState sampler_StaticSdfTexture;
+Texture3D<float4> _EnvironmentDistanceFieldTexture;
+SamplerState sampler_EnvironmentDistanceFieldTexture;
 
 int _InstanceCount;
+int _AnimationClipCount;
 float _PlaybackTime;
 float _BasePlaybackSpeed;
 int _ClipStartFrame;
@@ -130,7 +317,24 @@ float _CapsuleHeight;
 float _MaxSpatialQueryElementRadius;
 float _AnchorStiffness;
 float _VelocityDamping;
+float _GoalStiffness;
+int _EnableNavigationPotentialField;
+float _NavigationPotentialProbeDistance;
+float _NavigationDensityLateralStrength;
+float _NavigationDensitySlowdownStrength;
+int _NavigationDensityReferenceOccupancy;
+int _EnableLocalAvoidance;
+float _LocalAvoidanceRadius;
+float _LocalAvoidanceStrength;
+float _DensitySlowdownStrength;
+int _DensityReferenceNeighborCount;
+int _LocalAvoidanceMaxNeighbors;
 float _SelfCollisionStrength;
+float _SelfCollisionSlop;
+float _SelfCollisionMaxPushPerStep;
+int _EnableDensityConstraint;
+float _DensityComfortDistance;
+float _DensityConstraintStiffness;
 float _MaxPushPerStep;
 float _MaxDisplacementFromSpawn;
 float _InactiveReturnStrength;
@@ -139,14 +343,94 @@ float3 _TerrainPosition;
 float3 _TerrainSize;
 float _TerrainHeightOffset;
 int _EnableStaticSdfCollision;
+int _EnableEnvironmentDistanceField;
+int _EnableGpuInstanceCombat;
+float3 _EnvironmentDistanceWorldCenter;
+float3 _EnvironmentDistanceWorldSize;
+float _EnvironmentDistanceDistanceScale;
+float _EnvironmentDistanceDistanceBias;
 float3 _StaticSdfWorldCenter;
 float3 _StaticSdfWorldSize;
 float _StaticSdfDistanceScale;
 float _StaticSdfDistanceBias;
+float _CombatRange;
+float _CombatShotsPerSecond;
+float _CombatShotIntervalJitter;
+float _CombatShotSpreadDegrees;
+float _CombatHitRadiusPadding;
+float _CombatHitHeightPadding;
+int _EnableCombatTerrainOcclusion;
+float _CombatTerrainOcclusionSampleSpacing;
+float _CombatTerrainOcclusionClearance;
+float _CombatOriginHeight;
+float _CombatTargetHeight;
+float _CombatMuzzleFlashDecay;
+float _CombatImpactFlashDuration;
+float _CombatMaxHealth;
+float _CombatDamagePerHit;
+float _CombatHitFlashDecay;
+float _CombatOccludedTargetRetryDelay;
+float _CombatNoTargetRetryDelay;
+float _TargetAcquisitionSearchIntervalMin;
+float _TargetAcquisitionSearchIntervalMax;
+float _TargetAcquisitionFarDistance;
+float _TargetAcquisitionFarIntervalMultiplier;
+float _TargetAcquisitionFovCosine;
+int _TargetAcquisitionMaxCandidateChecks;
+float _TargetAcquisitionCurrentTargetBonus;
+float _TargetAcquisitionLastAttackerBonus;
+float _TargetAcquisitionLockDuration;
+float _TargetAcquisitionLostSightGrace;
+float _TargetAcquisitionDistanceScoreWeight;
+float _TargetAcquisitionViewScoreWeight;
 int _CapsulePbdSampleCount;
+int _EnableRuntimeSquadAnchors;
+int _UseRuntimeFormationSlots;
+int _SquadStateCount;
+int _AgentSquadDataCount;
+int _FormationSlotCount;
+int _VisibleRuntimeSquadCount;
+int _VisibleUnassignedInstances;
+int _VisibleRenderChunkCount;
+int _VisibleRenderArgsIndexCount;
+int _VisibleRenderArgsStartIndex;
+int _VisibleRenderArgsBaseVertex;
+int _HasVisibleFrustumPlanes;
+int _AiDebugTargetCount;
+int _AiDebugStageId;
+int _AiDebugFrameIndex;
+int _AiDebugSolverIteration;
+int _AiDebugStageWriteOffset;
+int _AiDebugCandidateCapacity;
+int _AiDebugDiscoveryFrameIndex;
+int _AiDebugDiscoveryFlags;
+float4 _AiDebugDiscoveryCenterRadius;
+float4 _AiDebugDiscoveryBoxCenter;
+float4 _AiDebugDiscoveryBoxExtents;
+float4 _AiDebugDiscoveryScreenRect;
+float4 _AiDebugDiscoveryWorldToClipRow0;
+float4 _AiDebugDiscoveryWorldToClipRow1;
+float4 _AiDebugDiscoveryWorldToClipRow2;
+float4 _AiDebugDiscoveryWorldToClipRow3;
+int _AiDebugDiscoverySquadId;
+float _AiDebugDiscoveryHighSpeedThreshold;
+float _AiDebugDiscoveryInactiveMovingSpeedThreshold;
+float _AiDebugDiscoverySpeedSpikeThreshold;
+float _AiDebugDiscoveryPositionJumpThreshold;
+float _AiDebugDiscoveryStuckSpeedThreshold;
+float _AiDebugDiscoveryStuckMoveThreshold;
+float _AiDebugDiscoveryStuckIntentSpeedThreshold;
+int _AiDebugDiscoveryStuckFrameThreshold;
+float _VisibleInstanceBoundsRadius;
 float4 _WorldToLocalRow0;
 float4 _WorldToLocalRow1;
 float4 _WorldToLocalRow2;
+float4 _VisibleFrustumPlane0;
+float4 _VisibleFrustumPlane1;
+float4 _VisibleFrustumPlane2;
+float4 _VisibleFrustumPlane3;
+float4 _VisibleFrustumPlane4;
+float4 _VisibleFrustumPlane5;
 
 static const uint CrowdVatSpatialTargetMaskCrowdAgent = 1u;
 static const uint CrowdVatFactionMaskNone = 0u;
@@ -156,6 +440,114 @@ static const uint CrowdVatSpatialQueryFlagActiveOnly = 1u;
 static const uint CrowdVatSpatialElementFlagActive = 1u;
 static const uint GridBuildModeActiveOnly = 0u;
 static const uint GridBuildModeAllQueryables = 1u;
+static const uint CrowdVatSquadCommandTypeNone = 0u;
+static const uint CrowdVatSquadCommandTypeHold = 1u;
+static const uint CrowdVatSquadCommandTypeMoveTo = 2u;
+static const uint CrowdVatSquadCommandTypeAdvance = 3u;
+static const uint CrowdVatSquadCommandTypeCharge = 4u;
+static const uint CrowdVatSquadCommandTypeRetreat = 5u;
+static const uint CrowdVatSquadCommandTypeRegroup = 6u;
+static const uint CrowdVatSquadFlagFaceTarget = 1u << 0;
+static const uint CrowdVatSquadFlagFaceMovement = 1u << 1;
+static const uint CrowdVatSquadMemberFlagUseSlotOffsetOverride = 1u << 0;
+static const uint CrowdVatInstanceCombatFlagHasTarget = 1u << 0;
+static const uint CrowdVatInstanceCombatFlagHasLineOfSight = 1u << 1;
+static const uint CrowdVatInstanceCombatFlagFiredThisFrame = 1u << 2;
+static const uint CrowdVatInstanceCombatFlagActive = 1u << 3;
+static const uint CrowdVatInstanceCombatFlagDead = 1u << 4;
+static const uint CrowdVatDeathStateDeadFlag = 0x80000000u;
+static const uint CrowdVatDeathStateDamageMask = 0x7fffffffu;
+static const uint CrowdVatTargetAcquisitionFlagHasTarget = 1u << 0;
+static const uint CrowdVatTargetAcquisitionFlagHasLineOfSight = 1u << 1;
+static const uint CrowdVatTargetAcquisitionFlagLocked = 1u << 2;
+static const uint CrowdVatTargetRejectEnvironmentSdf = 1u << 1;
+static const uint CrowdVatInvalidInstanceIndex = 0xFFFFFFFFu;
+static const uint CrowdVatDispatchThreadGroupSize = 64u;
+static const uint CrowdVatAiDebugDiscoveryFlagRegionSphere = 1u << 0;
+static const uint CrowdVatAiDebugDiscoveryFlagRegionBox = 1u << 1;
+static const uint CrowdVatAiDebugDiscoveryFlagScreenRect = 1u << 2;
+static const uint CrowdVatAiDebugDiscoveryFlagSquadFilter = 1u << 3;
+static const uint CrowdVatAiDebugDiscoveryFlagRequireAnomaly = 1u << 4;
+static const uint CrowdVatAiDebugCandidateRegion = 1u << 0;
+static const uint CrowdVatAiDebugCandidateDeadButActive = 1u << 1;
+static const uint CrowdVatAiDebugCandidateGridOverflow = 1u << 2;
+static const uint CrowdVatAiDebugCandidateInvalidState = 1u << 3;
+static const uint CrowdVatAiDebugCandidateHighSpeed = 1u << 4;
+static const uint CrowdVatAiDebugCandidateCombatTargetInvalid = 1u << 5;
+static const uint CrowdVatAiDebugCandidateAcquisitionTargetInvalid = 1u << 6;
+static const uint CrowdVatAiDebugCandidateRejectSaturated = 1u << 7;
+static const uint CrowdVatAiDebugCandidateShotBlockedByScene = 1u << 8;
+static const uint CrowdVatAiDebugCandidateScreen = 1u << 9;
+static const uint CrowdVatAiDebugCandidateSquad = 1u << 10;
+static const uint CrowdVatAiDebugCandidateInactiveMoving = 1u << 11;
+static const uint CrowdVatAiDebugCandidateNoLineOfSight = 1u << 12;
+static const uint CrowdVatAiDebugCandidateSpeedSpike = 1u << 13;
+static const uint CrowdVatAiDebugCandidateStuck = 1u << 14;
+static const uint CrowdVatAiDebugCandidatePositionJump = 1u << 15;
+static const uint CrowdVatSquadMemberFlagUnassigned = 1u << 31;
+static const float CrowdVatPi = 3.14159265;
+static const float CrowdVatFacingVelocityThresholdSqr = 1e-5;
+static const float CombatRayHitBias = 0.05;
+static const int CombatEnvironmentOcclusionMaxSteps = 96;
+static const float CombatEnvironmentOcclusionStepSafety = 0.75;
+static const float CombatEnvironmentOcclusionMinStep = 0.1;
+static const int CombatShotGridMaxCells = 96;
+static const uint CombatShotMaxAgentChecks = 256u;
+static const uint EnvironmentSurfaceNone = 0u;
+static const uint EnvironmentSurfaceGround = 1u;
+static const uint EnvironmentSurfaceWall = 2u;
+static const uint EnvironmentSurfaceCeiling = 3u;
+static const float EnvironmentGroundNormalYThreshold = 0.45;
+static const float EnvironmentCeilingNormalYThreshold = -0.35;
+static const float EnvironmentGroundSnapEpsilon = 1e-4;
+
+bool IsDeathStateDead(uint deathState)
+{
+    return (deathState & CrowdVatDeathStateDeadFlag) != 0u;
+}
+
+bool IsInstanceDead(uint instanceIndex)
+{
+    return IsDeathStateDead(_DeathStateBuffer[instanceIndex]);
+}
+
+float GetCrowdPbdInverseMass(uint instanceIndex)
+{
+    return IsInstanceDead(instanceIndex) ? 0.0 : 1.0;
+}
+
+uint GetCombatMaxHealthUnits()
+{
+    return (uint)max(round(max(_CombatMaxHealth, 1.0)), 1.0);
+}
+
+uint GetCombatDamagePerHitUnits()
+{
+    return (uint)round(max(_CombatDamagePerHit, 0.0));
+}
+
+uint GetCombatDamageTakenUnits(uint deathState)
+{
+    return min(deathState & CrowdVatDeathStateDamageMask, GetCombatMaxHealthUnits());
+}
+
+float ComputeCombatHealth(uint deathState)
+{
+    uint maxHealth = GetCombatMaxHealthUnits();
+    uint damageTaken = GetCombatDamageTakenUnits(deathState);
+    return (float)max(maxHealth - damageTaken, 0u);
+}
+
+float4 BuildCombatHealthFeedback(float health, float hitFlash, float lastDamage)
+{
+    float maxHealth = max((float)GetCombatMaxHealthUnits(), 1.0);
+    float currentHealth = saturate(health / maxHealth) * maxHealth;
+    return float4(
+        currentHealth,
+        saturate(hitFlash),
+        max(lastDamage, 0.0),
+        saturate(currentHealth / maxHealth));
+}
 
 float3 TransformRootDirection(float3 localDirection)
 {
@@ -169,12 +561,181 @@ float3 TransformLocalPointToWorld(float3 localPoint)
     return _RootPosition + TransformRootDirection(localPoint);
 }
 
+float3 TransformWorldPointToLocal(float3 worldPoint)
+{
+    return float3(
+        dot(_WorldToLocalRow0, float4(worldPoint, 1.0)),
+        dot(_WorldToLocalRow1, float4(worldPoint, 1.0)),
+        dot(_WorldToLocalRow2, float4(worldPoint, 1.0)));
+}
+
 float3 TransformWorldDirectionToLocal(float3 worldDirection)
 {
     return float3(
         dot(_WorldToLocalRow0.xyz, worldDirection),
         dot(_WorldToLocalRow1.xyz, worldDirection),
         dot(_WorldToLocalRow2.xyz, worldDirection));
+}
+
+float3 SafeNormalize3D(float3 value, float3 fallbackValue)
+{
+    float lengthSquared = dot(value, value);
+    if (lengthSquared <= 1e-8)
+        return fallbackValue;
+
+    return value * rsqrt(lengthSquared);
+}
+
+float ComputeVisibleBoundsRootScale()
+{
+    return max(length(_RootRight), max(length(_RootUp), length(_RootForward)));
+}
+
+bool IsSphereInsidePlane(float3 worldCenter, float radius, float4 plane)
+{
+    return dot(plane.xyz, worldCenter) + plane.w >= -radius;
+}
+
+bool IsWorldSphereInsideVisibleFrustum(float3 worldCenter, float radius)
+{
+    return IsSphereInsidePlane(worldCenter, radius, _VisibleFrustumPlane0) &&
+        IsSphereInsidePlane(worldCenter, radius, _VisibleFrustumPlane1) &&
+        IsSphereInsidePlane(worldCenter, radius, _VisibleFrustumPlane2) &&
+        IsSphereInsidePlane(worldCenter, radius, _VisibleFrustumPlane3) &&
+        IsSphereInsidePlane(worldCenter, radius, _VisibleFrustumPlane4) &&
+        IsSphereInsidePlane(worldCenter, radius, _VisibleFrustumPlane5);
+}
+
+bool IsInstanceVisibleInFrustum(InstanceSimulationState state)
+{
+    if (_HasVisibleFrustumPlanes == 0)
+        return true;
+
+    float uniformScale = max(state.scaleAndVelocity.x, 0.01);
+    float worldRadius = max(_VisibleInstanceBoundsRadius * uniformScale * ComputeVisibleBoundsRootScale(), 0.01);
+    float3 worldCenter = TransformLocalPointToWorld(state.localPositionAndYaw.xyz);
+    return IsWorldSphereInsideVisibleFrustum(worldCenter, worldRadius);
+}
+
+bool TryResolveAliveDispatchInstanceIndex(uint dispatchIndex, out uint instanceIndex)
+{
+    uint aliveCount = _AliveInstanceCounterReadBuffer[0];
+    if (dispatchIndex >= aliveCount)
+    {
+        instanceIndex = CrowdVatInvalidInstanceIndex;
+        return false;
+    }
+
+    instanceIndex = _AliveInstanceIndexReadBuffer[dispatchIndex];
+    return instanceIndex < (uint)_InstanceCount;
+}
+
+bool TryResolveActiveDispatchInstanceIndex(uint dispatchIndex, out uint instanceIndex)
+{
+    uint activeCount = _ActiveInstanceCounterBuffer[0];
+    if (dispatchIndex >= activeCount)
+    {
+        instanceIndex = CrowdVatInvalidInstanceIndex;
+        return false;
+    }
+
+    instanceIndex = _ActiveInstanceIndexBuffer[dispatchIndex];
+    return instanceIndex < (uint)_InstanceCount;
+}
+
+bool TryResolveGridDispatchInstanceIndex(uint dispatchIndex, out uint instanceIndex)
+{
+    return _GridBuildMode == (int)GridBuildModeAllQueryables
+        ? TryResolveAliveDispatchInstanceIndex(dispatchIndex, instanceIndex)
+        : TryResolveActiveDispatchInstanceIndex(dispatchIndex, instanceIndex);
+}
+
+bool TrySampleBakedEnvironmentDistanceField(float3 worldPoint, out float signedDistance, out float3 environmentNormal);
+bool TrySampleEnvironmentDistanceField(float3 worldPoint, out float signedDistance, out float3 environmentNormal);
+
+bool TryTraceCombatEnvironmentSdfHit(
+    float3 originWorld,
+    float3 rayDirectionWorld,
+    float maxDistance,
+    out float hitDistanceWorld,
+    out float3 hitWorld,
+    out float3 hitWorldNormal)
+{
+    hitDistanceWorld = maxDistance;
+    hitWorld = originWorld + rayDirectionWorld * maxDistance;
+    hitWorldNormal = float3(0.0, 1.0, 0.0);
+    if (_EnableEnvironmentDistanceField == 0 || maxDistance <= CombatRayHitBias)
+    {
+        return false;
+    }
+
+    float directionLength = length(rayDirectionWorld);
+    if (directionLength <= 1e-5)
+        return false;
+
+    float queryDistance = maxDistance;
+    float3 rayDirection = rayDirectionWorld / directionLength;
+    hitWorldNormal = -rayDirection;
+    float fallbackStep = CombatEnvironmentOcclusionMinStep;
+    float clearance = max(_CombatTerrainOcclusionClearance, 0.02);
+    float startBias = min(max(clearance + 0.08, 0.12), queryDistance * 0.4);
+    float travel = startBias;
+
+    [loop]
+    for (int stepIndex = 0; stepIndex < CombatEnvironmentOcclusionMaxSteps && travel < queryDistance; stepIndex++)
+    {
+        float3 sampleWorld = originWorld + rayDirection * travel;
+        float signedDistance;
+        float3 environmentNormal;
+        if (!TrySampleBakedEnvironmentDistanceField(sampleWorld, signedDistance, environmentNormal))
+        {
+            travel += min(fallbackStep, queryDistance - travel);
+            continue;
+        }
+
+        if (signedDistance <= clearance)
+        {
+            hitDistanceWorld = travel;
+            hitWorld = sampleWorld;
+            hitWorldNormal = SafeNormalize3D(environmentNormal, -rayDirection);
+            return true;
+        }
+
+        float stepDistance = max(
+            (signedDistance - clearance) * CombatEnvironmentOcclusionStepSafety,
+            CombatEnvironmentOcclusionMinStep);
+        travel += min(stepDistance, queryDistance - travel);
+    }
+
+    return false;
+}
+
+bool IsCombatEnvironmentSdfOccluded(float3 originLocal, float3 targetLocal, float maxDistance)
+{
+    float3 originWorld = TransformLocalPointToWorld(originLocal);
+    float3 targetWorld = TransformLocalPointToWorld(targetLocal);
+    float3 rayVector = targetWorld - originWorld;
+    float rayLength = length(rayVector);
+    if (rayLength <= 1e-5)
+        return false;
+
+    float hitDistanceWorld;
+    float3 hitWorld;
+    float3 hitWorldNormal;
+    return TryTraceCombatEnvironmentSdfHit(originWorld, rayVector / rayLength, min(maxDistance, rayLength), hitDistanceWorld, hitWorld, hitWorldNormal);
+}
+
+bool IsCombatOccluded(float3 originLocal, float3 targetLocal, float maxDistance)
+{
+    return IsCombatEnvironmentSdfOccluded(originLocal, targetLocal, maxDistance);
+}
+
+uint GetCombatOcclusionRejectMask(float3 originLocal, float3 targetLocal, float maxDistance)
+{
+    uint rejectMask = 0u;
+    if (IsCombatEnvironmentSdfOccluded(originLocal, targetLocal, maxDistance))
+        rejectMask |= CrowdVatTargetRejectEnvironmentSdf;
+    return rejectMask;
 }
 
 float DecodeTerrainHeight01(float4 packedHeight)
@@ -199,7 +760,7 @@ float ComputeGroundedLocalY(float2 localXZ, float fallbackLocalY)
 
     float sampledHeight01 = DecodeTerrainHeight01(_TerrainHeightmap.SampleLevel(sampler_TerrainHeightmap, terrainUV, 0));
     float sampledHeight = _TerrainPosition.y
-        + sampledHeight01 * _TerrainSize.y * 2.0
+        + sampledHeight01 * _TerrainSize.y
         + _TerrainHeightOffset;
     return dot(_WorldToLocalRow1, float4(worldPoint.x, sampledHeight, worldPoint.z, 1.0));
 }
@@ -208,7 +769,7 @@ float SampleTerrainWorldHeightFromUV(float2 terrainUV)
 {
     float sampledHeight01 = DecodeTerrainHeight01(_TerrainHeightmap.SampleLevel(sampler_TerrainHeightmap, terrainUV, 0));
     return _TerrainPosition.y
-        + sampledHeight01 * _TerrainSize.y * 2.0
+        + sampledHeight01 * _TerrainSize.y
         + _TerrainHeightOffset;
 }
 
@@ -244,16 +805,30 @@ bool TrySampleTerrainSurface(float2 worldXZ, out float terrainHeight, out float3
     return true;
 }
 
+bool TrySampleTerrainDistanceField(float3 worldPoint, out float signedDistance, out float3 terrainNormal)
+{
+    signedDistance = 0.0;
+    terrainNormal = float3(0.0, 1.0, 0.0);
+
+    float terrainHeight;
+    if (!TrySampleTerrainSurface(worldPoint.xz, terrainHeight, terrainNormal))
+        return false;
+
+    float3 terrainSurfacePoint = float3(worldPoint.x, terrainHeight, worldPoint.z);
+    signedDistance = dot(worldPoint - terrainSurfacePoint, terrainNormal);
+    return true;
+}
+
 float SampleStaticSdfDistanceFromUVW(float3 uvw)
 {
     return _StaticSdfTexture.SampleLevel(sampler_StaticSdfTexture, uvw, 0).r * _StaticSdfDistanceScale + _StaticSdfDistanceBias;
 }
 
-bool TrySampleStaticSdf(float3 worldPoint, out float signedDistance, out float3 sdfNormal)
+bool TrySampleStaticSdfWithEnable(int enabled, float3 worldPoint, out float signedDistance, out float3 sdfNormal)
 {
     signedDistance = 0.0;
     sdfNormal = float3(0.0, 1.0, 0.0);
-    if (_EnableStaticSdfCollision == 0)
+    if (enabled == 0)
         return false;
 
     float3 sdfWorldSize = max(_StaticSdfWorldSize, float3(1e-4, 1e-4, 1e-4));
@@ -300,10 +875,161 @@ bool TrySampleStaticSdf(float3 worldPoint, out float signedDistance, out float3 
     return true;
 }
 
+bool TrySampleStaticSdf(float3 worldPoint, out float signedDistance, out float3 sdfNormal)
+{
+    return TrySampleStaticSdfWithEnable(_EnableStaticSdfCollision, worldPoint, signedDistance, sdfNormal);
+}
+
+float SampleEnvironmentDistanceFromUVW(float3 uvw)
+{
+    return _EnvironmentDistanceFieldTexture.SampleLevel(sampler_EnvironmentDistanceFieldTexture, uvw, 0).r
+        * _EnvironmentDistanceDistanceScale
+        + _EnvironmentDistanceDistanceBias;
+}
+
+bool TrySampleBakedEnvironmentDistanceField(float3 worldPoint, out float signedDistance, out float3 environmentNormal)
+{
+    signedDistance = 0.0;
+    environmentNormal = float3(0.0, 1.0, 0.0);
+    if (_EnableEnvironmentDistanceField == 0)
+        return false;
+
+    float3 fieldWorldSize = max(_EnvironmentDistanceWorldSize, float3(1e-4, 1e-4, 1e-4));
+    float3 fieldWorldMin = _EnvironmentDistanceWorldCenter - fieldWorldSize * 0.5;
+    float3 uvw = (worldPoint - fieldWorldMin) / fieldWorldSize;
+    if (any(uvw < 0.0) || any(uvw > 1.0))
+        return false;
+
+    signedDistance = SampleEnvironmentDistanceFromUVW(uvw);
+
+    uint fieldWidth;
+    uint fieldHeight;
+    uint fieldDepth;
+    _EnvironmentDistanceFieldTexture.GetDimensions(fieldWidth, fieldHeight, fieldDepth);
+    float3 texelSize = 1.0 / max(float3((float)fieldWidth - 1.0, (float)fieldHeight - 1.0, (float)fieldDepth - 1.0), 1.0);
+
+    float distanceXNeg = SampleEnvironmentDistanceFromUVW(clamp(uvw - float3(texelSize.x, 0.0, 0.0), 0.0, 1.0));
+    float distanceXPos = SampleEnvironmentDistanceFromUVW(clamp(uvw + float3(texelSize.x, 0.0, 0.0), 0.0, 1.0));
+    float distanceYNeg = SampleEnvironmentDistanceFromUVW(clamp(uvw - float3(0.0, texelSize.y, 0.0), 0.0, 1.0));
+    float distanceYPos = SampleEnvironmentDistanceFromUVW(clamp(uvw + float3(0.0, texelSize.y, 0.0), 0.0, 1.0));
+    float distanceZNeg = SampleEnvironmentDistanceFromUVW(clamp(uvw - float3(0.0, 0.0, texelSize.z), 0.0, 1.0));
+    float distanceZPos = SampleEnvironmentDistanceFromUVW(clamp(uvw + float3(0.0, 0.0, texelSize.z), 0.0, 1.0));
+
+    float gradientScaleX = max(fieldWorldSize.x * texelSize.x * 2.0, 1e-4);
+    float gradientScaleY = max(fieldWorldSize.y * texelSize.y * 2.0, 1e-4);
+    float gradientScaleZ = max(fieldWorldSize.z * texelSize.z * 2.0, 1e-4);
+    float3 fieldGradient = float3(
+        (distanceXPos - distanceXNeg) / gradientScaleX,
+        (distanceYPos - distanceYNeg) / gradientScaleY,
+        (distanceZPos - distanceZNeg) / gradientScaleZ);
+
+    if (dot(fieldGradient, fieldGradient) < 1e-8)
+    {
+        float3 fallbackNormal = worldPoint - _EnvironmentDistanceWorldCenter;
+        environmentNormal = dot(fallbackNormal, fallbackNormal) > 1e-8
+            ? normalize(fallbackNormal)
+            : float3(0.0, 1.0, 0.0);
+    }
+    else
+    {
+        environmentNormal = normalize(fieldGradient);
+    }
+
+    return true;
+}
+
+bool TrySampleEnvironmentDistanceField(float3 worldPoint, out float signedDistance, out float3 environmentNormal)
+{
+    signedDistance = 0.0;
+    environmentNormal = float3(0.0, 1.0, 0.0);
+
+    if (TrySampleBakedEnvironmentDistanceField(worldPoint, signedDistance, environmentNormal))
+        return true;
+
+    float terrainSignedDistance;
+    float3 terrainNormal;
+    bool hasTerrain = TrySampleTerrainDistanceField(worldPoint, terrainSignedDistance, terrainNormal);
+
+    float obstacleSignedDistance;
+    float3 obstacleNormal;
+    bool hasObstacle = TrySampleStaticSdf(worldPoint, obstacleSignedDistance, obstacleNormal);
+
+    if (!hasTerrain && !hasObstacle)
+        return false;
+
+    if (hasTerrain && (!hasObstacle || terrainSignedDistance <= obstacleSignedDistance))
+    {
+        signedDistance = terrainSignedDistance;
+        environmentNormal = terrainNormal;
+        return true;
+    }
+
+    signedDistance = obstacleSignedDistance;
+    environmentNormal = obstacleNormal;
+    return true;
+}
+
 float ComputeClipTime(InstanceSpawnData spawnData)
 {
     return spawnData.normalizedTimeOffset * _ClipLength
         + _PlaybackTime * _BasePlaybackSpeed * spawnData.playbackSpeedMultiplier;
+}
+
+AnimationClipGpuData BuildFallbackClipData()
+{
+    AnimationClipGpuData clip;
+    clip.startFrame = _ClipStartFrame;
+    clip.frameCount = max(_ClipFrameCount, 1);
+    clip.lengthSeconds = max(_ClipLength, 0.0);
+    clip.loop = _ClipLoop;
+    return clip;
+}
+
+bool TryGetAnimationClipData(int clipIndex, out AnimationClipGpuData clip)
+{
+    if (clipIndex < 0 || clipIndex >= _AnimationClipCount)
+    {
+        clip = BuildFallbackClipData();
+        return false;
+    }
+
+    clip = _AnimationClipMetadataBuffer[clipIndex];
+    return clip.frameCount > 0;
+}
+
+float4 BuildAnimationFrameData(AnimationClipGpuData clip, float clipTime)
+{
+    int clipFrameCount = max(clip.frameCount, 1);
+    if (clipFrameCount <= 1)
+        return float4(clip.startFrame, clip.startFrame, 0.0, 0.0);
+
+    float clipLength = max(clip.lengthSeconds, 1e-5);
+    bool shouldLoop = clip.loop != 0;
+
+    if (shouldLoop)
+        clipTime = fmod(max(clipTime, 0.0), clipLength);
+    else
+        clipTime = clamp(clipTime, 0.0, clipLength);
+
+    float normalizedTime = shouldLoop
+        ? clipTime / clipLength
+        : saturate(clipTime / clipLength);
+
+    float frameFloat = shouldLoop
+        ? normalizedTime * clipFrameCount
+        : normalizedTime * (clipFrameCount - 1);
+
+    int localFrame0 = clamp((int)floor(frameFloat), 0, clipFrameCount - 1);
+    int localFrame1 = shouldLoop
+        ? (localFrame0 + 1) % clipFrameCount
+        : min(localFrame0 + 1, clipFrameCount - 1);
+    float frameBlend = saturate(frameFloat - localFrame0);
+
+    return float4(
+        clip.startFrame + localFrame0,
+        clip.startFrame + localFrame1,
+        frameBlend,
+        0.0);
 }
 
 float2 GetLocalXZ(float4 localPositionAndYaw)
@@ -320,122 +1046,16 @@ float2 SafeNormalize2D(float2 value, float2 fallbackValue)
     return value * rsqrt(lengthSquared);
 }
 
-float2 FallbackDirection(uint instanceIndex, uint neighborIndex)
+uint DecodeRuntimeUInt(float encodedValue)
 {
-    float angle = ((instanceIndex * 92821u + neighborIndex * 68917u) & 1023u) * 0.00613592315;
-    return float2(cos(angle), sin(angle));
+    return (uint)max(0.0, floor(encodedValue + 0.5));
 }
 
-float ComputeInstanceRadius(float uniformScale)
+float2 Rotate2D(float2 localOffset, float2 forwardXZ)
 {
-    return max(0.01, _CollisionRadius * max(uniformScale, 0.01));
-}
-
-float ComputeInstanceCapsuleHeight(float uniformScale)
-{
-    float radius = ComputeInstanceRadius(uniformScale);
-    return max(radius * 2.0, _CapsuleHeight * max(uniformScale, 0.01));
-}
-
-float3 ComputeCapsuleBottom(float3 localPosition, float radius)
-{
-    return localPosition + float3(0.0, radius, 0.0);
-}
-
-float3 ComputeCapsuleTop(float3 localPosition, float uniformScale, float radius)
-{
-    float capsuleHeight = ComputeInstanceCapsuleHeight(uniformScale);
-    return localPosition + float3(0.0, capsuleHeight - radius, 0.0);
-}
-
-bool ComputeTerrainConstraintCorrection(float3 sampleLocalCenter, float sphereRadius, out float3 correctionLocal)
-{
-    correctionLocal = 0.0;
-    float3 sampleWorldCenter = TransformLocalPointToWorld(sampleLocalCenter);
-    float terrainHeight;
-    float3 terrainNormal;
-    if (!TrySampleTerrainSurface(sampleWorldCenter.xz, terrainHeight, terrainNormal))
-        return false;
-
-    float3 terrainSurfacePoint = float3(sampleWorldCenter.x, terrainHeight, sampleWorldCenter.z);
-    float signedDistance = dot(sampleWorldCenter - terrainSurfacePoint, terrainNormal);
-    if (signedDistance >= sphereRadius)
-        return false;
-
-    float penetration = sphereRadius - signedDistance;
-    float3 correctionWorld = terrainNormal * min(penetration, _MaxPushPerStep);
-    correctionLocal = TransformWorldDirectionToLocal(correctionWorld);
-    return dot(correctionLocal, correctionLocal) > 1e-10;
-}
-
-bool ComputeStaticSdfConstraintCorrection(float3 sampleLocalCenter, float sphereRadius, out float3 correctionLocal)
-{
-    correctionLocal = 0.0;
-    float signedDistance;
-    float3 sdfNormal;
-    if (!TrySampleStaticSdf(TransformLocalPointToWorld(sampleLocalCenter), signedDistance, sdfNormal))
-        return false;
-
-    if (signedDistance >= sphereRadius)
-        return false;
-
-    float penetration = sphereRadius - signedDistance;
-    float3 correctionWorld = sdfNormal * min(penetration, _MaxPushPerStep);
-    correctionLocal = TransformWorldDirectionToLocal(correctionWorld);
-    return dot(correctionLocal, correctionLocal) > 1e-10;
-}
-
-float3 ResolveEnvironmentConstraints(float3 localPosition, float uniformScale)
-{
-    if (_EnableTerrainCollision == 0 && _EnableStaticSdfCollision == 0)
-        return localPosition;
-
-    float radius = ComputeInstanceRadius(uniformScale);
-    int sampleCount = clamp(_CapsulePbdSampleCount, 2, 8);
-
-    [loop]
-    for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
-    {
-        float sampleT = sampleCount <= 1
-            ? 0.0
-            : sampleIndex / max((float)(sampleCount - 1), 1.0);
-
-        float3 capsuleStart = ComputeCapsuleBottom(localPosition, radius);
-        float3 capsuleEnd = ComputeCapsuleTop(localPosition, uniformScale, radius);
-        float3 sampleLocalCenter = lerp(capsuleStart, capsuleEnd, sampleT);
-
-        float3 correctionLocal;
-        if (ComputeTerrainConstraintCorrection(sampleLocalCenter, radius, correctionLocal))
-            localPosition += correctionLocal;
-
-        capsuleStart = ComputeCapsuleBottom(localPosition, radius);
-        capsuleEnd = ComputeCapsuleTop(localPosition, uniformScale, radius);
-        sampleLocalCenter = lerp(capsuleStart, capsuleEnd, sampleT);
-
-        if (ComputeStaticSdfConstraintCorrection(sampleLocalCenter, radius, correctionLocal))
-            localPosition += correctionLocal;
-    }
-
-    return localPosition;
-}
-
-float2 ClampToSimulationBounds(float2 positionXZ, float radius)
-{
-    float2 minXZ = _GridMinXZ + radius;
-    float2 maxXZ = _GridMaxXZ - radius;
-    return clamp(positionXZ, minXZ, maxXZ);
-}
-
-float2 ClampDisplacementToAnchor(float2 predictedXZ, float2 anchorXZ)
-{
-    float2 delta = predictedXZ - anchorXZ;
-    float distanceSquared = dot(delta, delta);
-    float maxDistance = max(_MaxDisplacementFromSpawn, 1e-4);
-    if (distanceSquared <= maxDistance * maxDistance)
-        return predictedXZ;
-
-    float distance = sqrt(distanceSquared);
-    return anchorXZ + delta * (maxDistance / max(distance, 1e-4));
+    float2 safeForward = SafeNormalize2D(forwardXZ, float2(0.0, 1.0));
+    float2 right = float2(safeForward.y, -safeForward.x);
+    return right * localOffset.x + safeForward * localOffset.y;
 }
 
 bool TryGetCellCoord(float2 positionXZ, out int2 coord)
@@ -475,6 +1095,439 @@ uint GetCellKey(int2 coord)
     return (uint)(coord.x + coord.y * _GridDim.x);
 }
 
+float2 GetCellCenterXZ(int2 coord)
+{
+    return _GridMinXZ + (float2((float)coord.x, (float)coord.y) + 0.5) * _CellSize;
+}
+
+bool IsGridCoordValid(int2 coord)
+{
+    return coord.x >= 0 &&
+        coord.y >= 0 &&
+        coord.x < _GridDim.x &&
+        coord.y < _GridDim.y;
+}
+
+bool ShouldMoveForSquadCommand(uint commandType)
+{
+    return commandType == CrowdVatSquadCommandTypeMoveTo ||
+        commandType == CrowdVatSquadCommandTypeAdvance ||
+        commandType == CrowdVatSquadCommandTypeCharge ||
+        commandType == CrowdVatSquadCommandTypeRetreat ||
+        commandType == CrowdVatSquadCommandTypeRegroup;
+}
+
+float2 ResolveSquadCommandVelocity(float2 desiredDirectionXZ, float2 fallbackDirectionXZ, float moveSpeed)
+{
+    if (moveSpeed <= 1e-4)
+        return 0.0;
+
+    float2 direction = SafeNormalize2D(desiredDirectionXZ, fallbackDirectionXZ);
+    return direction * moveSpeed;
+}
+
+bool TryResolveRuntimeSquadMotionXZ(
+    uint instanceIndex,
+    float2 staticAnchorXZ,
+    float2 currentXZ,
+    out float2 anchorXZ,
+    out float2 formationCenterXZ,
+    out float2 commandVelocityXZ,
+    out float formationDeviationRadius,
+    out float squadProjectionStrength,
+    out float2 desiredForwardXZ)
+{
+    anchorXZ = staticAnchorXZ;
+    formationCenterXZ = staticAnchorXZ;
+    commandVelocityXZ = 0.0;
+    formationDeviationRadius = max(_MaxDisplacementFromSpawn, 1e-4);
+    squadProjectionStrength = 0.0;
+    desiredForwardXZ = 0.0;
+
+    if (_EnableRuntimeSquadAnchors == 0 ||
+        _SquadStateCount <= 0 ||
+        _AgentSquadDataCount <= 0 ||
+        instanceIndex >= (uint)_AgentSquadDataCount)
+    {
+        return false;
+    }
+
+    AgentSquadData agentData = _AgentSquadDataBuffer[instanceIndex];
+    if (agentData.squadAndSlotAndRoleAndFlags.x < 0.0)
+        return false;
+
+    uint squadIndex = DecodeRuntimeUInt(agentData.squadAndSlotAndRoleAndFlags.x);
+    if (squadIndex >= (uint)_SquadStateCount)
+        return false;
+
+    SquadStateData squadState = _SquadStateBuffer[squadIndex];
+    float2 squadCenterXZ = squadState.localCenterAndAnchorBlend.xz;
+    float2 squadForwardXZ = SafeNormalize2D(squadState.localForwardAndMoveSpeed.xz, float2(0.0, 1.0));
+    float moveSpeed = max(0.0, squadState.localForwardAndMoveSpeed.w);
+    uint commandType = DecodeRuntimeUInt(squadState.metadata0.z);
+
+    uint squadFlags = DecodeRuntimeUInt(squadState.metadata1.x);
+    anchorXZ = currentXZ;
+    formationCenterXZ = currentXZ;
+    formationDeviationRadius = max(_MaxDisplacementFromSpawn, 1e-4);
+    squadProjectionStrength = 0.0;
+    desiredForwardXZ = squadForwardXZ;
+
+    uint slotIndex = DecodeRuntimeUInt(agentData.squadAndSlotAndRoleAndFlags.y);
+    uint memberFlags = DecodeRuntimeUInt(agentData.squadAndSlotAndRoleAndFlags.w);
+    if (_UseRuntimeFormationSlots != 0 &&
+        _FormationSlotCount > 0 &&
+        slotIndex < (uint)_FormationSlotCount)
+    {
+        FormationSlotData formationSlot = _FormationSlotBuffer[slotIndex];
+        float2 slotOffsetXZ = formationSlot.localOffsetAndRoleAndRank.xy;
+        if ((memberFlags & CrowdVatSquadMemberFlagUseSlotOffsetOverride) != 0u)
+            slotOffsetXZ += agentData.slotOffsetAndWeight.xy;
+
+        anchorXZ = squadCenterXZ + Rotate2D(slotOffsetXZ, squadForwardXZ);
+        formationCenterXZ = squadCenterXZ;
+        squadProjectionStrength = saturate(squadState.localCenterAndAnchorBlend.w);
+    }
+
+    float2 targetDirectionXZ = squadState.localTargetAndSpacingX.xz - squadCenterXZ;
+    if (ShouldMoveForSquadCommand(commandType) && moveSpeed > 0.0)
+    {
+        float2 commandDirectionXZ = commandType == CrowdVatSquadCommandTypeRetreat
+            ? -targetDirectionXZ
+            : targetDirectionXZ;
+        commandVelocityXZ = ResolveSquadCommandVelocity(commandDirectionXZ, squadForwardXZ, moveSpeed);
+    }
+
+    if ((squadFlags & CrowdVatSquadFlagFaceTarget) != 0u || commandType == CrowdVatSquadCommandTypeMoveTo)
+        desiredForwardXZ = SafeNormalize2D(targetDirectionXZ, desiredForwardXZ);
+
+    if ((squadFlags & CrowdVatSquadFlagFaceMovement) != 0u)
+    {
+        float2 movementForwardXZ = dot(commandVelocityXZ, commandVelocityXZ) > 1e-6
+            ? commandVelocityXZ
+            : anchorXZ - currentXZ;
+        desiredForwardXZ = SafeNormalize2D(movementForwardXZ, desiredForwardXZ);
+    }
+
+    return true;
+}
+
+float ResolveFacingYawRadians(
+    float currentYawRadians,
+    bool hasRuntimeSquadAnchor,
+    float2 desiredForwardXZ,
+    float2 commandVelocityXZ,
+    float2 displacementVelocityXZ)
+{
+    bool hasDesiredForward = dot(desiredForwardXZ, desiredForwardXZ) > CrowdVatFacingVelocityThresholdSqr;
+    bool hasCommandVelocity = dot(commandVelocityXZ, commandVelocityXZ) > CrowdVatFacingVelocityThresholdSqr;
+    bool hasDisplacementVelocity = dot(displacementVelocityXZ, displacementVelocityXZ) > CrowdVatFacingVelocityThresholdSqr;
+
+    if (hasRuntimeSquadAnchor)
+    {
+        if (hasDesiredForward)
+            return atan2(desiredForwardXZ.x, desiredForwardXZ.y);
+
+        if (hasCommandVelocity)
+            return atan2(commandVelocityXZ.x, commandVelocityXZ.y);
+
+        return currentYawRadians;
+    }
+
+    if (hasDisplacementVelocity)
+        return atan2(displacementVelocityXZ.x, displacementVelocityXZ.y);
+
+    return currentYawRadians;
+}
+
+bool TryGetAssignedRuntimeSquadIndex(uint instanceIndex, out uint squadIndex)
+{
+    squadIndex = 0u;
+
+    if (_EnableRuntimeSquadAnchors == 0 ||
+        _SquadStateCount <= 0 ||
+        _AgentSquadDataCount <= 0 ||
+        instanceIndex >= (uint)_AgentSquadDataCount)
+    {
+        return false;
+    }
+
+    AgentSquadData agentData = _AgentSquadDataBuffer[instanceIndex];
+    if (agentData.squadAndSlotAndRoleAndFlags.x < 0.0)
+        return false;
+
+    squadIndex = DecodeRuntimeUInt(agentData.squadAndSlotAndRoleAndFlags.x);
+    return squadIndex < (uint)_SquadStateCount;
+}
+
+bool IsRuntimeInstanceVisibleForRender(uint instanceIndex)
+{
+    if (_VisibleUnassignedInstances != 0 &&
+        (_AgentSquadDataCount <= 0 || instanceIndex >= (uint)_AgentSquadDataCount))
+    {
+        return true;
+    }
+
+    if (_AgentSquadDataCount <= 0 || instanceIndex >= (uint)_AgentSquadDataCount)
+        return false;
+
+    AgentSquadData agentData = _AgentSquadDataBuffer[instanceIndex];
+    if (agentData.squadAndSlotAndRoleAndFlags.x < 0.0)
+        return _VisibleUnassignedInstances != 0;
+
+    uint squadIndex = DecodeRuntimeUInt(agentData.squadAndSlotAndRoleAndFlags.x);
+    if (squadIndex >= (uint)_VisibleRuntimeSquadCount)
+        return _VisibleUnassignedInstances != 0;
+
+    return _VisibleRuntimeSquadMaskBuffer[squadIndex] != 0u;
+}
+
+bool IsChunkInstanceVisibleForRender(uint instanceIndex)
+{
+    if (_VisibleRenderChunkCount <= 0)
+        return false;
+
+    uint renderChunkIndex = _InstanceRenderChunkBuffer[instanceIndex];
+    if (renderChunkIndex >= (uint)_VisibleRenderChunkCount)
+        return false;
+
+    return _VisibleRenderChunkMaskBuffer[renderChunkIndex] != 0u;
+}
+
+float2 FallbackDirection(uint instanceIndex, uint neighborIndex)
+{
+    float angle = ((instanceIndex * 92821u + neighborIndex * 68917u) & 1023u) * 0.00613592315;
+    return float2(cos(angle), sin(angle));
+}
+
+float2 PairFallbackDirection(uint instanceIndex, uint neighborIndex)
+{
+    uint lowerIndex = min(instanceIndex, neighborIndex);
+    uint upperIndex = max(instanceIndex, neighborIndex);
+    float angle = ((lowerIndex * 92821u + upperIndex * 68917u) & 1023u) * 0.00613592315;
+    float2 direction = float2(cos(angle), sin(angle));
+    return instanceIndex == lowerIndex ? direction : -direction;
+}
+
+void AccumulateCrowdPbdCorrection(
+    float2 pairCorrection,
+    inout float2 accumulatedCorrection,
+    inout float2 strongestCorrection,
+    inout float strongestCorrectionLengthSquared,
+    inout float correctionCount)
+{
+    accumulatedCorrection += pairCorrection;
+    float pairCorrectionLengthSquared = dot(pairCorrection, pairCorrection);
+    if (pairCorrectionLengthSquared > strongestCorrectionLengthSquared)
+    {
+        strongestCorrection = pairCorrection;
+        strongestCorrectionLengthSquared = pairCorrectionLengthSquared;
+    }
+
+    correctionCount += 1.0;
+}
+
+float2 ResolveCrowdPbdCorrection(
+    float2 accumulatedCorrection,
+    float2 strongestCorrection,
+    float strongestCorrectionLengthSquared,
+    float maxPushPerStep)
+{
+    float2 correction = accumulatedCorrection;
+    float accumulatedCorrectionLengthSquared = dot(correction, correction);
+    if (strongestCorrectionLengthSquared > 0.0 &&
+        accumulatedCorrectionLengthSquared < strongestCorrectionLengthSquared * 0.25)
+    {
+        correction = strongestCorrection;
+    }
+
+    float correctionLength = length(correction);
+    float safeMaxPush = max(maxPushPerStep, 0.01);
+    if (correctionLength > safeMaxPush)
+        correction *= safeMaxPush / max(correctionLength, 1e-4);
+
+    return correction;
+}
+
+float ComputeInstanceRadius(float uniformScale)
+{
+    return max(0.01, _CollisionRadius * max(uniformScale, 0.01));
+}
+
+float ComputeInstanceCapsuleHeight(float uniformScale)
+{
+    float radius = ComputeInstanceRadius(uniformScale);
+    return max(radius * 2.0, _CapsuleHeight * max(uniformScale, 0.01));
+}
+
+float ComputeCombatHitRadius(float uniformScale)
+{
+    float safeScale = max(uniformScale, 0.01);
+    float baseRadius = _CollisionRadius * safeScale;
+    float paddedRadius = (_CollisionRadius + max(_CombatHitRadiusPadding, 0.0)) * safeScale;
+    return max(0.01, max(baseRadius, paddedRadius));
+}
+
+float ComputeCombatHitCapsuleHeight(float uniformScale, float hitRadius)
+{
+    float safeScale = max(uniformScale, 0.01);
+    float paddedHeight = (_CapsuleHeight + max(_CombatHitHeightPadding, 0.0)) * safeScale;
+    return max(hitRadius * 2.0, paddedHeight);
+}
+
+float ComputeEnvironmentGroundSnapMaxDistance(float uniformScale)
+{
+    return max(0.5, _CapsuleHeight * max(uniformScale, 0.01) * 6.0);
+}
+
+uint ClassifyEnvironmentSurface(float3 environmentNormal)
+{
+    if (environmentNormal.y >= EnvironmentGroundNormalYThreshold)
+        return EnvironmentSurfaceGround;
+
+    if (environmentNormal.y <= EnvironmentCeilingNormalYThreshold)
+        return EnvironmentSurfaceCeiling;
+
+    return EnvironmentSurfaceWall;
+}
+
+void RemoveVelocityIntoEnvironmentSurface(float3 environmentNormal, uint surfaceType, inout float2 velocityXZ)
+{
+    if (surfaceType == EnvironmentSurfaceWall)
+    {
+        float3 localNormal = TransformWorldDirectionToLocal(environmentNormal);
+        float2 wallNormalXZ = localNormal.xz;
+        float normalLengthSquared = dot(wallNormalXZ, wallNormalXZ);
+        if (normalLengthSquared <= 1e-8)
+            return;
+
+        wallNormalXZ *= rsqrt(normalLengthSquared);
+        float velocityIntoWall = dot(velocityXZ, wallNormalXZ);
+        if (velocityIntoWall < 0.0)
+            velocityXZ -= wallNormalXZ * velocityIntoWall;
+    }
+}
+
+float3 ComputeCapsuleBottom(float3 localPosition, float radius)
+{
+    return localPosition + float3(0.0, radius, 0.0);
+}
+
+float3 ComputeCapsuleTop(float3 localPosition, float uniformScale, float radius)
+{
+    float capsuleHeight = ComputeInstanceCapsuleHeight(uniformScale);
+    return localPosition + float3(0.0, capsuleHeight - radius, 0.0);
+}
+
+float3 ComputeCombatHitCapsuleTop(float3 localPosition, float uniformScale, float hitRadius)
+{
+    float hitCapsuleHeight = ComputeCombatHitCapsuleHeight(uniformScale, hitRadius);
+    return localPosition + float3(0.0, hitCapsuleHeight - hitRadius, 0.0);
+}
+
+bool ComputeEnvironmentConstraintCorrection(
+    float3 sampleLocalCenter,
+    float sphereRadius,
+    float uniformScale,
+    bool allowGroundSnap,
+    out float3 correctionLocal,
+    out float3 environmentNormal,
+    out uint surfaceType)
+{
+    correctionLocal = 0.0;
+    environmentNormal = float3(0.0, 1.0, 0.0);
+    surfaceType = EnvironmentSurfaceNone;
+    float signedDistance;
+    if (!TrySampleEnvironmentDistanceField(TransformLocalPointToWorld(sampleLocalCenter), signedDistance, environmentNormal))
+        return false;
+
+    surfaceType = ClassifyEnvironmentSurface(environmentNormal);
+    if (signedDistance >= sphereRadius)
+    {
+        float snapDistance = signedDistance - sphereRadius;
+        if (!allowGroundSnap ||
+            surfaceType != EnvironmentSurfaceGround ||
+            snapDistance <= EnvironmentGroundSnapEpsilon ||
+            snapDistance > ComputeEnvironmentGroundSnapMaxDistance(uniformScale))
+        {
+            return false;
+        }
+
+        float3 correctionWorld = -environmentNormal * min(snapDistance, _MaxPushPerStep);
+        correctionLocal = TransformWorldDirectionToLocal(correctionWorld);
+        return dot(correctionLocal, correctionLocal) > 1e-10;
+    }
+
+    float penetration = sphereRadius - signedDistance;
+    float3 correctionWorld = environmentNormal * min(penetration, _MaxPushPerStep);
+    correctionLocal = TransformWorldDirectionToLocal(correctionWorld);
+    return dot(correctionLocal, correctionLocal) > 1e-10;
+}
+
+float3 ResolveEnvironmentConstraints(float3 localPosition, float uniformScale, inout float2 velocityXZ)
+{
+    if (_EnableEnvironmentDistanceField == 0 && _EnableTerrainCollision == 0 && _EnableStaticSdfCollision == 0)
+        return localPosition;
+
+    float radius = ComputeInstanceRadius(uniformScale);
+    int sampleCount = clamp(_CapsulePbdSampleCount, 2, 8);
+
+    [loop]
+    for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
+    {
+        float sampleT = sampleCount <= 1
+            ? 0.0
+            : sampleIndex / max((float)(sampleCount - 1), 1.0);
+
+        [unroll]
+        for (int environmentSubstep = 0; environmentSubstep < 2; environmentSubstep++)
+        {
+            float3 capsuleStart = ComputeCapsuleBottom(localPosition, radius);
+            float3 capsuleEnd = ComputeCapsuleTop(localPosition, uniformScale, radius);
+            float3 sampleLocalCenter = lerp(capsuleStart, capsuleEnd, sampleT);
+
+            float3 correctionLocal;
+            float3 environmentNormal;
+            uint surfaceType;
+            if (!ComputeEnvironmentConstraintCorrection(
+                sampleLocalCenter,
+                radius,
+                uniformScale,
+                sampleIndex == 0,
+                correctionLocal,
+                environmentNormal,
+                surfaceType))
+            {
+                break;
+            }
+
+            localPosition += correctionLocal;
+            RemoveVelocityIntoEnvironmentSurface(environmentNormal, surfaceType, velocityXZ);
+        }
+    }
+
+    return localPosition;
+}
+
+float2 ClampToSimulationBounds(float2 positionXZ, float radius)
+{
+    float2 minXZ = _GridMinXZ + radius;
+    float2 maxXZ = _GridMaxXZ - radius;
+    return clamp(positionXZ, minXZ, maxXZ);
+}
+
+float2 ClampDisplacementToAnchor(float2 predictedXZ, float2 referenceCenterXZ, float maxDistance)
+{
+    float2 delta = predictedXZ - referenceCenterXZ;
+    float distanceSquared = dot(delta, delta);
+    maxDistance = max(maxDistance, 1e-4);
+    if (distanceSquared <= maxDistance * maxDistance)
+        return predictedXZ;
+
+    float distance = sqrt(distanceSquared);
+    return referenceCenterXZ + delta * (maxDistance / max(distance, 1e-4));
+}
+
 bool IsWithinBubble(float2 positionXZ, float2 centerXZ, float radius)
 {
     float safeRadius = max(radius, 1e-4);
@@ -488,6 +1541,126 @@ InstanceSimulationState BuildState(float3 localPosition, float yawRadians, float
     state.localPositionAndYaw = float4(localPosition, yawRadians);
     state.scaleAndVelocity = float4(uniformScale, velocityXZ.x, velocityXZ.y, 0.0);
     return state;
+}
+
+InstanceSimulationState LoadSimulationState(uint instanceIndex)
+{
+    InstanceSimulationState state;
+    state.localPositionAndYaw = _SimulationPositionYawReadBuffer[instanceIndex];
+    float2 velocityXZ = _SimulationVelocityReadBuffer[instanceIndex];
+    state.scaleAndVelocity = float4(
+        _SimulationScaleReadBuffer[instanceIndex],
+        velocityXZ.x,
+        velocityXZ.y,
+        0.0);
+    return state;
+}
+
+void StoreSimulationState(uint instanceIndex, InstanceSimulationState state)
+{
+    _SimulationPositionYawWriteBuffer[instanceIndex] = state.localPositionAndYaw;
+    _SimulationScaleWriteBuffer[instanceIndex] = state.scaleAndVelocity.x;
+    _SimulationVelocityWriteBuffer[instanceIndex] = state.scaleAndVelocity.yz;
+}
+
+void CopySimulationState(uint instanceIndex)
+{
+    _SimulationPositionYawWriteBuffer[instanceIndex] = _SimulationPositionYawReadBuffer[instanceIndex];
+    _SimulationScaleWriteBuffer[instanceIndex] = _SimulationScaleReadBuffer[instanceIndex];
+    _SimulationVelocityWriteBuffer[instanceIndex] = _SimulationVelocityReadBuffer[instanceIndex];
+}
+
+float2 ResolveLocalAvoidanceVelocity(
+    uint instanceIndex,
+    float2 currentXZ,
+    float instanceRadius,
+    float2 desiredVelocityXZ)
+{
+    if (_EnableLocalAvoidance == 0 || _EnableApproximateCollision == 0)
+        return desiredVelocityXZ;
+
+    float desiredSpeed = length(desiredVelocityXZ);
+    if (desiredSpeed <= 1e-4)
+        return desiredVelocityXZ;
+
+    int2 originCoord;
+    if (!TryGetCellCoord(currentXZ, originCoord))
+        return desiredVelocityXZ;
+
+    float2 forward = desiredVelocityXZ / max(desiredSpeed, 1e-4);
+    float2 right = float2(forward.y, -forward.x);
+    float avoidanceRadius = max(_LocalAvoidanceRadius, instanceRadius * 2.5);
+    float avoidanceRadiusSquared = avoidanceRadius * avoidanceRadius;
+    float lateralPressure = 0.0;
+    uint candidateChecks = 0u;
+    uint maxCandidateChecks = (uint)max(_LocalAvoidanceMaxNeighbors, 1);
+    int neighborCellRange = min(max(1, (int)ceil(avoidanceRadius * _InvCellSize)), 6);
+
+    [loop]
+    for (int y = -neighborCellRange; y <= neighborCellRange; y++)
+    {
+        if (candidateChecks >= maxCandidateChecks)
+            break;
+
+        [loop]
+        for (int x = -neighborCellRange; x <= neighborCellRange; x++)
+        {
+            if (candidateChecks >= maxCandidateChecks)
+                break;
+
+            int2 neighborCoord = originCoord + int2(x, y);
+            if (!IsGridCoordValid(neighborCoord))
+                continue;
+
+            uint cellKey = GetCellKey(neighborCoord);
+            uint occupantCount = min(_GridCounterBuffer[cellKey], (uint)_MaxCellOccupancy);
+            [loop]
+            for (uint occupantIndex = 0u; occupantIndex < occupantCount; occupantIndex++)
+            {
+                if (candidateChecks >= maxCandidateChecks)
+                    break;
+
+                uint neighborIndex = _GridOccupantBuffer[cellKey * (uint)_MaxCellOccupancy + occupantIndex];
+                if (neighborIndex == instanceIndex || neighborIndex >= (uint)_InstanceCount || IsInstanceDead(neighborIndex))
+                    continue;
+
+                candidateChecks += 1u;
+                InstanceSimulationState neighborState = LoadSimulationState(neighborIndex);
+                float2 neighborXZ = GetLocalXZ(neighborState.localPositionAndYaw);
+                float neighborRadius = ComputeInstanceRadius(neighborState.scaleAndVelocity.x);
+                float combinedRadius = instanceRadius + neighborRadius;
+                float2 toNeighbor = neighborXZ - currentXZ;
+                float distanceSquared = dot(toNeighbor, toNeighbor);
+                if (distanceSquared <= 1e-8 || distanceSquared > avoidanceRadiusSquared)
+                    continue;
+
+                float distance = sqrt(distanceSquared);
+                float forwardDistance = dot(toNeighbor, forward);
+                if (forwardDistance < -combinedRadius)
+                    continue;
+
+                float sideDistance = dot(toNeighbor, right);
+                float distanceWeight = saturate(1.0 - distance / max(avoidanceRadius, 1e-4));
+                float forwardWeight = saturate((forwardDistance + combinedRadius) / max(avoidanceRadius, 1e-4));
+                float neighborWeight = distanceWeight * max(forwardWeight, 0.15);
+
+                float sideSign = sideDistance >= 0.0 ? -1.0 : 1.0;
+                if (abs(sideDistance) < instanceRadius * 0.25)
+                    sideSign = dot(FallbackDirection(instanceIndex, neighborIndex), right) >= 0.0 ? 1.0 : -1.0;
+
+                lateralPressure += sideSign * neighborWeight;
+            }
+        }
+    }
+
+    float lateralScale = clamp(lateralPressure * saturate(_LocalAvoidanceStrength), -1.0, 1.0);
+    float2 adjustedVelocityXZ = forward * desiredSpeed + right * lateralScale * desiredSpeed;
+    float maxAdjustedSpeed = desiredSpeed * (1.0 + saturate(_LocalAvoidanceStrength) * 0.35);
+    float adjustedSpeed = length(adjustedVelocityXZ);
+    if (adjustedSpeed > maxAdjustedSpeed)
+        adjustedVelocityXZ *= maxAdjustedSpeed / max(adjustedSpeed, 1e-4);
+
+    return adjustedVelocityXZ;
 }
 
 SpatialElementData BuildSpatialElement(uint instanceIndex, InstanceSpawnData spawnData, InstanceSimulationState state, uint isActive)
@@ -508,9 +1681,937 @@ SpatialElementData BuildSpatialElement(uint instanceIndex, InstanceSpawnData spa
     return element;
 }
 
+SpatialElementData BuildEmptySpatialElement()
+{
+    SpatialElementData element;
+    element.localCapsuleStartAndRadius = 0.0;
+    element.localCapsuleEndAndHeight = 0.0;
+    element.ownerIndex = 0u;
+    element.targetMask = 0u;
+    element.flags = 0u;
+    element.faction = 0u;
+    return element;
+}
+
+SpatialElementData LoadSpatialElement(uint instanceIndex)
+{
+    SpatialElementData element;
+    element.localCapsuleStartAndRadius = _SpatialCapsuleStartRadiusBuffer[instanceIndex];
+    element.localCapsuleEndAndHeight = _SpatialCapsuleEndHeightBuffer[instanceIndex];
+    element.ownerIndex = _SpatialOwnerIndexBuffer[instanceIndex];
+    element.targetMask = _SpatialTargetMaskBuffer[instanceIndex];
+    element.flags = _SpatialFlagsBuffer[instanceIndex];
+    element.faction = _SpatialFactionBuffer[instanceIndex];
+    return element;
+}
+
+void StoreSpatialElement(uint instanceIndex, SpatialElementData element)
+{
+    _SpatialCapsuleStartRadiusBuffer[instanceIndex] = element.localCapsuleStartAndRadius;
+    _SpatialCapsuleEndHeightBuffer[instanceIndex] = element.localCapsuleEndAndHeight;
+    _SpatialOwnerIndexBuffer[instanceIndex] = element.ownerIndex;
+    _SpatialTargetMaskBuffer[instanceIndex] = element.targetMask;
+    _SpatialFlagsBuffer[instanceIndex] = element.flags;
+    _SpatialFactionBuffer[instanceIndex] = element.faction;
+}
+
 bool ShouldInsertIntoGrid(uint isActive)
 {
     return _GridBuildMode == (int)GridBuildModeAllQueryables || isActive != 0u;
+}
+
+bool AreFactionsHostile(uint sourceFaction, uint targetFaction)
+{
+    return sourceFaction != CrowdVatFactionMaskNone &&
+        targetFaction != CrowdVatFactionMaskNone &&
+        (sourceFaction & targetFaction) == CrowdVatFactionMaskNone;
+}
+
+float ComputeCombatTargetTopHeight(float uniformScale)
+{
+    float safeScale = max(uniformScale, 0.01);
+    float requestedHeight = _CombatTargetHeight * safeScale;
+    return max(requestedHeight, 0.0);
+}
+
+float3 BuildCombatTargetTopLocal(InstanceSimulationState state)
+{
+    return state.localPositionAndYaw.xyz + float3(0.0, ComputeCombatTargetTopHeight(state.scaleAndVelocity.x), 0.0);
+}
+
+float DecayCombatMuzzleFlash(float previousFlash)
+{
+    return max(previousFlash - _DeltaTime * max(_CombatMuzzleFlashDecay, 0.0), 0.0);
+}
+
+float DecayCombatHitFlash(float previousFlash)
+{
+    return max(previousFlash - _DeltaTime * max(_CombatHitFlashDecay, 0.0), 0.0);
+}
+
+float DecayCombatImpactFlash(float previousFlash)
+{
+    return max(previousFlash - _DeltaTime / max(_CombatImpactFlashDuration, 1e-4), 0.0);
+}
+
+float HashUnitFloat(uint seed)
+{
+    seed ^= 2747636419u;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    seed ^= seed >> 16;
+    seed *= 2654435769u;
+    return (seed & 0x00FFFFFFu) / 16777215.0;
+}
+
+float ComputeInstanceCombatCooldownDuration(uint instanceIndex)
+{
+    float shotsPerSecond = max(_CombatShotsPerSecond, 0.0);
+    if (shotsPerSecond <= 0.0)
+        return 0.0;
+
+    float baseCooldown = rcp(shotsPerSecond);
+    float jitter = saturate(_CombatShotIntervalJitter);
+    if (jitter <= 1e-5)
+        return baseCooldown;
+
+    float random01 = HashUnitFloat(instanceIndex ^ 0x9E3779B9u);
+    float multiplier = lerp(1.0 - jitter, 1.0 + jitter, random01);
+    return baseCooldown * max(multiplier, 0.05);
+}
+
+float ComputeCombatSearchRetryDelay(float baseDelay, uint seed)
+{
+    baseDelay = max(baseDelay, 0.0);
+    if (baseDelay <= 1e-5)
+        return 0.0;
+
+    float random01 = HashUnitFloat(seed);
+    float multiplier = lerp(0.85, 1.15, random01);
+    return baseDelay * multiplier;
+}
+
+uint PackAiDebugCombatShotInfo(int hitAgentIndex, bool hitScene, bool blockedBySceneBeforeAgent, int visibleSampleIndex)
+{
+    uint packed = 0u;
+    if (hitAgentIndex >= 0)
+        packed |= min((uint)hitAgentIndex + 1u, 65535u);
+
+    if (visibleSampleIndex >= 0)
+        packed |= min((uint)visibleSampleIndex + 1u, 255u) << 16;
+
+    if (hitScene)
+        packed |= 1u << 24;
+
+    if (blockedBySceneBeforeAgent)
+        packed |= 1u << 25;
+
+    return packed;
+}
+
+int DecodeAiDebugShotHitAgent(uint packed)
+{
+    uint encoded = packed & 0xffffu;
+    return encoded == 0u ? -1 : (int)(encoded - 1u);
+}
+
+int DecodeAiDebugVisibleSampleIndex(uint packed)
+{
+    uint encoded = (packed >> 16) & 0xffu;
+    return encoded == 0u ? -1 : (int)(encoded - 1u);
+}
+
+float4 DecodeAiDebugCombatShotInfo(uint packed)
+{
+    return float4(
+        (float)DecodeAiDebugVisibleSampleIndex(packed),
+        (float)DecodeAiDebugShotHitAgent(packed),
+        ((packed & (1u << 24)) != 0u) ? 1.0 : 0.0,
+        ((packed & (1u << 25)) != 0u) ? 1.0 : 0.0);
+}
+
+InstanceCombatStateData BuildDefaultCombatState(
+    uint instanceIndex,
+    InstanceSimulationState state,
+    float cooldown,
+    uint debugShotInfoPacked,
+    float muzzleFlash,
+    float4 healthAndHitFeedback)
+{
+    InstanceCombatStateData combatState;
+    float3 originLocal = BuildCombatTargetTopLocal(state);
+    combatState.localOriginAndDistance = float4(originLocal, 1e20);
+    combatState.localTargetAndCooldown = float4(originLocal, cooldown);
+    combatState.localImpactNormalAndHit = float4(0.0, 1.0, 0.0, 0.0);
+    combatState.healthAndHitFeedback = healthAndHitFeedback;
+    combatState.muzzleFlash = muzzleFlash;
+    combatState.targetIndex = -1;
+    combatState.flags = (_EnableGpuInstanceCombat != 0 && !IsInstanceDead(instanceIndex))
+        ? CrowdVatInstanceCombatFlagActive
+        : 0u;
+    combatState.debugShotInfoPacked = debugShotInfoPacked;
+    return combatState;
+}
+
+bool CanPreserveCombatShotVisual(InstanceCombatStateData previousCombatState, float muzzleFlash, float impactFlash)
+{
+    float3 shotVector = previousCombatState.localTargetAndCooldown.xyz - previousCombatState.localOriginAndDistance.xyz;
+    return max(muzzleFlash, impactFlash) > 1e-4 &&
+        previousCombatState.localOriginAndDistance.w < 1e19 &&
+        dot(shotVector, shotVector) > 1e-8;
+}
+
+void PreserveCombatShotVisual(inout InstanceCombatStateData combatState, InstanceCombatStateData previousCombatState, float impactFlash)
+{
+    combatState.localOriginAndDistance = previousCombatState.localOriginAndDistance;
+    combatState.localTargetAndCooldown.xyz = previousCombatState.localTargetAndCooldown.xyz;
+    combatState.localImpactNormalAndHit = float4(previousCombatState.localImpactNormalAndHit.xyz, impactFlash);
+    combatState.debugShotInfoPacked = previousCombatState.debugShotInfoPacked;
+    combatState.flags |= CrowdVatInstanceCombatFlagHasTarget | CrowdVatInstanceCombatFlagActive;
+}
+
+void TryMarkInstanceDead(uint instanceIndex)
+{
+    uint previousDeathState;
+    InterlockedOr(_DeathStateBuffer[instanceIndex], CrowdVatDeathStateDeadFlag, previousDeathState);
+    if (IsDeathStateDead(previousDeathState))
+        return;
+
+    _ActiveStateBuffer[instanceIndex] = 0u;
+
+    uint squadIndex;
+    if (!TryGetAssignedRuntimeSquadIndex(instanceIndex, squadIndex))
+        return;
+
+    uint previousAliveCount;
+    InterlockedAdd(_SquadAliveCountBuffer[squadIndex], 0xffffffffu, previousAliveCount);
+}
+
+void ApplyCombatDamage(uint targetInstanceIndex, uint attackerInstanceIndex)
+{
+    if (targetInstanceIndex >= (uint)_InstanceCount)
+        return;
+
+    uint initialDeathState = _DeathStateBuffer[targetInstanceIndex];
+    if (IsDeathStateDead(initialDeathState))
+        return;
+
+    uint damageUnits = GetCombatDamagePerHitUnits();
+    if (damageUnits == 0u)
+        return;
+
+    uint previousDeathState;
+    InterlockedAdd(_DeathStateBuffer[targetInstanceIndex], damageUnits, previousDeathState);
+    if (IsDeathStateDead(previousDeathState))
+        return;
+
+    uint damageTaken = min((previousDeathState & CrowdVatDeathStateDamageMask) + damageUnits, GetCombatMaxHealthUnits());
+    float health = (float)max(GetCombatMaxHealthUnits() - damageTaken, 0u);
+    InstanceCombatStateData targetCombatState = _CombatStateBuffer[targetInstanceIndex];
+    targetCombatState.healthAndHitFeedback = BuildCombatHealthFeedback(health, 1.0, (float)damageUnits);
+    _CombatStateBuffer[targetInstanceIndex] = targetCombatState;
+
+    TargetAcquisitionStateData targetAcquisitionState = _TargetAcquisitionStateBuffer[targetInstanceIndex];
+    targetAcquisitionState.lastAttackerIndex = (int)attackerInstanceIndex;
+    _TargetAcquisitionStateBuffer[targetInstanceIndex] = targetAcquisitionState;
+
+    if (damageTaken >= GetCombatMaxHealthUnits())
+        TryMarkInstanceDead(targetInstanceIndex);
+}
+
+bool TryResolveCombatTargetByIndex(
+    uint instanceIndex,
+    uint selfFaction,
+    float combatRange,
+    float3 originLocal,
+    float3 originWorld,
+    float3 lineOfSightOriginLocal,
+    float3 lineOfSightOriginWorld,
+    int candidateTargetIndex,
+    out float3 targetLocal,
+    out float targetDistance,
+    out bool failedBecauseOccluded)
+{
+    targetLocal = originLocal;
+    targetDistance = combatRange;
+    failedBecauseOccluded = false;
+
+    if (candidateTargetIndex < 0)
+        return false;
+
+    uint targetInstanceIndex = (uint)candidateTargetIndex;
+    if (targetInstanceIndex >= (uint)_InstanceCount || targetInstanceIndex == instanceIndex)
+        return false;
+
+    if (IsInstanceDead(targetInstanceIndex))
+        return false;
+
+    InstanceSpawnData targetSpawnData = _SpawnData[targetInstanceIndex];
+    if (!AreFactionsHostile(selfFaction, targetSpawnData.faction))
+        return false;
+
+    InstanceSimulationState targetState = LoadSimulationState(targetInstanceIndex);
+    targetLocal = BuildCombatTargetTopLocal(targetState);
+    float3 targetWorld = TransformLocalPointToWorld(targetLocal);
+    targetDistance = length(targetWorld - originWorld);
+    if (targetDistance <= 1e-4 || targetDistance > combatRange)
+        return false;
+
+    float lineOfSightDistance = length(targetWorld - lineOfSightOriginWorld);
+    if (lineOfSightDistance > 1e-4 &&
+        IsCombatOccluded(lineOfSightOriginLocal, targetLocal, lineOfSightDistance))
+    {
+        failedBecauseOccluded = true;
+        return false;
+    }
+
+    return true;
+}
+
+bool TryResolveCachedCombatTarget(
+    uint instanceIndex,
+    uint selfFaction,
+    float combatRange,
+    float3 originLocal,
+    float3 originWorld,
+    float3 lineOfSightOriginLocal,
+    float3 lineOfSightOriginWorld,
+    InstanceCombatStateData previousCombatState,
+    out int targetIndex,
+    out float3 targetLocal,
+    out float targetDistance,
+    out bool failedBecauseOccluded)
+{
+    targetIndex = previousCombatState.targetIndex;
+    targetLocal = originLocal;
+    targetDistance = combatRange;
+    failedBecauseOccluded = false;
+
+    return TryResolveCombatTargetByIndex(
+        instanceIndex,
+        selfFaction,
+        combatRange,
+        originLocal,
+        originWorld,
+        lineOfSightOriginLocal,
+        lineOfSightOriginWorld,
+        targetIndex,
+        targetLocal,
+        targetDistance,
+        failedBecauseOccluded);
+}
+
+float2 ComputeCombatForwardXZ(float yawRadians)
+{
+    float sineYaw;
+    float cosineYaw;
+    sincos(yawRadians, sineYaw, cosineYaw);
+    return float2(sineYaw, cosineYaw);
+}
+
+float ComputeTargetViewDot(float2 selfForwardXZ, float3 originLocal, float3 targetBaseLocal)
+{
+    float2 toTargetXZ = targetBaseLocal.xz - originLocal.xz;
+    float distanceSquared = dot(toTargetXZ, toTargetXZ);
+    if (distanceSquared <= 1e-8)
+        return 1.0;
+
+    return dot(selfForwardXZ, toTargetXZ * rsqrt(distanceSquared));
+}
+
+float ComputeTargetAcquisitionSearchInterval(uint instanceIndex, InstanceSimulationState state)
+{
+    float minInterval = max(_TargetAcquisitionSearchIntervalMin, 0.02);
+    float maxInterval = max(_TargetAcquisitionSearchIntervalMax, minInterval);
+    float random01 = HashUnitFloat(instanceIndex ^ 0x5A17C0DEu);
+    float interval = lerp(minInterval, maxInterval, random01);
+
+    if (_UseActiveBubble != 0 && _TargetAcquisitionFarIntervalMultiplier > 1.0)
+    {
+        float2 bubbleDelta = state.localPositionAndYaw.xz - _ActiveBubbleCenter.xz;
+        float bubbleDistance = length(bubbleDelta);
+        float farDistance = max(_TargetAcquisitionFarDistance, 0.1);
+        float farBlend = saturate((bubbleDistance - farDistance) / max(farDistance, 1e-4));
+        interval *= lerp(1.0, max(_TargetAcquisitionFarIntervalMultiplier, 1.0), farBlend);
+    }
+
+    return interval;
+}
+
+TargetAcquisitionStateData BuildDefaultTargetAcquisitionState(
+    InstanceSimulationState state,
+    float nextSearchTimer,
+    float lockTimer,
+    float lostSightTimer,
+    int lastAttackerIndex)
+{
+    TargetAcquisitionStateData targetState;
+    targetState.lastKnownTargetAndScore = float4(BuildCombatTargetTopLocal(state), 0.0);
+    targetState.timers = float4(max(nextSearchTimer, 0.0), max(lockTimer, 0.0), max(lostSightTimer, 0.0), 0.0);
+    targetState.debugRejectCounts0 = 0.0;
+    targetState.debugRejectCounts1 = 0.0;
+    targetState.currentTargetIndex = -1;
+    targetState.lastAttackerIndex = lastAttackerIndex;
+    targetState.flags = 0u;
+    targetState.debugVisibleSampleIndex = -1;
+    return targetState;
+}
+
+bool TryValidateTargetAcquisitionTarget(
+    uint instanceIndex,
+    uint selfFaction,
+    float combatRange,
+    float3 originLocal,
+    float3 originWorld,
+    float3 lineOfSightOriginLocal,
+    float3 lineOfSightOriginWorld,
+    float2 selfForwardXZ,
+    int candidateTargetIndex,
+    out float3 targetLocal,
+    out float targetDistance,
+    out float viewDot,
+    out bool hasLineOfSight,
+    out uint rejectReason)
+{
+    targetLocal = originLocal;
+    targetDistance = combatRange;
+    viewDot = 0.0;
+    hasLineOfSight = false;
+    rejectReason = 0u;
+
+    if (candidateTargetIndex < 0)
+        return false;
+
+    uint targetInstanceIndex = (uint)candidateTargetIndex;
+    if (targetInstanceIndex >= (uint)_InstanceCount || targetInstanceIndex == instanceIndex)
+        return false;
+
+    if (IsInstanceDead(targetInstanceIndex))
+        return false;
+
+    InstanceSpawnData targetSpawnData = _SpawnData[targetInstanceIndex];
+    if (!AreFactionsHostile(selfFaction, targetSpawnData.faction))
+        return false;
+
+    InstanceSimulationState targetState = LoadSimulationState(targetInstanceIndex);
+    viewDot = ComputeTargetViewDot(selfForwardXZ, originLocal, targetState.localPositionAndYaw.xyz);
+    if (viewDot < _TargetAcquisitionFovCosine)
+    {
+        rejectReason = 1u << 0;
+        return false;
+    }
+
+    targetLocal = BuildCombatTargetTopLocal(targetState);
+    float3 targetWorld = TransformLocalPointToWorld(targetLocal);
+    targetDistance = length(targetWorld - originWorld);
+    if (targetDistance <= 1e-4 || targetDistance > combatRange)
+    {
+        rejectReason = 1u << 1;
+        return false;
+    }
+
+    float lineOfSightDistance = length(targetWorld - lineOfSightOriginWorld);
+    uint occlusionMask = lineOfSightDistance <= 1e-4
+        ? 0u
+        : GetCombatOcclusionRejectMask(lineOfSightOriginLocal, targetLocal, lineOfSightDistance);
+    hasLineOfSight = occlusionMask == 0u;
+    rejectReason = occlusionMask << 2;
+    return true;
+}
+
+bool TryEvaluateTargetAcquisitionCandidate(
+    uint instanceIndex,
+    uint candidateTargetIndex,
+    uint selfFaction,
+    float combatRange,
+    float3 originLocal,
+    float3 originWorld,
+    float3 lineOfSightOriginLocal,
+    float3 lineOfSightOriginWorld,
+    float2 selfForwardXZ,
+    int currentTargetIndex,
+    int lastAttackerIndex,
+    out float score,
+    out float3 targetLocal,
+    out float targetDistance,
+    out uint rejectReason)
+{
+    score = -1.0;
+    float viewDot;
+    bool hasLineOfSight;
+    if (!TryValidateTargetAcquisitionTarget(
+        instanceIndex,
+        selfFaction,
+        combatRange,
+        originLocal,
+        originWorld,
+        lineOfSightOriginLocal,
+        lineOfSightOriginWorld,
+        selfForwardXZ,
+        (int)candidateTargetIndex,
+        targetLocal,
+        targetDistance,
+        viewDot,
+        hasLineOfSight,
+        rejectReason) ||
+        !hasLineOfSight)
+    {
+        return false;
+    }
+
+    float distanceScore = 1.0 - saturate(targetDistance / max(combatRange, 1e-4));
+    float viewScore = saturate((viewDot - _TargetAcquisitionFovCosine) / max(1.0 - _TargetAcquisitionFovCosine, 1e-4));
+    score = distanceScore * max(_TargetAcquisitionDistanceScoreWeight, 0.0) +
+        viewScore * max(_TargetAcquisitionViewScoreWeight, 0.0);
+
+    if ((int)candidateTargetIndex == currentTargetIndex)
+        score += max(_TargetAcquisitionCurrentTargetBonus, 0.0);
+
+    if ((int)candidateTargetIndex == lastAttackerIndex)
+        score += max(_TargetAcquisitionLastAttackerBonus, 0.0);
+
+    return true;
+}
+
+void BuildPerpendicularBasis(float3 forward, out float3 right, out float3 up)
+{
+    float3 referenceUp = abs(forward.y) < 0.98 ? float3(0.0, 1.0, 0.0) : float3(1.0, 0.0, 0.0);
+    right = cross(referenceUp, forward);
+    float rightLengthSquared = dot(right, right);
+    if (rightLengthSquared <= 1e-8)
+        right = float3(1.0, 0.0, 0.0);
+    else
+        right *= rsqrt(rightLengthSquared);
+
+    up = normalize(cross(forward, right));
+}
+
+float3 BuildCombatShotDirectionLocal(uint instanceIndex, float3 originLocal, float3 aimTargetLocal)
+{
+    float3 aimVector = aimTargetLocal - originLocal;
+    float aimLength = length(aimVector);
+    if (aimLength <= 1e-5)
+        return float3(0.0, 0.0, 1.0);
+
+    float3 aimDirection = aimVector / aimLength;
+    float spreadDegrees = max(_CombatShotSpreadDegrees, 0.0);
+    if (spreadDegrees <= 1e-5)
+        return aimDirection;
+
+    float3 right;
+    float3 up;
+    BuildPerpendicularBasis(aimDirection, right, up);
+
+    uint timeSeed = asuint(_PlaybackTime * 173.317 + _DeltaTime * 997.131);
+    uint shotSeed = instanceIndex ^ timeSeed ^ 0xA5C3D721u;
+    float angle = HashUnitFloat(shotSeed ^ 0x68BC21EBu) * 6.28318530718;
+    float radius = sqrt(HashUnitFloat(shotSeed ^ 0xB5297A4Du));
+    float sineAngle;
+    float cosineAngle;
+    sincos(angle, sineAngle, cosineAngle);
+
+    float spreadRadians = min(spreadDegrees, 45.0) * 0.01745329252;
+    float spreadScale = tan(spreadRadians);
+    float2 disk = float2(cosineAngle, sineAngle) * radius * spreadScale;
+    return normalize(aimDirection + right * disk.x + up * disk.y);
+}
+
+bool TryRaySphereHit(
+    float3 rayOrigin,
+    float3 rayDirection,
+    float3 sphereCenter,
+    float sphereRadius,
+    float maxDistance,
+    out float hitDistance)
+{
+    hitDistance = maxDistance;
+    float3 originToCenter = rayOrigin - sphereCenter;
+    float b = dot(originToCenter, rayDirection);
+    float c = dot(originToCenter, originToCenter) - sphereRadius * sphereRadius;
+    float h = b * b - c;
+    if (h < 0.0)
+        return false;
+
+    h = sqrt(h);
+    float nearT = -b - h;
+    float farT = -b + h;
+    float candidateT = nearT > CombatRayHitBias ? nearT : farT;
+    if (candidateT <= CombatRayHitBias || candidateT > maxDistance)
+        return false;
+
+    hitDistance = candidateT;
+    return true;
+}
+
+bool TryRayCapsuleHit(
+    float3 rayOrigin,
+    float3 rayDirection,
+    float maxDistance,
+    float3 capsuleStart,
+    float3 capsuleEnd,
+    float capsuleRadius,
+    out float hitDistance)
+{
+    hitDistance = maxDistance;
+    bool hasHit = false;
+
+    float3 capsuleAxis = capsuleEnd - capsuleStart;
+    float axisLengthSquared = dot(capsuleAxis, capsuleAxis);
+    if (axisLengthSquared <= 1e-8)
+        return TryRaySphereHit(rayOrigin, rayDirection, capsuleStart, capsuleRadius, maxDistance, hitDistance);
+
+    float3 originToStart = rayOrigin - capsuleStart;
+    float axisDotRay = dot(capsuleAxis, rayDirection);
+    float axisDotOrigin = dot(capsuleAxis, originToStart);
+    float rayDotOrigin = dot(rayDirection, originToStart);
+    float originDotOrigin = dot(originToStart, originToStart);
+
+    float a = axisLengthSquared - axisDotRay * axisDotRay;
+    float b = axisLengthSquared * rayDotOrigin - axisDotOrigin * axisDotRay;
+    float c = axisLengthSquared * originDotOrigin - axisDotOrigin * axisDotOrigin -
+        capsuleRadius * capsuleRadius * axisLengthSquared;
+    float h = b * b - a * c;
+    if (abs(a) > 1e-8 && h >= 0.0)
+    {
+        float cylinderT = (-b - sqrt(h)) / a;
+        float axisT = axisDotOrigin + cylinderT * axisDotRay;
+        if (cylinderT > CombatRayHitBias &&
+            cylinderT <= maxDistance &&
+            axisT >= 0.0 &&
+            axisT <= axisLengthSquared)
+        {
+            hitDistance = cylinderT;
+            hasHit = true;
+        }
+    }
+
+    float sphereHitDistance;
+    if (TryRaySphereHit(rayOrigin, rayDirection, capsuleStart, capsuleRadius, maxDistance, sphereHitDistance) &&
+        sphereHitDistance < hitDistance)
+    {
+        hitDistance = sphereHitDistance;
+        hasHit = true;
+    }
+
+    if (TryRaySphereHit(rayOrigin, rayDirection, capsuleEnd, capsuleRadius, maxDistance, sphereHitDistance) &&
+        sphereHitDistance < hitDistance)
+    {
+        hitDistance = sphereHitDistance;
+        hasHit = true;
+    }
+
+    return hasHit;
+}
+
+void TraceCombatShotAgentCell(
+    uint selfInstanceIndex,
+    uint selfFaction,
+    int2 coord,
+    float3 originLocal,
+    float3 rayDirectionLocal,
+    float3 originWorld,
+    float maxLocalDistance,
+    inout float nearestWorldDistance,
+    inout float nearestLocalDistance,
+    inout int nearestAgentIndex,
+    inout float3 nearestHitLocal,
+    inout float3 nearestHitNormalLocal,
+    inout uint candidateChecks)
+{
+    if (!IsGridCoordValid(coord) || candidateChecks >= CombatShotMaxAgentChecks)
+        return;
+
+    uint cellKey = GetCellKey(coord);
+    uint occupantCount = min(_GridCounterBuffer[cellKey], (uint)_MaxCellOccupancy);
+    [loop]
+    for (uint occupantIndex = 0u; occupantIndex < occupantCount; occupantIndex++)
+    {
+        if (candidateChecks >= CombatShotMaxAgentChecks)
+            return;
+
+        uint candidateIndex = _GridOccupantBuffer[cellKey * (uint)_MaxCellOccupancy + occupantIndex];
+        if (candidateIndex >= (uint)_InstanceCount ||
+            candidateIndex == selfInstanceIndex ||
+            IsInstanceDead(candidateIndex))
+        {
+            continue;
+        }
+
+        InstanceSpawnData candidateSpawnData = _SpawnData[candidateIndex];
+        if (!AreFactionsHostile(selfFaction, candidateSpawnData.faction))
+            continue;
+
+        candidateChecks++;
+        InstanceSimulationState candidateState = LoadSimulationState(candidateIndex);
+        float candidateScale = max(candidateState.scaleAndVelocity.x, candidateSpawnData.uniformScale);
+        float candidateRadius = ComputeCombatHitRadius(candidateScale);
+        float3 candidatePosition = candidateState.localPositionAndYaw.xyz;
+        float3 candidateCapsuleStart = ComputeCapsuleBottom(candidatePosition, candidateRadius);
+        float3 candidateCapsuleEnd = ComputeCombatHitCapsuleTop(candidatePosition, candidateScale, candidateRadius);
+        float candidateHitLocalDistance;
+        if (!TryRayCapsuleHit(
+            originLocal,
+            rayDirectionLocal,
+            maxLocalDistance,
+            candidateCapsuleStart,
+            candidateCapsuleEnd,
+            candidateRadius,
+            candidateHitLocalDistance))
+        {
+            continue;
+        }
+
+        float3 candidateHitLocal = originLocal + rayDirectionLocal * candidateHitLocalDistance;
+        float candidateWorldDistance = length(TransformLocalPointToWorld(candidateHitLocal) - originWorld);
+        if (candidateWorldDistance < nearestWorldDistance)
+        {
+            float3 capsuleAxis = candidateCapsuleEnd - candidateCapsuleStart;
+            float capsuleAxisLengthSquared = dot(capsuleAxis, capsuleAxis);
+            float capsuleT = capsuleAxisLengthSquared > 1e-8
+                ? saturate(dot(candidateHitLocal - candidateCapsuleStart, capsuleAxis) / capsuleAxisLengthSquared)
+                : 0.0;
+            float3 closestCapsulePoint = lerp(candidateCapsuleStart, candidateCapsuleEnd, capsuleT);
+            nearestWorldDistance = candidateWorldDistance;
+            nearestLocalDistance = candidateHitLocalDistance;
+            nearestAgentIndex = (int)candidateIndex;
+            nearestHitLocal = candidateHitLocal;
+            nearestHitNormalLocal = SafeNormalize3D(candidateHitLocal - closestCapsulePoint, -rayDirectionLocal);
+        }
+    }
+}
+
+bool TryTraceCombatShotAgents(
+    uint selfInstanceIndex,
+    uint selfFaction,
+    float3 originLocal,
+    float3 rayDirectionLocal,
+    float3 originWorld,
+    float maxLocalDistance,
+    inout float nearestWorldDistance,
+    out int hitAgentIndex,
+    out float3 hitLocal,
+    out float3 hitLocalNormal,
+    out float hitLocalDistance)
+{
+    hitAgentIndex = -1;
+    hitLocal = originLocal + rayDirectionLocal * maxLocalDistance;
+    hitLocalNormal = SafeNormalize3D(-rayDirectionLocal, float3(0.0, 1.0, 0.0));
+    hitLocalDistance = maxLocalDistance;
+
+    int2 coord;
+    if (!TryGetCellCoord(originLocal.xz, coord))
+        return false;
+
+    float2 directionXZ = rayDirectionLocal.xz;
+    float directionXZLengthSquared = dot(directionXZ, directionXZ);
+    uint candidateChecks = 0u;
+
+    float nearestLocalDistance = maxLocalDistance;
+    float3 nearestHitLocal = hitLocal;
+    float3 nearestHitNormalLocal = hitLocalNormal;
+    int nearestAgentIndex = -1;
+
+    if (directionXZLengthSquared <= 1e-8)
+    {
+        [loop]
+        for (int y = -1; y <= 1; y++)
+        {
+            [loop]
+            for (int x = -1; x <= 1; x++)
+            {
+                TraceCombatShotAgentCell(
+                    selfInstanceIndex,
+                    selfFaction,
+                    coord + int2(x, y),
+                    originLocal,
+                    rayDirectionLocal,
+                    originWorld,
+                    maxLocalDistance,
+                    nearestWorldDistance,
+                    nearestLocalDistance,
+                    nearestAgentIndex,
+                    nearestHitLocal,
+                    nearestHitNormalLocal,
+                    candidateChecks);
+            }
+        }
+    }
+    else
+    {
+        int stepX = directionXZ.x >= 0.0 ? 1 : -1;
+        int stepY = directionXZ.y >= 0.0 ? 1 : -1;
+        float nextBoundaryX = _GridMinXZ.x + (stepX > 0 ? (coord.x + 1) : coord.x) * _CellSize;
+        float nextBoundaryY = _GridMinXZ.y + (stepY > 0 ? (coord.y + 1) : coord.y) * _CellSize;
+        float tMaxX = abs(directionXZ.x) > 1e-6 ? (nextBoundaryX - originLocal.x) / directionXZ.x : 1e20;
+        float tMaxY = abs(directionXZ.y) > 1e-6 ? (nextBoundaryY - originLocal.z) / directionXZ.y : 1e20;
+        float tDeltaX = abs(directionXZ.x) > 1e-6 ? _CellSize / abs(directionXZ.x) : 1e20;
+        float tDeltaY = abs(directionXZ.y) > 1e-6 ? _CellSize / abs(directionXZ.y) : 1e20;
+
+        [loop]
+        for (int cellStep = 0; cellStep < CombatShotGridMaxCells && IsGridCoordValid(coord); cellStep++)
+        {
+            [loop]
+            for (int y = -1; y <= 1; y++)
+            {
+                [loop]
+                for (int x = -1; x <= 1; x++)
+                {
+                    TraceCombatShotAgentCell(
+                        selfInstanceIndex,
+                        selfFaction,
+                        coord + int2(x, y),
+                        originLocal,
+                        rayDirectionLocal,
+                        originWorld,
+                        maxLocalDistance,
+                        nearestWorldDistance,
+                        nearestLocalDistance,
+                        nearestAgentIndex,
+                        nearestHitLocal,
+                        nearestHitNormalLocal,
+                        candidateChecks);
+                }
+            }
+
+            if (candidateChecks >= CombatShotMaxAgentChecks)
+                break;
+
+            if (min(tMaxX, tMaxY) > maxLocalDistance)
+                break;
+
+            if (tMaxX < tMaxY)
+            {
+                coord.x += stepX;
+                tMaxX += tDeltaX;
+            }
+            else
+            {
+                coord.y += stepY;
+                tMaxY += tDeltaY;
+            }
+        }
+    }
+
+    if (nearestAgentIndex < 0)
+        return false;
+
+    hitAgentIndex = nearestAgentIndex;
+    hitLocal = nearestHitLocal;
+    hitLocalNormal = nearestHitNormalLocal;
+    hitLocalDistance = nearestLocalDistance;
+    return true;
+}
+
+bool TryTraceCombatShotScene(
+    float3 originLocal,
+    float3 rayDirectionLocal,
+    float3 originWorld,
+    float3 rayDirectionWorld,
+    float maxLocalDistance,
+    float maxWorldDistance,
+    inout float nearestWorldDistance,
+    out float3 hitLocal,
+    out float3 hitLocalNormal)
+{
+    hitLocal = originLocal + rayDirectionLocal * maxLocalDistance;
+    hitLocalNormal = SafeNormalize3D(-rayDirectionLocal, float3(0.0, 1.0, 0.0));
+    bool hasHit = false;
+
+    float hitDistanceWorld;
+    float3 hitWorld;
+    float3 hitWorldNormal;
+    if (TryTraceCombatEnvironmentSdfHit(originWorld, rayDirectionWorld, maxWorldDistance, hitDistanceWorld, hitWorld, hitWorldNormal) &&
+        hitDistanceWorld < nearestWorldDistance)
+    {
+        nearestWorldDistance = hitDistanceWorld;
+        hitLocal = TransformWorldPointToLocal(hitWorld);
+        hitLocalNormal = SafeNormalize3D(TransformWorldDirectionToLocal(hitWorldNormal), hitLocalNormal);
+        hasHit = true;
+    }
+
+    return hasHit;
+}
+
+bool ResolveCombatShotHit(
+    uint instanceIndex,
+    float3 originLocal,
+    float3 aimTargetLocal,
+    float combatRange,
+    out float3 shotTargetLocal,
+    out float shotDistance,
+    out float3 shotHitNormalLocal,
+    out int hitAgentIndex,
+    out bool hitScene,
+    out bool blockedBySceneBeforeAgent)
+{
+    float3 rayDirectionLocal = BuildCombatShotDirectionLocal(instanceIndex, originLocal, aimTargetLocal);
+    float maxLocalDistance = max(combatRange, 0.0);
+    shotTargetLocal = originLocal + rayDirectionLocal * maxLocalDistance;
+    shotDistance = maxLocalDistance;
+    shotHitNormalLocal = SafeNormalize3D(-rayDirectionLocal, float3(0.0, 1.0, 0.0));
+    hitAgentIndex = -1;
+    hitScene = false;
+    blockedBySceneBeforeAgent = false;
+
+    if (maxLocalDistance <= CombatRayHitBias)
+        return false;
+
+    float3 originWorld = TransformLocalPointToWorld(originLocal);
+    float3 maxTargetWorld = TransformLocalPointToWorld(shotTargetLocal);
+    float3 worldRay = maxTargetWorld - originWorld;
+    float maxWorldDistance = length(worldRay);
+    if (maxWorldDistance <= CombatRayHitBias)
+        return false;
+
+    float3 rayDirectionWorld = worldRay / maxWorldDistance;
+    float nearestWorldDistance = maxWorldDistance;
+
+    float3 sceneHitLocal;
+    float3 sceneHitNormalLocal;
+    bool hasSceneHit = TryTraceCombatShotScene(
+        originLocal,
+        rayDirectionLocal,
+        originWorld,
+        rayDirectionWorld,
+        maxLocalDistance,
+        maxWorldDistance,
+        nearestWorldDistance,
+        sceneHitLocal,
+        sceneHitNormalLocal);
+    hitScene = hasSceneHit;
+    if (hasSceneHit)
+    {
+        shotTargetLocal = sceneHitLocal;
+        shotHitNormalLocal = sceneHitNormalLocal;
+    }
+
+    float3 agentHitLocal;
+    float3 agentHitNormalLocal;
+    float agentHitLocalDistance;
+    int agentHitIndex;
+    uint selfFaction = _SpawnData[instanceIndex].faction;
+    if (TryTraceCombatShotAgents(
+        instanceIndex,
+        selfFaction,
+        originLocal,
+        rayDirectionLocal,
+        originWorld,
+        maxLocalDistance,
+        nearestWorldDistance,
+        agentHitIndex,
+        agentHitLocal,
+        agentHitNormalLocal,
+        agentHitLocalDistance))
+    {
+        hitAgentIndex = agentHitIndex;
+        shotTargetLocal = agentHitLocal;
+        shotHitNormalLocal = agentHitNormalLocal;
+    }
+
+    blockedBySceneBeforeAgent = hasSceneHit && hitAgentIndex < 0;
+    shotDistance = nearestWorldDistance;
+    return hasSceneHit || hitAgentIndex >= 0;
 }
 
 float ComputePointSegmentT(float3 samplePoint, float3 segmentStart, float3 segmentEnd)
@@ -645,21 +2746,153 @@ bool SweepCapsuleMatches(
 }
 
 [numthreads(64, 1, 1)]
-void PredictInstances(uint3 dispatchThreadId : SV_DispatchThreadID)
+void BuildAliveInstanceList(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     uint instanceIndex = dispatchThreadId.x;
     if (instanceIndex >= (uint)_InstanceCount)
         return;
 
+    if (IsInstanceDead(instanceIndex))
+        return;
+
+    uint writeIndex = 0u;
+    InterlockedAdd(_AliveInstanceCounterBuffer[0], 1u, writeIndex);
+    _AliveInstanceIndexBuffer[writeIndex] = instanceIndex;
+}
+
+[numthreads(1, 1, 1)]
+void BuildAliveDispatchArgs(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint aliveCount = _AliveInstanceCounterBuffer[0];
+    uint threadGroupCount = max(1u, (aliveCount + CrowdVatDispatchThreadGroupSize - 1u) / CrowdVatDispatchThreadGroupSize);
+    _AliveInstanceDispatchArgsBuffer[0] = threadGroupCount;
+    _AliveInstanceDispatchArgsBuffer[1] = 1u;
+    _AliveInstanceDispatchArgsBuffer[2] = 1u;
+}
+
+[numthreads(64, 1, 1)]
+void BuildActiveInstanceList(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint instanceIndex;
+    if (!TryResolveAliveDispatchInstanceIndex(dispatchThreadId.x, instanceIndex))
+        return;
+
+    if (IsInstanceDead(instanceIndex) || _ActiveStateBuffer[instanceIndex] == 0u)
+        return;
+
+    uint writeIndex = 0u;
+    InterlockedAdd(_ActiveInstanceCounterBuffer[0], 1u, writeIndex);
+    _ActiveInstanceIndexBuffer[writeIndex] = instanceIndex;
+}
+
+[numthreads(1, 1, 1)]
+void BuildActiveDispatchArgs(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint activeCount = _ActiveInstanceCounterBuffer[0];
+    uint threadGroupCount = max(1u, (activeCount + CrowdVatDispatchThreadGroupSize - 1u) / CrowdVatDispatchThreadGroupSize);
+    _ActiveInstanceDispatchArgsBuffer[0] = threadGroupCount;
+    _ActiveInstanceDispatchArgsBuffer[1] = 1u;
+    _ActiveInstanceDispatchArgsBuffer[2] = 1u;
+}
+
+[numthreads(64, 1, 1)]
+void BuildVisibleRuntimeInstanceList(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint instanceIndex;
+    if (!TryResolveAliveDispatchInstanceIndex(dispatchThreadId.x, instanceIndex))
+        return;
+
+    if (IsInstanceDead(instanceIndex))
+        return;
+
+    if (!IsRuntimeInstanceVisibleForRender(instanceIndex))
+        return;
+
+    InstanceSimulationState state = LoadSimulationState(instanceIndex);
+    if (!IsInstanceVisibleInFrustum(state))
+        return;
+
+    uint writeIndex = 0u;
+    InterlockedAdd(_VisibleInstanceCounterBuffer[0], 1u, writeIndex);
+    _VisibleInstanceIndices[writeIndex] = instanceIndex;
+}
+
+[numthreads(64, 1, 1)]
+void BuildVisibleChunkInstanceList(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint instanceIndex;
+    if (!TryResolveAliveDispatchInstanceIndex(dispatchThreadId.x, instanceIndex))
+        return;
+
+    if (IsInstanceDead(instanceIndex))
+        return;
+
+    if (!IsChunkInstanceVisibleForRender(instanceIndex))
+        return;
+
+    InstanceSimulationState state = LoadSimulationState(instanceIndex);
+    if (!IsInstanceVisibleInFrustum(state))
+        return;
+
+    uint writeIndex = 0u;
+    InterlockedAdd(_VisibleInstanceCounterBuffer[0], 1u, writeIndex);
+    _VisibleInstanceIndices[writeIndex] = instanceIndex;
+}
+
+[numthreads(1, 1, 1)]
+void BuildVisibleIndirectArgs(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    IndirectDrawIndexedArgsData args;
+    args.indexCountPerInstance = (uint)max(_VisibleRenderArgsIndexCount, 0);
+    args.instanceCount = _VisibleInstanceCounterBuffer[0];
+    args.startIndex = (uint)max(_VisibleRenderArgsStartIndex, 0);
+    args.baseVertexIndex = (uint)max(_VisibleRenderArgsBaseVertex, 0);
+    args.startInstance = 0u;
+    _VisibleRenderArgsBuffer[0] = args;
+}
+
+[numthreads(64, 1, 1)]
+void PredictInstances(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint instanceIndex;
+    if (!TryResolveAliveDispatchInstanceIndex(dispatchThreadId.x, instanceIndex))
+        return;
+
     InstanceSpawnData spawnData = _SpawnData[instanceIndex];
-    InstanceSimulationState state = _SimulationReadBuffer[instanceIndex];
+    InstanceSimulationState state = LoadSimulationState(instanceIndex);
+    if (IsInstanceDead(instanceIndex))
+    {
+        _ActiveStateBuffer[instanceIndex] = 0u;
+        StoreSimulationState(instanceIndex, BuildState(
+            state.localPositionAndYaw.xyz,
+            state.localPositionAndYaw.w,
+            max(state.scaleAndVelocity.x, spawnData.uniformScale),
+            0.0));
+        return;
+    }
 
     float2 currentXZ = GetLocalXZ(state.localPositionAndYaw);
-    float2 anchorXZ = spawnData.localPosition.xz;
+    float2 staticAnchorXZ = spawnData.localPosition.xz;
+    float2 anchorXZ = staticAnchorXZ;
+    float2 formationCenterXZ = staticAnchorXZ;
+    float2 commandVelocityXZ = 0.0;
+    float formationDeviationRadius = max(_MaxDisplacementFromSpawn, 1e-4);
+    float squadProjectionStrength = 0.0;
     float2 velocityXZ = state.scaleAndVelocity.yz;
     float uniformScale = max(state.scaleAndVelocity.x, spawnData.uniformScale);
     float yawRadians = state.localPositionAndYaw.w;
     bool wasActive = _ActiveStateBuffer[instanceIndex] != 0u;
+    float2 desiredForwardXZ = 0.0;
+    bool hasRuntimeSquadAnchor = TryResolveRuntimeSquadMotionXZ(
+        instanceIndex,
+        staticAnchorXZ,
+        currentXZ,
+        anchorXZ,
+        formationCenterXZ,
+        commandVelocityXZ,
+        formationDeviationRadius,
+        squadProjectionStrength,
+        desiredForwardXZ);
 
     bool influencedByInteraction = false;
     [loop]
@@ -676,37 +2909,66 @@ void PredictInstances(uint3 dispatchThreadId : SV_DispatchThreadID)
         }
     }
 
+    bool hasRuntimeSquadMovement = hasRuntimeSquadAnchor && dot(commandVelocityXZ, commandVelocityXZ) > 1e-6;
     bool isInsideActiveBubble = _UseActiveBubble == 0
         || IsWithinBubble(currentXZ, _ActiveBubbleCenter.xz, _ActiveBubbleRadius)
         || (wasActive && IsWithinBubble(currentXZ, _ActiveBubbleCenter.xz, _ActiveBubbleRetentionRadius))
-        || influencedByInteraction;
+        || influencedByInteraction
+        || hasRuntimeSquadMovement;
 
     if (!isInsideActiveBubble)
     {
         float inactiveBlend = 1.0 - pow(1.0 - saturate(_InactiveReturnStrength), max(_DeltaTime * 60.0, 0.0));
         float2 anchoredXZ = lerp(currentXZ, anchorXZ, inactiveBlend);
         float2 inactiveVelocity = (anchoredXZ - currentXZ) / max(_DeltaTime, 1e-4);
+        yawRadians = ResolveFacingYawRadians(
+            yawRadians,
+            hasRuntimeSquadAnchor,
+            desiredForwardXZ,
+            commandVelocityXZ,
+            inactiveVelocity);
+
         float groundedLocalY = ComputeGroundedLocalY(anchoredXZ, state.localPositionAndYaw.y);
+        float2 constrainedInactiveVelocity = inactiveVelocity * 0.35;
+        float3 constrainedInactivePosition = float3(anchoredXZ.x, groundedLocalY, anchoredXZ.y);
+        constrainedInactivePosition = ResolveEnvironmentConstraints(
+            constrainedInactivePosition,
+            uniformScale,
+            constrainedInactiveVelocity);
+        constrainedInactiveVelocity = (constrainedInactivePosition.xz - currentXZ) / max(_DeltaTime, 1e-4);
         _ActiveStateBuffer[instanceIndex] = 0u;
-        _SimulationWriteBuffer[instanceIndex] = BuildState(
-            float3(anchoredXZ.x, groundedLocalY, anchoredXZ.y),
+        StoreSimulationState(instanceIndex, BuildState(
+            constrainedInactivePosition,
             yawRadians,
             uniformScale,
-            inactiveVelocity * 0.35);
+            constrainedInactiveVelocity));
         return;
     }
 
     _ActiveStateBuffer[instanceIndex] = 1u;
 
     float damping = pow(saturate(_VelocityDamping), max(_DeltaTime * 60.0, 0.0));
-    velocityXZ *= damping;
-    velocityXZ += (anchorXZ - currentXZ) * _AnchorStiffness;
+    velocityXZ = commandVelocityXZ + (velocityXZ - commandVelocityXZ) * damping;
+    float instanceRadius = ComputeInstanceRadius(uniformScale);
+    velocityXZ = ResolveLocalAvoidanceVelocity(instanceIndex, currentXZ, instanceRadius, velocityXZ);
 
     float2 predictedXZ = currentXZ + velocityXZ * _DeltaTime;
-    [loop]
-    for (int sphereIndex = 0; sphereIndex < _InteractionSphereCount; sphereIndex++)
+    if (_GoalStiffness > 0.0 && dot(commandVelocityXZ, commandVelocityXZ) > 1e-6)
     {
-        InteractionSphereData sphere = _InteractionSphereBuffer[sphereIndex];
+        float2 goalPositionXZ = currentXZ + commandVelocityXZ * _DeltaTime;
+        predictedXZ = lerp(predictedXZ, goalPositionXZ, saturate(_GoalStiffness));
+    }
+
+    if (squadProjectionStrength > 0.0)
+    {
+        float formationBlend = 1.0 - pow(1.0 - saturate(squadProjectionStrength), max(_DeltaTime * 60.0, 0.0));
+        predictedXZ = lerp(predictedXZ, anchorXZ, formationBlend);
+    }
+
+    [loop]
+    for (int pushSphereIndex = 0; pushSphereIndex < _InteractionSphereCount; pushSphereIndex++)
+    {
+        InteractionSphereData sphere = _InteractionSphereBuffer[pushSphereIndex];
         float radius = sphere.localCenterAndRadius.w;
         if (radius <= 0.0)
             continue;
@@ -717,26 +2979,31 @@ void PredictInstances(uint3 dispatchThreadId : SV_DispatchThreadID)
             continue;
 
         float distance = sqrt(max(distanceSquared, 1e-8));
-        float2 direction = SafeNormalize2D(delta, FallbackDirection(instanceIndex, (uint)sphereIndex));
+        float2 direction = SafeNormalize2D(delta, FallbackDirection(instanceIndex, (uint)pushSphereIndex));
         float strength = saturate(1.0 - distance / radius) * sphere.parameters.x;
         float pushDistance = min(_MaxPushPerStep, strength);
         predictedXZ += direction * pushDistance;
-        velocityXZ += direction * (pushDistance / max(_DeltaTime, 1e-4));
     }
 
-    float instanceRadius = ComputeInstanceRadius(uniformScale);
-    predictedXZ = ClampDisplacementToAnchor(predictedXZ, anchorXZ);
     predictedXZ = ClampToSimulationBounds(predictedXZ, instanceRadius);
+    float2 constraintVelocityXZ = (predictedXZ - currentXZ) / max(_DeltaTime, 1e-4);
     float groundedPredictedLocalY = ComputeGroundedLocalY(predictedXZ, state.localPositionAndYaw.y);
+    float3 predictedLocalPosition = float3(predictedXZ.x, groundedPredictedLocalY, predictedXZ.y);
+    predictedLocalPosition = ResolveEnvironmentConstraints(predictedLocalPosition, uniformScale, constraintVelocityXZ);
+    float2 predictedVelocityXZ = (predictedLocalPosition.xz - currentXZ) / max(_DeltaTime, 1e-4);
 
-    if (dot(velocityXZ, velocityXZ) > 1e-5)
-        yawRadians = atan2(velocityXZ.x, velocityXZ.y);
+    yawRadians = ResolveFacingYawRadians(
+        yawRadians,
+        hasRuntimeSquadAnchor,
+        desiredForwardXZ,
+        commandVelocityXZ,
+        predictedVelocityXZ);
 
-    _SimulationWriteBuffer[instanceIndex] = BuildState(
-        float3(predictedXZ.x, groundedPredictedLocalY, predictedXZ.y),
+    StoreSimulationState(instanceIndex, BuildState(
+        predictedLocalPosition,
         yawRadians,
         uniformScale,
-        velocityXZ);
+        predictedVelocityXZ));
 }
 
 [numthreads(64, 1, 1)]
@@ -752,18 +3019,11 @@ void ClearGrid(uint3 dispatchThreadId : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void BuildGrid(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
-    uint instanceIndex = dispatchThreadId.x;
-    if (instanceIndex >= (uint)_InstanceCount)
+    uint instanceIndex;
+    if (!TryResolveAliveDispatchInstanceIndex(dispatchThreadId.x, instanceIndex))
         return;
 
-    InstanceSpawnData spawnData = _SpawnData[instanceIndex];
-    InstanceSimulationState state = _SimulationReadBuffer[instanceIndex];
-    uint isActive = _ActiveStateBuffer[instanceIndex];
-    _SpatialElementBuffer[instanceIndex] = BuildSpatialElement(instanceIndex, spawnData, state, isActive);
-
-    if (!ShouldInsertIntoGrid(isActive))
-        return;
-
+    InstanceSimulationState state = LoadSimulationState(instanceIndex);
     float2 positionXZ = GetLocalXZ(state.localPositionAndYaw);
     int2 coord;
     if (!TryGetCellCoord(positionXZ, coord))
@@ -779,38 +3039,87 @@ void BuildGrid(uint3 dispatchThreadId : SV_DispatchThreadID)
 }
 
 [numthreads(64, 1, 1)]
-void SolveCrowdCollisions(uint3 dispatchThreadId : SV_DispatchThreadID)
+void BuildSpatialElements(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
     uint instanceIndex = dispatchThreadId.x;
     if (instanceIndex >= (uint)_InstanceCount)
         return;
 
-    if (_ActiveStateBuffer[instanceIndex] == 0u)
+    if (IsInstanceDead(instanceIndex))
     {
-        _SimulationWriteBuffer[instanceIndex] = _SimulationReadBuffer[instanceIndex];
+        StoreSpatialElement(instanceIndex, BuildEmptySpatialElement());
         return;
     }
 
     InstanceSpawnData spawnData = _SpawnData[instanceIndex];
-    InstanceSimulationState state = _SimulationReadBuffer[instanceIndex];
+    InstanceSimulationState state = LoadSimulationState(instanceIndex);
+    uint isActive = _ActiveStateBuffer[instanceIndex];
+    StoreSpatialElement(instanceIndex, BuildSpatialElement(instanceIndex, spawnData, state, isActive));
+}
+
+[numthreads(64, 1, 1)]
+void SolveCrowdCollisions(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint instanceIndex;
+    if (!TryResolveAliveDispatchInstanceIndex(dispatchThreadId.x, instanceIndex))
+        return;
+
+    InstanceSpawnData spawnData = _SpawnData[instanceIndex];
+    InstanceSimulationState state = LoadSimulationState(instanceIndex);
     float3 originalLocalPosition = state.localPositionAndYaw.xyz;
     float2 originalXZ = originalLocalPosition.xz;
-    float2 resolvedXZ = originalXZ;
+    float2 previousFrameXZ = originalXZ - state.scaleAndVelocity.yz * max(_DeltaTime, 1e-4);
     float uniformScale = max(state.scaleAndVelocity.x, spawnData.uniformScale);
-    float radius = ComputeInstanceRadius(uniformScale);
-    float2 accumulatedCorrection = 0.0;
-    float correctionCount = 0.0;
+    float selfInverseMass = GetCrowdPbdInverseMass(instanceIndex);
+    float2 staticAnchorXZ = spawnData.localPosition.xz;
+    float2 anchorXZ = staticAnchorXZ;
+    float2 formationCenterXZ = staticAnchorXZ;
+    float2 commandVelocityXZ = 0.0;
+    float formationDeviationRadius = max(_MaxDisplacementFromSpawn, 1e-4);
+    float squadProjectionStrength = 0.0;
+    float2 desiredForwardXZ = 0.0;
+    bool hasRuntimeSquadAnchor = TryResolveRuntimeSquadMotionXZ(
+        instanceIndex,
+        staticAnchorXZ,
+        originalXZ,
+        anchorXZ,
+        formationCenterXZ,
+        commandVelocityXZ,
+        formationDeviationRadius,
+        squadProjectionStrength,
+        desiredForwardXZ);
 
-    if (_EnableApproximateCollision != 0)
+    float2 resolvedXZ = originalXZ;
+    float radius = ComputeInstanceRadius(uniformScale);
+    float2 preCrowdEnvironmentVelocityXZ = state.scaleAndVelocity.yz;
+    float3 preCrowdEnvironmentPosition = float3(
+        resolvedXZ.x,
+        ComputeGroundedLocalY(resolvedXZ, originalLocalPosition.y),
+        resolvedXZ.y);
+    preCrowdEnvironmentPosition = ResolveEnvironmentConstraints(
+        preCrowdEnvironmentPosition,
+        uniformScale,
+        preCrowdEnvironmentVelocityXZ);
+    resolvedXZ = ClampToSimulationBounds(preCrowdEnvironmentPosition.xz, radius);
+
+    if (_EnableApproximateCollision != 0 && selfInverseMass > 0.0)
     {
         int2 originCoord;
-        if (TryGetCellCoord(originalXZ, originCoord))
+        if (TryGetCellCoord(resolvedXZ, originCoord))
         {
+            float2 hardAccumulatedCorrection = 0.0;
+            float2 hardStrongestCorrection = 0.0;
+            float hardStrongestCorrectionLengthSquared = 0.0;
+            float hardCorrectionCount = 0.0;
+            int neighborCellRange = min(
+                max(1, (int)ceil((radius + max(_MaxSpatialQueryElementRadius, radius)) * _InvCellSize)),
+                6);
+
             [loop]
-            for (int y = -1; y <= 1; y++)
+            for (int y = -neighborCellRange; y <= neighborCellRange; y++)
             {
                 [loop]
-                for (int x = -1; x <= 1; x++)
+                for (int x = -neighborCellRange; x <= neighborCellRange; x++)
                 {
                     int2 neighborCoord = originCoord + int2(x, y);
                     if (any(neighborCoord < 0) || any(neighborCoord >= _GridDim))
@@ -825,57 +3134,448 @@ void SolveCrowdCollisions(uint3 dispatchThreadId : SV_DispatchThreadID)
                         if (neighborIndex == instanceIndex || neighborIndex >= (uint)_InstanceCount)
                             continue;
 
-                        if (_ActiveStateBuffer[neighborIndex] == 0u)
+                        float neighborInverseMass = GetCrowdPbdInverseMass(neighborIndex);
+                        float inverseMassSum = selfInverseMass + neighborInverseMass;
+                        if (inverseMassSum <= 1e-6)
                             continue;
 
-                        InstanceSimulationState neighborState = _SimulationReadBuffer[neighborIndex];
+                        InstanceSimulationState neighborState = LoadSimulationState(neighborIndex);
                         float2 neighborXZ = GetLocalXZ(neighborState.localPositionAndYaw);
                         float neighborRadius = ComputeInstanceRadius(neighborState.scaleAndVelocity.x);
                         float combinedRadius = radius + neighborRadius;
+                        float separationSlop = min(max(_SelfCollisionSlop, 0.0), combinedRadius * 0.45);
+                        float effectiveCombinedRadius = max(combinedRadius - separationSlop, 1e-4);
                         float2 delta = resolvedXZ - neighborXZ;
                         float distanceSquared = dot(delta, delta);
-                        if (distanceSquared >= combinedRadius * combinedRadius)
+                        if (distanceSquared >= effectiveCombinedRadius * effectiveCombinedRadius)
                             continue;
 
                         float distance = sqrt(max(distanceSquared, 1e-8));
-                        float2 direction = SafeNormalize2D(delta, FallbackDirection(instanceIndex, neighborIndex));
-                        float penetration = combinedRadius - distance;
-                        accumulatedCorrection += direction * penetration * 0.5;
-                        correctionCount += 1.0;
+                        float2 direction = SafeNormalize2D(delta, PairFallbackDirection(instanceIndex, neighborIndex));
+                        float constraintError = distance - effectiveCombinedRadius;
+                        float selfCorrectionWeight = selfInverseMass / inverseMassSum;
+                        float2 pairCorrection = -constraintError * direction * selfCorrectionWeight;
+                        AccumulateCrowdPbdCorrection(
+                            pairCorrection,
+                            hardAccumulatedCorrection,
+                            hardStrongestCorrection,
+                            hardStrongestCorrectionLengthSquared,
+                            hardCorrectionCount);
                     }
                 }
+            }
+
+            if (hardCorrectionCount > 0.0)
+            {
+                float2 hardCorrection = ResolveCrowdPbdCorrection(
+                    hardAccumulatedCorrection,
+                    hardStrongestCorrection,
+                    hardStrongestCorrectionLengthSquared,
+                    _SelfCollisionMaxPushPerStep);
+                resolvedXZ += hardCorrection * _SelfCollisionStrength;
             }
         }
     }
 
-    if (correctionCount > 0.0)
-    {
-        float2 correction = accumulatedCorrection / correctionCount;
-        float correctionLength = length(correction);
-        if (correctionLength > _MaxPushPerStep)
-            correction *= _MaxPushPerStep / max(correctionLength, 1e-4);
-
-        resolvedXZ += correction * _SelfCollisionStrength;
-    }
-
-    resolvedXZ = ClampDisplacementToAnchor(resolvedXZ, spawnData.localPosition.xz);
     resolvedXZ = ClampToSimulationBounds(resolvedXZ, radius);
+    float2 environmentVelocityXZ = state.scaleAndVelocity.yz;
     float3 resolvedLocalPosition = float3(
         resolvedXZ.x,
         ComputeGroundedLocalY(resolvedXZ, originalLocalPosition.y),
         resolvedXZ.y);
-    resolvedLocalPosition = ResolveEnvironmentConstraints(resolvedLocalPosition, uniformScale);
+    resolvedLocalPosition = ResolveEnvironmentConstraints(resolvedLocalPosition, uniformScale, environmentVelocityXZ);
+    float2 pbdVelocityXZ = (resolvedLocalPosition.xz - previousFrameXZ) / max(_DeltaTime, 1e-4);
 
-    float2 velocityXZ = state.scaleAndVelocity.yz + (resolvedLocalPosition.xz - originalXZ) / max(_DeltaTime, 1e-4);
     float yawRadians = state.localPositionAndYaw.w;
-    if (dot(velocityXZ, velocityXZ) > 1e-5)
-        yawRadians = atan2(velocityXZ.x, velocityXZ.y);
+    yawRadians = ResolveFacingYawRadians(
+        yawRadians,
+        hasRuntimeSquadAnchor,
+        desiredForwardXZ,
+        commandVelocityXZ,
+        pbdVelocityXZ);
 
-    _SimulationWriteBuffer[instanceIndex] = BuildState(
+    StoreSimulationState(instanceIndex, BuildState(
         resolvedLocalPosition,
         yawRadians,
         uniformScale,
-        velocityXZ);
+        pbdVelocityXZ));
+}
+
+[numthreads(64, 1, 1)]
+void ResolveTargetAcquisition(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint instanceIndex;
+    if (!TryResolveAliveDispatchInstanceIndex(dispatchThreadId.x, instanceIndex))
+        return;
+
+    InstanceSimulationState selfState = LoadSimulationState(instanceIndex);
+    TargetAcquisitionStateData previousTargetState = _TargetAcquisitionStateBuffer[instanceIndex];
+    float nextSearchTimer = max(previousTargetState.timers.x - _DeltaTime, 0.0);
+    float lockTimer = max(previousTargetState.timers.y - _DeltaTime, 0.0);
+    float lostSightTimer = max(previousTargetState.timers.z - _DeltaTime, 0.0);
+    TargetAcquisitionStateData targetState = BuildDefaultTargetAcquisitionState(
+        selfState,
+        nextSearchTimer,
+        lockTimer,
+        lostSightTimer,
+        previousTargetState.lastAttackerIndex);
+    targetState.debugRejectCounts0 = previousTargetState.debugRejectCounts0;
+    targetState.debugRejectCounts1 = previousTargetState.debugRejectCounts1;
+
+    if (IsInstanceDead(instanceIndex) || _EnableGpuInstanceCombat == 0)
+    {
+        _TargetAcquisitionStateBuffer[instanceIndex] = targetState;
+        return;
+    }
+
+    InstanceSpawnData selfSpawnData = _SpawnData[instanceIndex];
+    float combatRange = max(_CombatRange, 0.0);
+    if (combatRange <= 0.0)
+    {
+        _TargetAcquisitionStateBuffer[instanceIndex] = targetState;
+        return;
+    }
+
+    float3 originLocal = BuildCombatTargetTopLocal(selfState);
+    float3 originWorld = TransformLocalPointToWorld(originLocal);
+    float3 lineOfSightOriginLocal = originLocal;
+    float3 lineOfSightOriginWorld = originWorld;
+    float2 selfForwardXZ = ComputeCombatForwardXZ(selfState.localPositionAndYaw.w);
+    int currentTargetIndex = previousTargetState.currentTargetIndex;
+    int lastAttackerIndex = previousTargetState.lastAttackerIndex;
+
+    bool hasCurrentTarget = false;
+    bool currentHasLineOfSight = false;
+    float3 currentTargetLocal = originLocal;
+    float currentTargetDistance = combatRange;
+    float currentViewDot = 0.0;
+    uint currentRejectReason = 0u;
+    if (TryValidateTargetAcquisitionTarget(
+        instanceIndex,
+        selfSpawnData.faction,
+        combatRange,
+        originLocal,
+        originWorld,
+        lineOfSightOriginLocal,
+        lineOfSightOriginWorld,
+        selfForwardXZ,
+        currentTargetIndex,
+        currentTargetLocal,
+        currentTargetDistance,
+        currentViewDot,
+        currentHasLineOfSight,
+        currentRejectReason))
+    {
+        if (currentHasLineOfSight)
+        {
+            hasCurrentTarget = true;
+            lostSightTimer = max(_TargetAcquisitionLostSightGrace, 0.0);
+        }
+        else if (lostSightTimer > 1e-4)
+        {
+            hasCurrentTarget = true;
+        }
+    }
+
+    if (hasCurrentTarget && lockTimer > 1e-4)
+    {
+        targetState.currentTargetIndex = currentTargetIndex;
+        targetState.lastKnownTargetAndScore = float4(currentTargetLocal, previousTargetState.lastKnownTargetAndScore.w);
+        targetState.timers = float4(nextSearchTimer, lockTimer, lostSightTimer, 0.0);
+        targetState.flags = CrowdVatTargetAcquisitionFlagHasTarget | CrowdVatTargetAcquisitionFlagLocked;
+        if (currentHasLineOfSight)
+        {
+            targetState.flags |= CrowdVatTargetAcquisitionFlagHasLineOfSight;
+            targetState.debugVisibleSampleIndex = 0;
+        }
+
+        _TargetAcquisitionStateBuffer[instanceIndex] = targetState;
+        return;
+    }
+
+    int bestTargetIndex = hasCurrentTarget ? currentTargetIndex : -1;
+    float3 bestTargetLocal = hasCurrentTarget ? currentTargetLocal : originLocal;
+    float bestTargetDistance = hasCurrentTarget ? currentTargetDistance : combatRange;
+    float bestTargetScore = hasCurrentTarget
+        ? previousTargetState.lastKnownTargetAndScore.w + max(_TargetAcquisitionCurrentTargetBonus, 0.0)
+        : -1.0;
+    bool bestHasLineOfSight = hasCurrentTarget && currentHasLineOfSight;
+    bool performedSearch = nextSearchTimer <= 1e-4;
+
+    if (performedSearch)
+    {
+        uint maxCandidateChecks = (uint)max(_TargetAcquisitionMaxCandidateChecks, 1);
+        uint candidateChecks = 0u;
+        float4 debugRejectCounts0 = 0.0;
+        float4 debugRejectCounts1 = 0.0;
+        float broadphaseRadius = combatRange + max(_MaxSpatialQueryElementRadius, 0.0);
+        float2 minXZ = selfState.localPositionAndYaw.xz - broadphaseRadius;
+        float2 maxXZ = selfState.localPositionAndYaw.xz + broadphaseRadius;
+        int2 minCoord;
+        int2 maxCoord;
+        if (TryGetCellRange(minXZ, maxXZ, minCoord, maxCoord))
+        {
+            [loop]
+            for (int cellY = minCoord.y; cellY <= maxCoord.y; cellY++)
+            {
+                if (candidateChecks >= maxCandidateChecks)
+                    break;
+
+                [loop]
+                for (int cellX = minCoord.x; cellX <= maxCoord.x; cellX++)
+                {
+                    if (candidateChecks >= maxCandidateChecks)
+                        break;
+
+                    uint cellKey = GetCellKey(int2(cellX, cellY));
+                    uint occupantCount = min(_GridCounterBuffer[cellKey], (uint)_MaxCellOccupancy);
+                    [loop]
+                    for (uint occupantIndex = 0u; occupantIndex < occupantCount; occupantIndex++)
+                    {
+                        if (candidateChecks >= maxCandidateChecks)
+                            break;
+
+                        uint neighborIndex = _GridOccupantBuffer[cellKey * (uint)_MaxCellOccupancy + occupantIndex];
+                        if (neighborIndex >= (uint)_InstanceCount ||
+                            neighborIndex == instanceIndex ||
+                            IsInstanceDead(neighborIndex))
+                        {
+                            continue;
+                        }
+
+                        InstanceSpawnData neighborSpawnData = _SpawnData[neighborIndex];
+                        if (!AreFactionsHostile(selfSpawnData.faction, neighborSpawnData.faction))
+                            continue;
+
+                        candidateChecks++;
+                        float candidateScore;
+                        float3 candidateTargetLocal;
+                        float candidateTargetDistance;
+                        uint candidateRejectReason;
+                        if (!TryEvaluateTargetAcquisitionCandidate(
+                            instanceIndex,
+                            neighborIndex,
+                            selfSpawnData.faction,
+                            combatRange,
+                            originLocal,
+                            originWorld,
+                            lineOfSightOriginLocal,
+                            lineOfSightOriginWorld,
+                            selfForwardXZ,
+                            currentTargetIndex,
+                            lastAttackerIndex,
+                            candidateScore,
+                            candidateTargetLocal,
+                            candidateTargetDistance,
+                            candidateRejectReason))
+                        {
+                            if ((candidateRejectReason & (1u << 0)) != 0u)
+                                debugRejectCounts0.x += 1.0;
+                            if ((candidateRejectReason & (1u << 1)) != 0u)
+                                debugRejectCounts0.y += 1.0;
+                            if ((candidateRejectReason & (1u << 2)) != 0u)
+                                debugRejectCounts0.z += 1.0;
+                            if ((candidateRejectReason & (1u << 3)) != 0u)
+                                debugRejectCounts0.w += 1.0;
+                            continue;
+                        }
+
+                        if (candidateScore > bestTargetScore)
+                        {
+                            bestTargetScore = candidateScore;
+                            bestTargetIndex = (int)neighborIndex;
+                            bestTargetLocal = candidateTargetLocal;
+                            bestTargetDistance = candidateTargetDistance;
+                            bestHasLineOfSight = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (candidateChecks >= maxCandidateChecks)
+            debugRejectCounts1.x = 1.0;
+        targetState.debugRejectCounts0 = debugRejectCounts0;
+        targetState.debugRejectCounts1 = debugRejectCounts1;
+        nextSearchTimer = ComputeTargetAcquisitionSearchInterval(instanceIndex, selfState);
+    }
+
+    if (bestTargetIndex >= 0)
+    {
+        bool selectedNewTarget = !hasCurrentTarget || bestTargetIndex != currentTargetIndex;
+        if (selectedNewTarget)
+        {
+            lockTimer = max(_TargetAcquisitionLockDuration, 0.0);
+            lostSightTimer = max(_TargetAcquisitionLostSightGrace, 0.0);
+        }
+
+        targetState.currentTargetIndex = bestTargetIndex;
+        targetState.lastKnownTargetAndScore = float4(bestTargetLocal, bestTargetScore);
+        targetState.timers = float4(nextSearchTimer, lockTimer, lostSightTimer, 0.0);
+        targetState.flags = CrowdVatTargetAcquisitionFlagHasTarget;
+        if (bestHasLineOfSight)
+        {
+            targetState.flags |= CrowdVatTargetAcquisitionFlagHasLineOfSight;
+            targetState.debugVisibleSampleIndex = 0;
+        }
+        if (lockTimer > 1e-4)
+            targetState.flags |= CrowdVatTargetAcquisitionFlagLocked;
+    }
+    else
+    {
+        targetState.timers.x = performedSearch
+            ? ComputeTargetAcquisitionSearchInterval(instanceIndex ^ 0x31B5297Du, selfState)
+            : nextSearchTimer;
+    }
+
+    _TargetAcquisitionStateBuffer[instanceIndex] = targetState;
+}
+
+[numthreads(64, 1, 1)]
+void ResolveInstanceCombat(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint instanceIndex;
+    if (!TryResolveAliveDispatchInstanceIndex(dispatchThreadId.x, instanceIndex))
+        return;
+
+    InstanceSimulationState selfState = LoadSimulationState(instanceIndex);
+    InstanceCombatStateData previousCombatState = _CombatStateBuffer[instanceIndex];
+    uint selfDeathState = _DeathStateBuffer[instanceIndex];
+    float currentHealth = ComputeCombatHealth(selfDeathState);
+    float previousHealth = previousCombatState.healthAndHitFeedback.x > 0.0
+        ? previousCombatState.healthAndHitFeedback.x
+        : (float)GetCombatMaxHealthUnits();
+    float lastDamage = max(previousHealth - currentHealth, 0.0);
+    float cooldown = max(previousCombatState.localTargetAndCooldown.w - _DeltaTime, 0.0);
+    float muzzleFlash = DecayCombatMuzzleFlash(previousCombatState.muzzleFlash);
+    float impactFlash = DecayCombatImpactFlash(previousCombatState.localImpactNormalAndHit.w);
+    float hitFlash = DecayCombatHitFlash(previousCombatState.healthAndHitFeedback.y);
+    if (lastDamage > 0.001)
+        hitFlash = 1.0;
+    float4 healthAndHitFeedback = BuildCombatHealthFeedback(currentHealth, hitFlash, lastDamage);
+    InstanceCombatStateData combatState = BuildDefaultCombatState(
+        instanceIndex,
+        selfState,
+        cooldown,
+        previousCombatState.debugShotInfoPacked,
+        muzzleFlash,
+        healthAndHitFeedback);
+    bool shouldPreserveShotVisual = CanPreserveCombatShotVisual(previousCombatState, muzzleFlash, impactFlash);
+    if (IsDeathStateDead(selfDeathState))
+    {
+        combatState.localTargetAndCooldown.w = 0.0;
+        combatState.muzzleFlash = 0.0;
+        combatState.healthAndHitFeedback = BuildCombatHealthFeedback(0.0, 0.0, lastDamage);
+        combatState.flags = CrowdVatInstanceCombatFlagDead;
+        combatState.debugShotInfoPacked = PackAiDebugCombatShotInfo(-1, false, false, -1);
+        _CombatStateBuffer[instanceIndex] = combatState;
+        return;
+    }
+
+    if (_EnableGpuInstanceCombat == 0)
+    {
+        combatState.debugShotInfoPacked = PackAiDebugCombatShotInfo(-1, false, false, -1);
+        _CombatStateBuffer[instanceIndex] = combatState;
+        return;
+    }
+
+    InstanceSpawnData selfSpawnData = _SpawnData[instanceIndex];
+    float combatRange = max(_CombatRange, 0.0);
+    if (combatRange <= 0.0)
+    {
+        combatState.debugShotInfoPacked = PackAiDebugCombatShotInfo(-1, false, false, -1);
+        _CombatStateBuffer[instanceIndex] = combatState;
+        return;
+    }
+
+    float3 originLocal = BuildCombatTargetTopLocal(selfState);
+    float3 originWorld = TransformLocalPointToWorld(originLocal);
+    float3 lineOfSightOriginLocal = originLocal;
+    float3 lineOfSightOriginWorld = originWorld;
+    TargetAcquisitionStateData acquisitionState = _TargetAcquisitionStateBuffer[instanceIndex];
+    int visibleSampleIndex = acquisitionState.debugVisibleSampleIndex;
+    float bestTargetDistance = combatRange;
+    int bestTargetIndex = acquisitionState.currentTargetIndex;
+    float3 bestTargetLocal = originLocal;
+    bool acquisitionTargetOccluded = false;
+    if (!TryResolveCombatTargetByIndex(
+        instanceIndex,
+        selfSpawnData.faction,
+        combatRange,
+        originLocal,
+        originWorld,
+        lineOfSightOriginLocal,
+        lineOfSightOriginWorld,
+        bestTargetIndex,
+        bestTargetLocal,
+        bestTargetDistance,
+        acquisitionTargetOccluded))
+    {
+        bestTargetIndex = -1;
+    }
+
+    if (bestTargetIndex < 0)
+    {
+        float idleCooldownDuration = ComputeInstanceCombatCooldownDuration(instanceIndex);
+        if (idleCooldownDuration > 0.0 && cooldown <= 1e-4)
+            combatState.localTargetAndCooldown.w = idleCooldownDuration;
+
+        if (shouldPreserveShotVisual)
+            PreserveCombatShotVisual(combatState, previousCombatState, impactFlash);
+
+        _CombatStateBuffer[instanceIndex] = combatState;
+        return;
+    }
+
+    combatState.flags |= CrowdVatInstanceCombatFlagHasTarget |
+        CrowdVatInstanceCombatFlagHasLineOfSight |
+        CrowdVatInstanceCombatFlagActive;
+    combatState.localOriginAndDistance = float4(originLocal, bestTargetDistance);
+    combatState.localTargetAndCooldown = float4(bestTargetLocal, cooldown);
+    combatState.targetIndex = bestTargetIndex;
+    combatState.debugShotInfoPacked = PackAiDebugCombatShotInfo(-1, false, false, visibleSampleIndex);
+
+    float shotCooldownDuration = ComputeInstanceCombatCooldownDuration(instanceIndex);
+    if (shotCooldownDuration > 0.0 && cooldown <= 1e-4)
+    {
+        combatState.localTargetAndCooldown.w = shotCooldownDuration;
+        combatState.muzzleFlash = 1.0;
+        combatState.flags |= CrowdVatInstanceCombatFlagFiredThisFrame;
+
+        float3 shotTargetLocal;
+        float shotDistance;
+        float3 shotHitNormalLocal;
+        int hitAgentIndex;
+        bool hitScene;
+        bool blockedBySceneBeforeAgent;
+        bool hasShotHit = ResolveCombatShotHit(
+            instanceIndex,
+            originLocal,
+            bestTargetLocal,
+            combatRange,
+            shotTargetLocal,
+            shotDistance,
+            shotHitNormalLocal,
+            hitAgentIndex,
+            hitScene,
+            blockedBySceneBeforeAgent);
+
+        combatState.localOriginAndDistance = float4(originLocal, shotDistance);
+        combatState.localTargetAndCooldown.xyz = shotTargetLocal;
+        combatState.localImpactNormalAndHit = float4(SafeNormalize3D(shotHitNormalLocal, float3(0.0, 1.0, 0.0)), hasShotHit ? 1.0 : 0.0);
+        combatState.debugShotInfoPacked = PackAiDebugCombatShotInfo(hitAgentIndex, hitScene, blockedBySceneBeforeAgent, visibleSampleIndex);
+        if (hitAgentIndex >= 0)
+        {
+            combatState.targetIndex = hitAgentIndex;
+            ApplyCombatDamage((uint)hitAgentIndex, instanceIndex);
+        }
+    }
+    else if (shouldPreserveShotVisual)
+    {
+        PreserveCombatShotVisual(combatState, previousCombatState, impactFlash);
+    }
+
+    _CombatStateBuffer[instanceIndex] = combatState;
 }
 
 [numthreads(8, 1, 1)]
@@ -962,7 +3662,10 @@ void ResolveSpatialQueries(uint3 dispatchThreadId : SV_DispatchThreadID)
                 if (ownerIndex >= (uint)_InstanceCount)
                     continue;
 
-                SpatialElementData element = _SpatialElementBuffer[ownerIndex];
+                if (IsInstanceDead(ownerIndex))
+                    continue;
+
+                SpatialElementData element = LoadSpatialElement(ownerIndex);
                 if ((element.targetMask & query.targetMask) == 0u)
                     continue;
 
@@ -1018,14 +3721,55 @@ void ResolveSpatialQueries(uint3 dispatchThreadId : SV_DispatchThreadID)
 [numthreads(64, 1, 1)]
 void FinalizeInstances(uint3 dispatchThreadId : SV_DispatchThreadID)
 {
-    uint instanceIndex = dispatchThreadId.x;
-    if (instanceIndex >= (uint)_InstanceCount)
+    uint instanceIndex;
+    if (!TryResolveAliveDispatchInstanceIndex(dispatchThreadId.x, instanceIndex))
         return;
 
-    InstanceSpawnData spawnData = _SpawnData[instanceIndex];
-    InstanceSimulationState state = _SimulationReadBuffer[instanceIndex];
+    InstanceSimulationState state = LoadSimulationState(instanceIndex);
+    InstanceCombatStateData combatState = _CombatStateBuffer[instanceIndex];
+    uint deathState = _DeathStateBuffer[instanceIndex];
+    bool isDead = IsDeathStateDead(deathState);
+    float resolvedHealth = isDead ? 0.0 : ComputeCombatHealth(deathState);
+    float previousHealth = combatState.healthAndHitFeedback.x > 0.0
+        ? combatState.healthAndHitFeedback.x
+        : (float)GetCombatMaxHealthUnits();
+    float currentFrameDamage = max(previousHealth - resolvedHealth, 0.0);
+    float lastDamage = currentFrameDamage > 0.001 ? currentFrameDamage : combatState.healthAndHitFeedback.z;
+    float hitFlash = isDead ? 0.0 : DecayCombatHitFlash(combatState.healthAndHitFeedback.y);
+    if (!isDead && currentFrameDamage > 0.001)
+        hitFlash = 1.0;
+    combatState.healthAndHitFeedback = BuildCombatHealthFeedback(resolvedHealth, hitFlash, lastDamage);
+    if (_EnableGpuInstanceCombat == 0)
+    {
+        combatState.flags = isDead ? CrowdVatInstanceCombatFlagDead : 0u;
+        combatState.muzzleFlash = 0.0;
+        combatState.healthAndHitFeedback = BuildCombatHealthFeedback((float)GetCombatMaxHealthUnits(), 0.0, 0.0);
+        combatState.debugShotInfoPacked = PackAiDebugCombatShotInfo(-1, false, false, -1);
+    }
 
     float yawRadians = state.localPositionAndYaw.w;
+    if (!isDead && (combatState.flags & CrowdVatInstanceCombatFlagHasTarget) != 0u)
+    {
+        float2 aimDirectionXZ = combatState.localTargetAndCooldown.xz - state.localPositionAndYaw.xz;
+        if (dot(aimDirectionXZ, aimDirectionXZ) > 1e-5)
+            yawRadians = atan2(aimDirectionXZ.x, aimDirectionXZ.y);
+    }
+
+    if (isDead)
+    {
+        float3 originLocal = BuildCombatTargetTopLocal(state);
+        combatState.localOriginAndDistance = float4(originLocal, 1e20);
+        combatState.localTargetAndCooldown = float4(originLocal, 0.0);
+        combatState.localImpactNormalAndHit = float4(0.0, 1.0, 0.0, 0.0);
+        combatState.healthAndHitFeedback = BuildCombatHealthFeedback(0.0, 0.0, lastDamage);
+        combatState.muzzleFlash = 0.0;
+        combatState.targetIndex = -1;
+        combatState.flags = CrowdVatInstanceCombatFlagDead;
+        combatState.debugShotInfoPacked = PackAiDebugCombatShotInfo(-1, false, false, -1);
+    }
+
+    float muzzleFlash = isDead ? 0.0 : saturate(combatState.muzzleFlash);
+    float combatVisualFlash = muzzleFlash;
     float sineYaw;
     float cosineYaw;
     sincos(yawRadians, sineYaw, cosineYaw);
@@ -1035,48 +3779,477 @@ void FinalizeInstances(uint3 dispatchThreadId : SV_DispatchThreadID)
     float3 axisZLocal = float3(sineYaw, 0.0, cosineYaw);
 
     float3 centerWS = _RootPosition + TransformRootDirection(state.localPositionAndYaw.xyz);
-    float3 axisXWS = TransformRootDirection(axisXLocal) * state.scaleAndVelocity.x;
-    float3 axisYWS = TransformRootDirection(axisYLocal) * state.scaleAndVelocity.x;
-    float3 axisZWS = TransformRootDirection(axisZLocal) * state.scaleAndVelocity.x;
+    float renderScale = isDead ? 0.0 : state.scaleAndVelocity.x;
+    float3 axisXWS = TransformRootDirection(axisXLocal) * renderScale;
+    float3 axisYWS = TransformRootDirection(axisYLocal) * renderScale;
+    float3 axisZWS = TransformRootDirection(axisZLocal) * renderScale;
 
     MatrixRows rows;
     rows.row0 = float4(axisXWS, centerWS.x);
     rows.row1 = float4(axisYWS, centerWS.y);
     rows.row2 = float4(axisZWS, centerWS.z);
     _InstanceTransforms[instanceIndex] = rows;
+    _CombatStateBuffer[instanceIndex] = combatState;
 
-    if (_ClipFrameCount <= 1)
+    AnimationClipGpuData currentClip;
+    TryGetAnimationClipData(0, currentClip);
+    InstanceAnimationStateGpuData animationState;
+    if (_AnimationClipCount > 0)
     {
-        _InstanceFrameData[instanceIndex] = float4(_ClipStartFrame, _ClipStartFrame, 0.0, 0.0);
+        animationState = _InstanceAnimationStateBuffer[instanceIndex];
+        TryGetAnimationClipData(animationState.currentClipIndex, currentClip);
+    }
+    else
+    {
+        animationState.currentClipIndex = 0;
+        animationState.nextClipIndex = 0;
+        animationState.isBlending = 0;
+        animationState.padding0 = 0;
+        animationState.currentClipTime = 0.0;
+        animationState.nextClipTime = 0.0;
+        animationState.transitionElapsed = 0.0;
+        animationState.transitionDuration = 0.0;
+    }
+
+    float4 currentFrameData = BuildAnimationFrameData(currentClip, animationState.currentClipTime);
+    float4 nextFrameData = currentFrameData;
+    float clipBlend = 0.0;
+
+    if (animationState.isBlending != 0)
+    {
+        AnimationClipGpuData nextClip;
+        if (TryGetAnimationClipData(animationState.nextClipIndex, nextClip))
+        {
+            nextFrameData = BuildAnimationFrameData(nextClip, animationState.nextClipTime);
+            clipBlend = animationState.transitionDuration <= 1e-5
+                ? 1.0
+                : saturate(animationState.transitionElapsed / animationState.transitionDuration);
+        }
+    }
+
+    _InstanceFrameData[instanceIndex] = float4(
+        currentFrameData.x,
+        currentFrameData.y,
+        currentFrameData.z,
+        clipBlend);
+    _InstanceFrameBlendData[instanceIndex] = float4(
+        nextFrameData.x,
+        nextFrameData.y,
+        nextFrameData.z,
+        combatVisualFlash);
+}
+
+[numthreads(64, 1, 1)]
+void CaptureAiDebugGpuStage(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint targetSlot = dispatchThreadId.x;
+    if (targetSlot >= (uint)_AiDebugTargetCount)
+        return;
+
+    uint writeIndex = (uint)_AiDebugStageWriteOffset + targetSlot;
+    uint instanceIndex = _AiDebugTargetIndexBuffer[targetSlot];
+
+    CrowdVatAiDebugGpuStageRecord record;
+    record.frameIndex = (uint)max(_AiDebugFrameIndex, 0);
+    record.stageId = (uint)max(_AiDebugStageId, 0);
+    record.solverIteration = _AiDebugSolverIteration;
+    record.targetSlot = targetSlot;
+    record.instanceIndex = instanceIndex;
+    record.active = 0u;
+    record.deathState = 0u;
+    record.gridCellKey = CrowdVatInvalidInstanceIndex;
+    record.gridOccupantCount = 0u;
+    record.gridOverflow = 0u;
+    record.combatFlags = 0u;
+    record.acquisitionFlags = 0u;
+    record.combatTargetIndex = -1;
+    record.acquisitionTargetIndex = -1;
+    record.acquisitionLastAttackerIndex = -1;
+    record.valid = 0u;
+    record.localPositionYaw = 0.0;
+    record.velocityScaleHealth = 0.0;
+    record.combatDistanceCooldownMuzzleHit = 0.0;
+    record.combatImpactDamageNormalizedHealth = 0.0;
+    record.acquisitionLastKnownScore = 0.0;
+    record.acquisitionTimers = 0.0;
+    record.acquisitionRejectCounts0 = 0.0;
+    record.acquisitionRejectCounts1 = 0.0;
+    record.combatDebugShotInfo = float4(-1.0, -1.0, 0.0, 0.0);
+
+    if (instanceIndex < (uint)_InstanceCount)
+    {
+        InstanceSimulationState state = LoadSimulationState(instanceIndex);
+        uint activeState = _ActiveStateBuffer[instanceIndex];
+        uint deathState = _DeathStateBuffer[instanceIndex];
+        InstanceCombatStateData combatState = _CombatStateBuffer[instanceIndex];
+        TargetAcquisitionStateData acquisitionState = _TargetAcquisitionStateBuffer[instanceIndex];
+        float health = IsDeathStateDead(deathState)
+            ? 0.0
+            : (combatState.healthAndHitFeedback.x > 0.0 ? combatState.healthAndHitFeedback.x : ComputeCombatHealth(deathState));
+
+        record.valid = 1u;
+        record.active = activeState;
+        record.deathState = deathState;
+        record.combatFlags = combatState.flags;
+        record.acquisitionFlags = acquisitionState.flags;
+        record.combatTargetIndex = combatState.targetIndex;
+        record.acquisitionTargetIndex = acquisitionState.currentTargetIndex;
+        record.acquisitionLastAttackerIndex = acquisitionState.lastAttackerIndex;
+        record.localPositionYaw = state.localPositionAndYaw;
+        record.velocityScaleHealth = float4(
+            state.scaleAndVelocity.y,
+            state.scaleAndVelocity.z,
+            state.scaleAndVelocity.x,
+            health);
+        record.combatDistanceCooldownMuzzleHit = float4(
+            combatState.localOriginAndDistance.w,
+            combatState.localTargetAndCooldown.w,
+            combatState.muzzleFlash,
+            combatState.healthAndHitFeedback.y);
+        record.combatImpactDamageNormalizedHealth = float4(
+            combatState.localImpactNormalAndHit.w,
+            combatState.healthAndHitFeedback.z,
+            combatState.healthAndHitFeedback.w,
+            0.0);
+        record.acquisitionLastKnownScore = acquisitionState.lastKnownTargetAndScore;
+        record.acquisitionTimers = acquisitionState.timers;
+        record.acquisitionRejectCounts0 = acquisitionState.debugRejectCounts0;
+        record.acquisitionRejectCounts1 = acquisitionState.debugRejectCounts1;
+        record.combatDebugShotInfo = DecodeAiDebugCombatShotInfo(combatState.debugShotInfoPacked);
+
+        int2 coord;
+        if (TryGetCellCoord(GetLocalXZ(state.localPositionAndYaw), coord))
+        {
+            uint cellKey = GetCellKey(coord);
+            uint occupantCount = _GridCounterBuffer[cellKey];
+            record.gridCellKey = cellKey;
+            record.gridOccupantCount = occupantCount;
+            record.gridOverflow = occupantCount > (uint)_MaxCellOccupancy ? 1u : 0u;
+        }
+    }
+
+    _AiDebugStageRecordBuffer[writeIndex] = record;
+}
+
+bool IsAiDebugFinite4(float4 value)
+{
+    return all(value == value) && all(abs(value) < 3.402823e38);
+}
+
+bool IsAiDebugInvalidLiveTarget(int targetIndex)
+{
+    if (targetIndex < 0 || targetIndex >= _InstanceCount)
+        return true;
+
+    return IsDeathStateDead(_DeathStateBuffer[(uint)targetIndex]);
+}
+
+bool AiDebugHasDiscoveryFlag(uint flag)
+{
+    return ((uint)_AiDebugDiscoveryFlags & flag) != 0u;
+}
+
+bool IsAiDebugSquadMatch(uint instanceIndex)
+{
+    if (_AgentSquadDataCount <= 0 || instanceIndex >= (uint)_AgentSquadDataCount)
+        return false;
+
+    AgentSquadData agentData = _AgentSquadDataBuffer[instanceIndex];
+    uint flags = (uint)round(agentData.squadAndSlotAndRoleAndFlags.w);
+    if ((flags & CrowdVatSquadMemberFlagUnassigned) != 0u)
+        return false;
+
+    uint squadId = (uint)round(agentData.squadAndSlotAndRoleAndFlags.x);
+    return squadId == (uint)max(_AiDebugDiscoverySquadId, 0);
+}
+
+bool IsAiDebugScreenRectHit(float3 localPosition)
+{
+    float3 worldPosition = TransformLocalPointToWorld(localPosition);
+    float4 world = float4(worldPosition, 1.0);
+    float4 clip = float4(
+        dot(_AiDebugDiscoveryWorldToClipRow0, world),
+        dot(_AiDebugDiscoveryWorldToClipRow1, world),
+        dot(_AiDebugDiscoveryWorldToClipRow2, world),
+        dot(_AiDebugDiscoveryWorldToClipRow3, world));
+
+    if (clip.w <= 1e-5)
+        return false;
+
+    float2 uv = clip.xy / clip.w * 0.5 + 0.5;
+    float2 rectMin = min(_AiDebugDiscoveryScreenRect.xy, _AiDebugDiscoveryScreenRect.zw);
+    float2 rectMax = max(_AiDebugDiscoveryScreenRect.xy, _AiDebugDiscoveryScreenRect.zw);
+    return all(uv >= rectMin) && all(uv <= rectMax);
+}
+
+void StoreAiDebugDiscoveryHistory(
+    uint instanceIndex,
+    bool stateIsFinite,
+    float4 localPositionYaw,
+    float2 velocity,
+    uint stuckFrames,
+    float intentSpeed)
+{
+    CrowdVatAiDebugDiscoveryHistoryRecord history = _AiDebugDiscoveryHistoryBuffer[instanceIndex];
+    if (stateIsFinite)
+    {
+        history.localPositionFrame = float4(localPositionYaw.xyz, (float)(max(_AiDebugDiscoveryFrameIndex, 0) + 1));
+        history.velocityStuck = float4(velocity.x, velocity.y, (float)min(stuckFrames, 65535u), max(intentSpeed, 0.0));
+    }
+    else
+    {
+        history.velocityStuck.z = 0.0;
+    }
+
+    _AiDebugDiscoveryHistoryBuffer[instanceIndex] = history;
+}
+
+[numthreads(64, 1, 1)]
+void DiscoverAiDebugGpuCandidates(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    uint instanceIndex = dispatchThreadId.x;
+    if (instanceIndex >= (uint)_InstanceCount || _AiDebugCandidateCapacity <= 0)
+        return;
+
+    InstanceSimulationState state = LoadSimulationState(instanceIndex);
+    uint activeState = _ActiveStateBuffer[instanceIndex];
+    uint deathState = _DeathStateBuffer[instanceIndex];
+    InstanceCombatStateData combatState = _CombatStateBuffer[instanceIndex];
+    TargetAcquisitionStateData acquisitionState = _TargetAcquisitionStateBuffer[instanceIndex];
+
+    uint anomalyReasonMask = 0u;
+    float score = 0.0;
+    bool stateIsFinite = IsAiDebugFinite4(state.localPositionAndYaw) && IsAiDebugFinite4(state.scaleAndVelocity);
+    if (!stateIsFinite)
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateInvalidState;
+        score += 10000.0;
+    }
+
+    bool isDead = IsDeathStateDead(deathState);
+    bool isAlive = activeState != 0u && !isDead;
+    float2 velocity = state.scaleAndVelocity.yz;
+    float speed = stateIsFinite ? length(velocity) : 0.0;
+
+    CrowdVatAiDebugDiscoveryHistoryRecord history = _AiDebugDiscoveryHistoryBuffer[instanceIndex];
+    bool hasHistory = history.localPositionFrame.w > 0.5;
+    float moveDelta = (stateIsFinite && hasHistory)
+        ? length(state.localPositionAndYaw.xz - history.localPositionFrame.xz)
+        : 0.0;
+    float speedDelta = (stateIsFinite && hasHistory)
+        ? length(velocity - history.velocityStuck.xy)
+        : 0.0;
+    float intentSpeed = stateIsFinite ? max(max(history.velocityStuck.w, 0.0) * 0.95, speed) : 0.0;
+    uint stuckFrames = (uint)max(round(history.velocityStuck.z), 0.0);
+    bool stuckSample = stateIsFinite &&
+        hasHistory &&
+        activeState != 0u &&
+        !isDead &&
+        intentSpeed >= max(_AiDebugDiscoveryStuckIntentSpeedThreshold, 0.0) &&
+        speed <= max(_AiDebugDiscoveryStuckSpeedThreshold, 0.0) &&
+        moveDelta <= max(_AiDebugDiscoveryStuckMoveThreshold, 0.0);
+    stuckFrames = stuckSample ? stuckFrames + 1u : 0u;
+
+    if (isDead && activeState != 0u)
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateDeadButActive;
+        score += 9000.0;
+    }
+
+    if (stateIsFinite && speed > max(_AiDebugDiscoveryHighSpeedThreshold, 0.0))
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateHighSpeed;
+        score += 100.0 + min(speed, 1000.0);
+    }
+
+    if (stateIsFinite && activeState == 0u && speed > max(_AiDebugDiscoveryInactiveMovingSpeedThreshold, 0.0))
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateInactiveMoving;
+        score += 700.0 + min(speed, 1000.0);
+    }
+
+    if (stateIsFinite && hasHistory && speedDelta > max(_AiDebugDiscoverySpeedSpikeThreshold, 0.0))
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateSpeedSpike;
+        score += 650.0 + min(speedDelta, 1000.0);
+    }
+
+    if (stateIsFinite && hasHistory && moveDelta > max(_AiDebugDiscoveryPositionJumpThreshold, 0.0))
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidatePositionJump;
+        score += 620.0 + min(moveDelta * 10.0, 1000.0);
+    }
+
+    if (stuckFrames >= (uint)max(_AiDebugDiscoveryStuckFrameThreshold, 1))
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateStuck;
+        score += 580.0 + min((float)stuckFrames, 1000.0);
+    }
+
+    uint gridCellKey = CrowdVatInvalidInstanceIndex;
+    uint gridOccupantCount = 0u;
+    uint gridOverflow = 0u;
+    if (stateIsFinite && _GridDim.x > 0 && _GridDim.y > 0 && _GridCellCount > 0 && _MaxCellOccupancy > 0)
+    {
+        int2 coord;
+        if (TryGetCellCoord(GetLocalXZ(state.localPositionAndYaw), coord))
+        {
+            gridCellKey = GetCellKey(coord);
+            gridOccupantCount = _GridCounterBuffer[gridCellKey];
+            if (gridOccupantCount > (uint)_MaxCellOccupancy)
+            {
+                gridOverflow = 1u;
+                anomalyReasonMask |= CrowdVatAiDebugCandidateGridOverflow;
+                score += 600.0 + (float)(gridOccupantCount - (uint)_MaxCellOccupancy);
+            }
+        }
+    }
+
+    if ((combatState.flags & CrowdVatInstanceCombatFlagHasTarget) != 0u &&
+        IsAiDebugInvalidLiveTarget(combatState.targetIndex))
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateCombatTargetInvalid;
+        score += 500.0;
+    }
+
+    if ((acquisitionState.flags & CrowdVatTargetAcquisitionFlagHasTarget) != 0u &&
+        IsAiDebugInvalidLiveTarget(acquisitionState.currentTargetIndex))
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateAcquisitionTargetInvalid;
+        score += 450.0;
+    }
+
+    if (acquisitionState.debugRejectCounts1.x > 0.5)
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateRejectSaturated;
+        score += 320.0;
+    }
+
+    if ((combatState.debugShotInfoPacked & (1u << 25)) != 0u)
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateShotBlockedByScene;
+        score += 260.0;
+    }
+
+    if (((combatState.flags & CrowdVatInstanceCombatFlagHasTarget) != 0u &&
+            (combatState.flags & CrowdVatInstanceCombatFlagHasLineOfSight) == 0u) ||
+        ((acquisitionState.flags & CrowdVatTargetAcquisitionFlagHasTarget) != 0u &&
+            (acquisitionState.flags & CrowdVatTargetAcquisitionFlagHasLineOfSight) == 0u))
+    {
+        anomalyReasonMask |= CrowdVatAiDebugCandidateNoLineOfSight;
+        score += 240.0;
+    }
+
+    uint filterReasonMask = 0u;
+    bool hasFilter = false;
+    bool filterHit = false;
+
+    if (AiDebugHasDiscoveryFlag(CrowdVatAiDebugDiscoveryFlagRegionSphere) && stateIsFinite)
+    {
+        hasFilter = true;
+        float radius = max(_AiDebugDiscoveryCenterRadius.w, 0.0);
+        float2 deltaXZ = state.localPositionAndYaw.xz - _AiDebugDiscoveryCenterRadius.xz;
+        if (radius > 0.0 && dot(deltaXZ, deltaXZ) <= radius * radius)
+        {
+            filterHit = true;
+            filterReasonMask |= CrowdVatAiDebugCandidateRegion;
+        }
+    }
+
+    if (AiDebugHasDiscoveryFlag(CrowdVatAiDebugDiscoveryFlagRegionBox) && stateIsFinite)
+    {
+        hasFilter = true;
+        float3 delta = abs(state.localPositionAndYaw.xyz - _AiDebugDiscoveryBoxCenter.xyz);
+        if (all(delta <= _AiDebugDiscoveryBoxExtents.xyz))
+        {
+            filterHit = true;
+            filterReasonMask |= CrowdVatAiDebugCandidateRegion;
+        }
+    }
+
+    if (AiDebugHasDiscoveryFlag(CrowdVatAiDebugDiscoveryFlagScreenRect) && stateIsFinite)
+    {
+        hasFilter = true;
+        if (IsAiDebugScreenRectHit(state.localPositionAndYaw.xyz))
+        {
+            filterHit = true;
+            filterReasonMask |= CrowdVatAiDebugCandidateScreen;
+        }
+    }
+
+    if (AiDebugHasDiscoveryFlag(CrowdVatAiDebugDiscoveryFlagSquadFilter))
+    {
+        hasFilter = true;
+        if (IsAiDebugSquadMatch(instanceIndex))
+        {
+            filterHit = true;
+            filterReasonMask |= CrowdVatAiDebugCandidateSquad;
+        }
+    }
+
+    if (hasFilter && !filterHit)
+    {
+        StoreAiDebugDiscoveryHistory(instanceIndex, stateIsFinite, state.localPositionAndYaw, velocity, stuckFrames, intentSpeed);
         return;
     }
 
-    float clipLength = max(_ClipLength, 1e-5);
-    float clipTime = ComputeClipTime(spawnData);
-    bool shouldLoop = _ClipLoop != 0;
+    uint reasonMask = anomalyReasonMask;
+    if (hasFilter && isAlive)
+    {
+        reasonMask |= filterReasonMask;
+        score += 40.0;
+    }
 
-    if (shouldLoop)
-        clipTime = fmod(max(clipTime, 0.0), clipLength);
-    else
-        clipTime = clamp(clipTime, 0.0, clipLength);
+    if (AiDebugHasDiscoveryFlag(CrowdVatAiDebugDiscoveryFlagRequireAnomaly) && anomalyReasonMask == 0u)
+    {
+        StoreAiDebugDiscoveryHistory(instanceIndex, stateIsFinite, state.localPositionAndYaw, velocity, stuckFrames, intentSpeed);
+        return;
+    }
 
-    float normalizedTime = shouldLoop
-        ? clipTime / clipLength
-        : saturate(clipTime / clipLength);
+    StoreAiDebugDiscoveryHistory(instanceIndex, stateIsFinite, state.localPositionAndYaw, velocity, stuckFrames, intentSpeed);
 
-    float frameFloat = shouldLoop
-        ? normalizedTime * _ClipFrameCount
-        : normalizedTime * (_ClipFrameCount - 1);
+    if (reasonMask == 0u)
+        return;
 
-    int localFrame0 = clamp((int)floor(frameFloat), 0, _ClipFrameCount - 1);
-    int localFrame1 = shouldLoop
-        ? (localFrame0 + 1) % _ClipFrameCount
-        : min(localFrame0 + 1, _ClipFrameCount - 1);
-    float frameBlend = saturate(frameFloat - localFrame0);
+    uint candidateSlot;
+    InterlockedAdd(_AiDebugCandidateCounterBuffer[0], 1u, candidateSlot);
+    if (candidateSlot >= (uint)_AiDebugCandidateCapacity)
+        return;
 
-    _InstanceFrameData[instanceIndex] = float4(
-        _ClipStartFrame + localFrame0,
-        _ClipStartFrame + localFrame1,
-        frameBlend,
-        0.0);
+    float health = isDead
+        ? 0.0
+        : (combatState.healthAndHitFeedback.x > 0.0 ? combatState.healthAndHitFeedback.x : ComputeCombatHealth(deathState));
+
+    CrowdVatAiDebugGpuCandidateRecord record;
+    record.frameIndex = (uint)max(_AiDebugDiscoveryFrameIndex, 0);
+    record.candidateSlot = candidateSlot;
+    record.instanceIndex = instanceIndex;
+    record.reasonMask = reasonMask;
+    record.score = score;
+    record.active = activeState;
+    record.deathState = deathState;
+    record.gridCellKey = gridCellKey;
+    record.gridOccupantCount = gridOccupantCount;
+    record.gridOverflow = gridOverflow;
+    record.combatFlags = combatState.flags;
+    record.acquisitionFlags = acquisitionState.flags;
+    record.combatTargetIndex = combatState.targetIndex;
+    record.acquisitionTargetIndex = acquisitionState.currentTargetIndex;
+    record.valid = 1u;
+    record.reserved0 = 0u;
+    record.localPositionYaw = state.localPositionAndYaw;
+    record.velocityScaleHealth = float4(
+        state.scaleAndVelocity.y,
+        state.scaleAndVelocity.z,
+        state.scaleAndVelocity.x,
+        health);
+    record.acquisitionRejectCounts0 = acquisitionState.debugRejectCounts0;
+    record.acquisitionRejectCounts1 = acquisitionState.debugRejectCounts1;
+    record.combatDistanceCooldownMuzzleHit = float4(
+        combatState.localOriginAndDistance.w,
+        combatState.localTargetAndCooldown.w,
+        combatState.muzzleFlash,
+        combatState.healthAndHitFeedback.y);
+
+    _AiDebugCandidateRecordBuffer[candidateSlot] = record;
 }

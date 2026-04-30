@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &4100513370683313610
+--- !u!1 &962468141280174724
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 4944959659066206765}
-  - component: {fileID: 4917605207202151793}
-  - component: {fileID: 7220777734557471742}
+  - component: {fileID: 4721198921744612641}
+  - component: {fileID: 1439740261684857434}
+  - component: {fileID: 4281506274255300476}
   m_Layer: 0
   m_Name: VatRenderer
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &4944959659066206765
+--- !u!4 &4721198921744612641
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4100513370683313610}
+  m_GameObject: {fileID: 962468141280174724}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.000000037748947, y: 0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.14217532, z: 0}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.14218259, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7092150886270349158}
+  m_Father: {fileID: 6136306438705914975}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &4917605207202151793
+--- !u!33 &1439740261684857434
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4100513370683313610}
+  m_GameObject: {fileID: 962468141280174724}
   m_Mesh: {fileID: 4300000, guid: 4fe197e0dfd7cd248afe759299fd5161, type: 2}
---- !u!23 &7220777734557471742
+--- !u!23 &4281506274255300476
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4100513370683313610}
+  m_GameObject: {fileID: 962468141280174724}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -86,7 +86,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &5903482349229882317
+--- !u!1 &1478547546113991619
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -94,8 +94,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7092150886270349158}
-  - component: {fileID: 559962611358616801}
+  - component: {fileID: 6136306438705914975}
+  - component: {fileID: 8858013035767478025}
   m_Layer: 0
   m_Name: QianxiaCrowdLod2Vat
   m_TagString: Untagged
@@ -103,39 +103,39 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7092150886270349158
+--- !u!4 &6136306438705914975
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5903482349229882317}
+  m_GameObject: {fileID: 1478547546113991619}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 4944959659066206765}
+  - {fileID: 4721198921744612641}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &559962611358616801
+--- !u!114 &8858013035767478025
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5903482349229882317}
+  m_GameObject: {fileID: 1478547546113991619}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dd35d90d4e58b1947b74c31b0c812809, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   _animationAsset: {fileID: 11400000, guid: 813f8213d52d40240af84a34bc1d6d8b, type: 2}
-  _defaultClipName: Qianxia_Walk_Slow
+  _defaultClipName: Ch36_nonPBR@Zombie Idle
   _playOnEnable: 1
   _loopOverride: 1
   _playbackSpeed: 1
   _normalizedStartOffset: 0
-  _meshFilter: {fileID: 4917605207202151793}
-  _meshRenderer: {fileID: 7220777734557471742}
+  _meshFilter: {fileID: 1439740261684857434}
+  _meshRenderer: {fileID: 4281506274255300476}

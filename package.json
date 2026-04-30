@@ -1,0 +1,12 @@
+{
+  "name": "unity6-openai-image-generation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate:image": "node tools/generate-openai-image.mjs"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}

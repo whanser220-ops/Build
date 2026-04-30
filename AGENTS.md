@@ -28,6 +28,7 @@
 - 当前任务状态写入 `.workspace/memory/task_state.md`，关键决策写入 `.workspace/memory/decisions.md`，待确认问题写入 `.workspace/memory/open_questions.md`。
 - 摘要只是索引，不替代原始证据；需要精确信息时，重新检索或重新打开文件。
 - 代码改动优先最小化，不做无关重构，不修改生成目录。
+- 当任务明确要求启用子 agent / 多 agent 协作时，默认通过 `spawn_agent` 使用 `gpt-5.4` 与 `xhigh`；除非用户明确指定其他模型或推理强度，或更高优先级指令另有要求。
 
 ## Unity 代码约定
 

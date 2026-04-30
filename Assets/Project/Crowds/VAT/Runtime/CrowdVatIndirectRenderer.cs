@@ -3,20 +3,42 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Rendering;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public sealed class CrowdVatIndirectRenderer : MonoBehaviour
+public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 {
     private static readonly int BoneAnimationTextureId = Shader.PropertyToID("_BoneAnimationTex");
     private static readonly int InstanceTransformsId = Shader.PropertyToID("_InstanceTransforms");
     private static readonly int InstanceFrameDataId = Shader.PropertyToID("_InstanceFrameData");
+    private static readonly int InstanceFrameBlendDataId = Shader.PropertyToID("_InstanceFrameBlendData");
     private static readonly int VisibleInstanceIndicesId = Shader.PropertyToID("_VisibleInstanceIndices");
+    private static readonly int AnimationClipMetadataBufferId = Shader.PropertyToID("_AnimationClipMetadataBuffer");
+    private static readonly int InstanceAnimationStateBufferId = Shader.PropertyToID("_InstanceAnimationStateBuffer");
     private static readonly int CrowdRootLocalRow0Id = Shader.PropertyToID("_CrowdRootLocalRow0");
     private static readonly int CrowdRootLocalRow1Id = Shader.PropertyToID("_CrowdRootLocalRow1");
     private static readonly int CrowdRootLocalRow2Id = Shader.PropertyToID("_CrowdRootLocalRow2");
+    private static readonly int TracerColorCampAId = Shader.PropertyToID("_TracerColorCampA");
+    private static readonly int TracerColorCampBId = Shader.PropertyToID("_TracerColorCampB");
+    private static readonly int TracerWidthId = Shader.PropertyToID("_TracerWidth");
+    private static readonly int TracerBrightnessId = Shader.PropertyToID("_TracerBrightness");
+    private static readonly int TracerMinFlashId = Shader.PropertyToID("_TracerMinFlash");
+    private static readonly int MuzzleFlashTexId = Shader.PropertyToID("_MuzzleFlashTex");
+    private static readonly int TracerTexId = Shader.PropertyToID("_TracerTex");
+    private static readonly int ImpactTexId = Shader.PropertyToID("_ImpactTex");
+    private static readonly int MuzzleFlashSizeId = Shader.PropertyToID("_MuzzleFlashSize");
+    private static readonly int ImpactFlashSizeId = Shader.PropertyToID("_ImpactFlashSize");
+    private static readonly int ImpactPointOffsetId = Shader.PropertyToID("_ImpactPointOffset");
+    private static readonly int MuzzleFlashBrightnessId = Shader.PropertyToID("_MuzzleFlashBrightness");
+    private static readonly int ImpactFlashBrightnessId = Shader.PropertyToID("_ImpactFlashBrightness");
+    private static readonly int MuzzleFlashFlipbookId = Shader.PropertyToID("_MuzzleFlashFlipbook");
+    private static readonly int ImpactFlashFlipbookId = Shader.PropertyToID("_ImpactFlashFlipbook");
 
     private static readonly int InstanceCountId = Shader.PropertyToID("_InstanceCount");
+    private static readonly int AnimationClipCountId = Shader.PropertyToID("_AnimationClipCount");
     private static readonly int PlaybackTimeId = Shader.PropertyToID("_PlaybackTime");
     private static readonly int BasePlaybackSpeedId = Shader.PropertyToID("_BasePlaybackSpeed");
     private static readonly int ClipStartFrameId = Shader.PropertyToID("_ClipStartFrame");
@@ -28,14 +50,24 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
     private static readonly int RootUpId = Shader.PropertyToID("_RootUp");
     private static readonly int RootForwardId = Shader.PropertyToID("_RootForward");
     private static readonly int SpawnDataId = Shader.PropertyToID("_SpawnData");
-    private static readonly int SimulationReadBufferId = Shader.PropertyToID("_SimulationReadBuffer");
-    private static readonly int SimulationWriteBufferId = Shader.PropertyToID("_SimulationWriteBuffer");
+    private static readonly int SimulationPositionYawReadBufferId = Shader.PropertyToID("_SimulationPositionYawReadBuffer");
+    private static readonly int SimulationPositionYawWriteBufferId = Shader.PropertyToID("_SimulationPositionYawWriteBuffer");
+    private static readonly int SimulationScaleReadBufferId = Shader.PropertyToID("_SimulationScaleReadBuffer");
+    private static readonly int SimulationScaleWriteBufferId = Shader.PropertyToID("_SimulationScaleWriteBuffer");
+    private static readonly int SimulationVelocityReadBufferId = Shader.PropertyToID("_SimulationVelocityReadBuffer");
+    private static readonly int SimulationVelocityWriteBufferId = Shader.PropertyToID("_SimulationVelocityWriteBuffer");
     private static readonly int ActiveStateBufferId = Shader.PropertyToID("_ActiveStateBuffer");
+    private static readonly int DeathStateBufferId = Shader.PropertyToID("_DeathStateBuffer");
     private static readonly int InteractionSphereBufferId = Shader.PropertyToID("_InteractionSphereBuffer");
     private static readonly int InteractionSphereCountId = Shader.PropertyToID("_InteractionSphereCount");
     private static readonly int GridCounterBufferId = Shader.PropertyToID("_GridCounterBuffer");
     private static readonly int GridOccupantBufferId = Shader.PropertyToID("_GridOccupantBuffer");
-    private static readonly int SpatialElementBufferId = Shader.PropertyToID("_SpatialElementBuffer");
+    private static readonly int SpatialCapsuleStartRadiusBufferId = Shader.PropertyToID("_SpatialCapsuleStartRadiusBuffer");
+    private static readonly int SpatialCapsuleEndHeightBufferId = Shader.PropertyToID("_SpatialCapsuleEndHeightBuffer");
+    private static readonly int SpatialOwnerIndexBufferId = Shader.PropertyToID("_SpatialOwnerIndexBuffer");
+    private static readonly int SpatialTargetMaskBufferId = Shader.PropertyToID("_SpatialTargetMaskBuffer");
+    private static readonly int SpatialFlagsBufferId = Shader.PropertyToID("_SpatialFlagsBuffer");
+    private static readonly int SpatialFactionBufferId = Shader.PropertyToID("_SpatialFactionBuffer");
     private static readonly int SpatialQueryBufferId = Shader.PropertyToID("_SpatialQueryBuffer");
     private static readonly int SpatialQueryResultBufferId = Shader.PropertyToID("_SpatialQueryResultBuffer");
     private static readonly int SpatialQueryHitBufferId = Shader.PropertyToID("_SpatialQueryHitBuffer");
@@ -60,7 +92,24 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
     private static readonly int MaxSpatialQueryElementRadiusId = Shader.PropertyToID("_MaxSpatialQueryElementRadius");
     private static readonly int AnchorStiffnessId = Shader.PropertyToID("_AnchorStiffness");
     private static readonly int VelocityDampingId = Shader.PropertyToID("_VelocityDamping");
+    private static readonly int GoalStiffnessId = Shader.PropertyToID("_GoalStiffness");
+    private static readonly int EnableNavigationPotentialFieldId = Shader.PropertyToID("_EnableNavigationPotentialField");
+    private static readonly int NavigationPotentialProbeDistanceId = Shader.PropertyToID("_NavigationPotentialProbeDistance");
+    private static readonly int NavigationDensityLateralStrengthId = Shader.PropertyToID("_NavigationDensityLateralStrength");
+    private static readonly int NavigationDensitySlowdownStrengthId = Shader.PropertyToID("_NavigationDensitySlowdownStrength");
+    private static readonly int NavigationDensityReferenceOccupancyId = Shader.PropertyToID("_NavigationDensityReferenceOccupancy");
+    private static readonly int EnableLocalAvoidanceId = Shader.PropertyToID("_EnableLocalAvoidance");
+    private static readonly int LocalAvoidanceRadiusId = Shader.PropertyToID("_LocalAvoidanceRadius");
+    private static readonly int LocalAvoidanceStrengthId = Shader.PropertyToID("_LocalAvoidanceStrength");
+    private static readonly int DensitySlowdownStrengthId = Shader.PropertyToID("_DensitySlowdownStrength");
+    private static readonly int DensityReferenceNeighborCountId = Shader.PropertyToID("_DensityReferenceNeighborCount");
+    private static readonly int LocalAvoidanceMaxNeighborsId = Shader.PropertyToID("_LocalAvoidanceMaxNeighbors");
     private static readonly int SelfCollisionStrengthId = Shader.PropertyToID("_SelfCollisionStrength");
+    private static readonly int SelfCollisionSlopId = Shader.PropertyToID("_SelfCollisionSlop");
+    private static readonly int SelfCollisionMaxPushPerStepId = Shader.PropertyToID("_SelfCollisionMaxPushPerStep");
+    private static readonly int EnableDensityConstraintId = Shader.PropertyToID("_EnableDensityConstraint");
+    private static readonly int DensityComfortDistanceId = Shader.PropertyToID("_DensityComfortDistance");
+    private static readonly int DensityConstraintStiffnessId = Shader.PropertyToID("_DensityConstraintStiffness");
     private static readonly int MaxPushPerStepId = Shader.PropertyToID("_MaxPushPerStep");
     private static readonly int MaxDisplacementFromSpawnId = Shader.PropertyToID("_MaxDisplacementFromSpawn");
     private static readonly int InactiveReturnStrengthId = Shader.PropertyToID("_InactiveReturnStrength");
@@ -75,25 +124,164 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
     private static readonly int StaticSdfWorldSizeId = Shader.PropertyToID("_StaticSdfWorldSize");
     private static readonly int StaticSdfDistanceScaleId = Shader.PropertyToID("_StaticSdfDistanceScale");
     private static readonly int StaticSdfDistanceBiasId = Shader.PropertyToID("_StaticSdfDistanceBias");
+    private static readonly int EnableEnvironmentDistanceFieldId = Shader.PropertyToID("_EnableEnvironmentDistanceField");
+    private static readonly int EnvironmentDistanceFieldTextureId = Shader.PropertyToID("_EnvironmentDistanceFieldTexture");
+    private static readonly int EnvironmentDistanceWorldCenterId = Shader.PropertyToID("_EnvironmentDistanceWorldCenter");
+    private static readonly int EnvironmentDistanceWorldSizeId = Shader.PropertyToID("_EnvironmentDistanceWorldSize");
+    private static readonly int EnvironmentDistanceDistanceScaleId = Shader.PropertyToID("_EnvironmentDistanceDistanceScale");
+    private static readonly int EnvironmentDistanceDistanceBiasId = Shader.PropertyToID("_EnvironmentDistanceDistanceBias");
     private static readonly int CapsulePbdSampleCountId = Shader.PropertyToID("_CapsulePbdSampleCount");
     private static readonly int WorldToLocalRow0Id = Shader.PropertyToID("_WorldToLocalRow0");
     private static readonly int WorldToLocalRow1Id = Shader.PropertyToID("_WorldToLocalRow1");
     private static readonly int WorldToLocalRow2Id = Shader.PropertyToID("_WorldToLocalRow2");
-
+    private static readonly int SquadStateBufferId = Shader.PropertyToID("_SquadStateBuffer");
+    private static readonly int SquadAliveCountBufferId = Shader.PropertyToID("_SquadAliveCountBuffer");
+    private static readonly int AgentSquadDataBufferId = Shader.PropertyToID("_AgentSquadDataBuffer");
+    private static readonly int FormationSlotBufferId = Shader.PropertyToID("_FormationSlotBuffer");
+    private static readonly int EnableRuntimeSquadAnchorsId = Shader.PropertyToID("_EnableRuntimeSquadAnchors");
+    private static readonly int UseRuntimeFormationSlotsId = Shader.PropertyToID("_UseRuntimeFormationSlots");
+    private static readonly int SquadStateCountId = Shader.PropertyToID("_SquadStateCount");
+    private static readonly int AgentSquadDataCountId = Shader.PropertyToID("_AgentSquadDataCount");
+    private static readonly int FormationSlotCountId = Shader.PropertyToID("_FormationSlotCount");
+    private static readonly int CombatStateBufferId = Shader.PropertyToID("_CombatStateBuffer");
+    private static readonly int TargetAcquisitionStateBufferId = Shader.PropertyToID("_TargetAcquisitionStateBuffer");
+    private static readonly int AiDebugTargetIndexBufferId = Shader.PropertyToID("_AiDebugTargetIndexBuffer");
+    private static readonly int AiDebugStageRecordBufferId = Shader.PropertyToID("_AiDebugStageRecordBuffer");
+    private static readonly int AiDebugTargetCountId = Shader.PropertyToID("_AiDebugTargetCount");
+    private static readonly int AiDebugStageId = Shader.PropertyToID("_AiDebugStageId");
+    private static readonly int AiDebugFrameIndexId = Shader.PropertyToID("_AiDebugFrameIndex");
+    private static readonly int AiDebugSolverIterationId = Shader.PropertyToID("_AiDebugSolverIteration");
+    private static readonly int AiDebugStageWriteOffsetId = Shader.PropertyToID("_AiDebugStageWriteOffset");
+    private static readonly int AiDebugCandidateCounterBufferId = Shader.PropertyToID("_AiDebugCandidateCounterBuffer");
+    private static readonly int AiDebugCandidateRecordBufferId = Shader.PropertyToID("_AiDebugCandidateRecordBuffer");
+    private static readonly int AiDebugCandidateCapacityId = Shader.PropertyToID("_AiDebugCandidateCapacity");
+    private static readonly int AiDebugDiscoveryFrameIndexId = Shader.PropertyToID("_AiDebugDiscoveryFrameIndex");
+    private static readonly int AiDebugDiscoveryFlagsId = Shader.PropertyToID("_AiDebugDiscoveryFlags");
+    private static readonly int AiDebugDiscoveryCenterRadiusId = Shader.PropertyToID("_AiDebugDiscoveryCenterRadius");
+    private static readonly int AiDebugDiscoveryBoxCenterId = Shader.PropertyToID("_AiDebugDiscoveryBoxCenter");
+    private static readonly int AiDebugDiscoveryBoxExtentsId = Shader.PropertyToID("_AiDebugDiscoveryBoxExtents");
+    private static readonly int AiDebugDiscoveryScreenRectId = Shader.PropertyToID("_AiDebugDiscoveryScreenRect");
+    private static readonly int AiDebugDiscoveryWorldToClipRow0Id = Shader.PropertyToID("_AiDebugDiscoveryWorldToClipRow0");
+    private static readonly int AiDebugDiscoveryWorldToClipRow1Id = Shader.PropertyToID("_AiDebugDiscoveryWorldToClipRow1");
+    private static readonly int AiDebugDiscoveryWorldToClipRow2Id = Shader.PropertyToID("_AiDebugDiscoveryWorldToClipRow2");
+    private static readonly int AiDebugDiscoveryWorldToClipRow3Id = Shader.PropertyToID("_AiDebugDiscoveryWorldToClipRow3");
+    private static readonly int AiDebugDiscoverySquadId = Shader.PropertyToID("_AiDebugDiscoverySquadId");
+    private static readonly int AiDebugDiscoveryHighSpeedThresholdId = Shader.PropertyToID("_AiDebugDiscoveryHighSpeedThreshold");
+    private static readonly int AiDebugDiscoveryInactiveMovingSpeedThresholdId = Shader.PropertyToID("_AiDebugDiscoveryInactiveMovingSpeedThreshold");
+    private static readonly int AiDebugDiscoverySpeedSpikeThresholdId = Shader.PropertyToID("_AiDebugDiscoverySpeedSpikeThreshold");
+    private static readonly int AiDebugDiscoveryPositionJumpThresholdId = Shader.PropertyToID("_AiDebugDiscoveryPositionJumpThreshold");
+    private static readonly int AiDebugDiscoveryStuckSpeedThresholdId = Shader.PropertyToID("_AiDebugDiscoveryStuckSpeedThreshold");
+    private static readonly int AiDebugDiscoveryStuckMoveThresholdId = Shader.PropertyToID("_AiDebugDiscoveryStuckMoveThreshold");
+    private static readonly int AiDebugDiscoveryStuckIntentSpeedThresholdId = Shader.PropertyToID("_AiDebugDiscoveryStuckIntentSpeedThreshold");
+    private static readonly int AiDebugDiscoveryStuckFrameThresholdId = Shader.PropertyToID("_AiDebugDiscoveryStuckFrameThreshold");
+    private static readonly int AiDebugDiscoveryHistoryBufferId = Shader.PropertyToID("_AiDebugDiscoveryHistoryBuffer");
+    private static readonly int EnableGpuInstanceCombatId = Shader.PropertyToID("_EnableGpuInstanceCombat");
+    private static readonly int CombatRangeId = Shader.PropertyToID("_CombatRange");
+    private static readonly int CombatShotsPerSecondId = Shader.PropertyToID("_CombatShotsPerSecond");
+    private static readonly int CombatShotIntervalJitterId = Shader.PropertyToID("_CombatShotIntervalJitter");
+    private static readonly int CombatShotSpreadDegreesId = Shader.PropertyToID("_CombatShotSpreadDegrees");
+    private static readonly int CombatHitRadiusPaddingId = Shader.PropertyToID("_CombatHitRadiusPadding");
+    private static readonly int CombatHitHeightPaddingId = Shader.PropertyToID("_CombatHitHeightPadding");
+    private static readonly int EnableCombatTerrainOcclusionId = Shader.PropertyToID("_EnableCombatTerrainOcclusion");
+    private static readonly int CombatTerrainOcclusionSampleSpacingId = Shader.PropertyToID("_CombatTerrainOcclusionSampleSpacing");
+    private static readonly int CombatTerrainOcclusionClearanceId = Shader.PropertyToID("_CombatTerrainOcclusionClearance");
+    private static readonly int CombatOriginHeightId = Shader.PropertyToID("_CombatOriginHeight");
+    private static readonly int CombatTargetHeightId = Shader.PropertyToID("_CombatTargetHeight");
+    private static readonly int CombatMuzzleFlashDecayId = Shader.PropertyToID("_CombatMuzzleFlashDecay");
+    private static readonly int CombatImpactFlashDurationId = Shader.PropertyToID("_CombatImpactFlashDuration");
+    private static readonly int CombatMaxHealthId = Shader.PropertyToID("_CombatMaxHealth");
+    private static readonly int CombatDamagePerHitId = Shader.PropertyToID("_CombatDamagePerHit");
+    private static readonly int CombatHitFlashDecayId = Shader.PropertyToID("_CombatHitFlashDecay");
+    private static readonly int CombatOccludedTargetRetryDelayId = Shader.PropertyToID("_CombatOccludedTargetRetryDelay");
+    private static readonly int CombatNoTargetRetryDelayId = Shader.PropertyToID("_CombatNoTargetRetryDelay");
+    private static readonly int TargetAcquisitionSearchIntervalMinId = Shader.PropertyToID("_TargetAcquisitionSearchIntervalMin");
+    private static readonly int TargetAcquisitionSearchIntervalMaxId = Shader.PropertyToID("_TargetAcquisitionSearchIntervalMax");
+    private static readonly int TargetAcquisitionFarDistanceId = Shader.PropertyToID("_TargetAcquisitionFarDistance");
+    private static readonly int TargetAcquisitionFarIntervalMultiplierId = Shader.PropertyToID("_TargetAcquisitionFarIntervalMultiplier");
+    private static readonly int TargetAcquisitionFovCosineId = Shader.PropertyToID("_TargetAcquisitionFovCosine");
+    private static readonly int TargetAcquisitionMaxCandidateChecksId = Shader.PropertyToID("_TargetAcquisitionMaxCandidateChecks");
+    private static readonly int TargetAcquisitionCurrentTargetBonusId = Shader.PropertyToID("_TargetAcquisitionCurrentTargetBonus");
+    private static readonly int TargetAcquisitionLastAttackerBonusId = Shader.PropertyToID("_TargetAcquisitionLastAttackerBonus");
+    private static readonly int TargetAcquisitionLockDurationId = Shader.PropertyToID("_TargetAcquisitionLockDuration");
+    private static readonly int TargetAcquisitionLostSightGraceId = Shader.PropertyToID("_TargetAcquisitionLostSightGrace");
+    private static readonly int TargetAcquisitionDistanceScoreWeightId = Shader.PropertyToID("_TargetAcquisitionDistanceScoreWeight");
+    private static readonly int TargetAcquisitionViewScoreWeightId = Shader.PropertyToID("_TargetAcquisitionViewScoreWeight");
+    private static readonly int AliveInstanceIndexBufferId = Shader.PropertyToID("_AliveInstanceIndexBuffer");
+    private static readonly int AliveInstanceCounterBufferId = Shader.PropertyToID("_AliveInstanceCounterBuffer");
+    private static readonly int AliveInstanceDispatchArgsBufferId = Shader.PropertyToID("_AliveInstanceDispatchArgsBuffer");
+    private static readonly int AliveInstanceIndexReadBufferId = Shader.PropertyToID("_AliveInstanceIndexReadBuffer");
+    private static readonly int AliveInstanceCounterReadBufferId = Shader.PropertyToID("_AliveInstanceCounterReadBuffer");
+    private static readonly int ActiveInstanceIndexBufferId = Shader.PropertyToID("_ActiveInstanceIndexBuffer");
+    private static readonly int ActiveInstanceCounterBufferId = Shader.PropertyToID("_ActiveInstanceCounterBuffer");
+    private static readonly int ActiveInstanceDispatchArgsBufferId = Shader.PropertyToID("_ActiveInstanceDispatchArgsBuffer");
+    private static readonly int VisibleRuntimeSquadMaskBufferId = Shader.PropertyToID("_VisibleRuntimeSquadMaskBuffer");
+    private static readonly int VisibleRuntimeSquadCountId = Shader.PropertyToID("_VisibleRuntimeSquadCount");
+    private static readonly int VisibleUnassignedInstancesId = Shader.PropertyToID("_VisibleUnassignedInstances");
+    private static readonly int VisibleInstanceCounterBufferId = Shader.PropertyToID("_VisibleInstanceCounterBuffer");
+    private static readonly int VisibleRenderArgsBufferId = Shader.PropertyToID("_VisibleRenderArgsBuffer");
+    private static readonly int VisibleRenderArgsIndexCountId = Shader.PropertyToID("_VisibleRenderArgsIndexCount");
+    private static readonly int VisibleRenderArgsStartIndexId = Shader.PropertyToID("_VisibleRenderArgsStartIndex");
+    private static readonly int VisibleRenderArgsBaseVertexId = Shader.PropertyToID("_VisibleRenderArgsBaseVertex");
+    private static readonly int InstanceRenderChunkBufferId = Shader.PropertyToID("_InstanceRenderChunkBuffer");
+    private static readonly int VisibleRenderChunkMaskBufferId = Shader.PropertyToID("_VisibleRenderChunkMaskBuffer");
+    private static readonly int VisibleRenderChunkCountId = Shader.PropertyToID("_VisibleRenderChunkCount");
+    private static readonly int HasVisibleFrustumPlanesId = Shader.PropertyToID("_HasVisibleFrustumPlanes");
+    private static readonly int VisibleInstanceBoundsRadiusId = Shader.PropertyToID("_VisibleInstanceBoundsRadius");
+    private static readonly int VisibleFrustumPlane0Id = Shader.PropertyToID("_VisibleFrustumPlane0");
+    private static readonly int VisibleFrustumPlane1Id = Shader.PropertyToID("_VisibleFrustumPlane1");
+    private static readonly int VisibleFrustumPlane2Id = Shader.PropertyToID("_VisibleFrustumPlane2");
+    private static readonly int VisibleFrustumPlane3Id = Shader.PropertyToID("_VisibleFrustumPlane3");
+    private static readonly int VisibleFrustumPlane4Id = Shader.PropertyToID("_VisibleFrustumPlane4");
+    private static readonly int VisibleFrustumPlane5Id = Shader.PropertyToID("_VisibleFrustumPlane5");
     private const string DefaultShaderName = "Project/Crowd/VATIndirectLit";
+    private const string DefaultCombatTracerShaderName = "Project/Crowd/VATCombatTracer";
+#if UNITY_EDITOR
+    private const string DefaultCombatFxTextureFolder = "Assets/Project/Crowds/Texture";
+    private const string DefaultCombatMuzzleFlashTexturePath = "Assets/Project/Crowds/Texture/qiangkou.png";
+    private const string DefaultCombatTracerTexturePath = "Assets/Project/Crowds/Texture/子弹曳光.png";
+    private const string DefaultCombatImpactTexturePath = "Assets/Project/Crowds/Texture/子弹命中——雾.png";
+    private const string DefaultCombatMuzzleFlashTextureSearchFilter = "qiangkou";
+    private const string DefaultCombatTracerTextureSearchFilter = "子弹曳光";
+    private const string DefaultCombatImpactTextureSearchFilter = "子弹命中";
+#endif
+    private const string BuildAliveInstanceListKernelName = "BuildAliveInstanceList";
+    private const string BuildAliveDispatchArgsKernelName = "BuildAliveDispatchArgs";
+    private const string BuildActiveInstanceListKernelName = "BuildActiveInstanceList";
+    private const string BuildActiveDispatchArgsKernelName = "BuildActiveDispatchArgs";
+    private const string BuildVisibleRuntimeInstanceListKernelName = "BuildVisibleRuntimeInstanceList";
+    private const string BuildVisibleChunkInstanceListKernelName = "BuildVisibleChunkInstanceList";
+    private const string BuildVisibleIndirectArgsKernelName = "BuildVisibleIndirectArgs";
     private const string PredictKernelName = "PredictInstances";
     private const string ClearGridKernelName = "ClearGrid";
     private const string BuildGridKernelName = "BuildGrid";
+    private const string BuildSpatialElementsKernelName = "BuildSpatialElements";
     private const string SolveCrowdKernelName = "SolveCrowdCollisions";
+    private const string ResolveTargetAcquisitionKernelName = "ResolveTargetAcquisition";
+    private const string ResolveInstanceCombatKernelName = "ResolveInstanceCombat";
     private const string ClearSpatialQueriesKernelName = "ClearSpatialQueryResults";
     private const string ResolveSpatialQueriesKernelName = "ResolveSpatialQueries";
     private const string FinalizeKernelName = "FinalizeInstances";
+    private const string CaptureAiDebugGpuStageKernelName = "CaptureAiDebugGpuStage";
+    private const string DiscoverAiDebugGpuCandidatesKernelName = "DiscoverAiDebugGpuCandidates";
     private const int ThreadGroupSize = 64;
     private const int SpatialQueryThreadGroupSize = 8;
     private const int GridBuildModeActiveOnly = 0;
     private const int GridBuildModeAllQueryables = 1;
     private const int DebugCharacterInteractionQueryId = -10001;
     private const int DebugCustomInteractionQueryIdBase = -11000;
+    private const int SquadAliveCountReadbackIntervalFrames = 6;
+    private const int InvalidClipIndex = -1;
+    private const float DefaultInstanceAnimationTransitionDuration = 0.2f;
+    private static readonly uint[] AliveInstanceCounterResetData = { 0u };
+    private static readonly uint[] AliveInstanceDispatchArgsResetData = { 1u, 1u, 1u };
+    private static readonly uint[] ActiveInstanceCounterResetData = { 0u };
+    private static readonly uint[] ActiveInstanceDispatchArgsResetData = { 1u, 1u, 1u };
+    private static readonly uint[] VisibleInstanceCounterResetData = { 0u };
+    private const uint InstanceCombatFlagHasTarget = 1u << 0;
+    private const uint InstanceCombatFlagHasLineOfSight = 1u << 1;
+    private const uint InstanceCombatFlagFiredThisFrame = 1u << 2;
+    private const uint InstanceCombatFlagActive = 1u << 3;
+    private const uint InstanceCombatFlagDead = 1u << 4;
     [Serializable]
     [StructLayout(LayoutKind.Sequential)]
     private struct InstanceSpawnData
@@ -125,8 +313,16 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
     [Serializable]
     private struct InteractionSphere
     {
+        [InspectorName("目标")]
+        [Tooltip("作为驱散球中心的 Transform。运行时会读取它的位置并转换到 renderer 本地空间。")]
         public Transform target;
+
+        [InspectorName("半径")]
+        [Tooltip("驱散球半径，单位为世界空间米。只影响 XZ 平面上的近场推动。")]
         public float radius;
+
+        [InspectorName("强度")]
+        [Tooltip("驱散球推开人群的强度。值越大，进入半径内的实例每帧被推开的距离越明显。")]
         public float strength;
     }
 
@@ -139,10 +335,55 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
         public Vector4 row2;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct AnimationClipGpuData
+    {
+        public int startFrame;
+        public int frameCount;
+        public float lengthSeconds;
+        public int loop;
+    }
+
+    private struct InstanceAnimationStateCpuData
+    {
+        public int currentClipIndex;
+        public int nextClipIndex;
+        public float currentClipTime;
+        public float nextClipTime;
+        public float transitionElapsed;
+        public float transitionDuration;
+        public float playbackSpeedMultiplier;
+        public bool isBlending;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct InstanceAnimationStateGpuData
+    {
+        public int currentClipIndex;
+        public int nextClipIndex;
+        public int isBlending;
+        public int padding0;
+        public float currentClipTime;
+        public float nextClipTime;
+        public float transitionElapsed;
+        public float transitionDuration;
+    }
+
     private struct RenderChunk
     {
         public uint[] instanceIndices;
         public Bounds localBounds;
+    }
+
+    private struct RuntimeSquadRenderChunk
+    {
+        public uint[] instanceIndices;
+        public Bounds staticLocalBounds;
+        public Vector2 minSlotOffset;
+        public Vector2 maxSlotOffset;
+        public int squadIndex;
+        public bool usesRuntimeBounds;
+        public bool hasSlotExtents;
     }
 
     private struct SpawnAreaContext
@@ -211,6 +452,56 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
         public uint padding1;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RuntimeSquadStateGpuData
+    {
+        public Vector4 localCenterAndAnchorBlend;
+        public Vector4 localForwardAndMoveSpeed;
+        public Vector4 localTargetAndSpacingX;
+        public Vector4 metadata0;
+        public Vector4 metadata1;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RuntimeAgentSquadDataGpuData
+    {
+        public Vector4 squadAndSlotAndRoleAndFlags;
+        public Vector4 slotOffsetAndWeight;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RuntimeFormationSlotGpuData
+    {
+        public Vector4 localOffsetAndRoleAndRank;
+        public Vector4 preferredDistanceAndPadding;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct InstanceCombatStateData
+    {
+        public Vector4 localOriginAndDistance;
+        public Vector4 localTargetAndCooldown;
+        public Vector4 localImpactNormalAndHit;
+        public Vector4 healthAndHitFeedback;
+        public float muzzleFlash;
+        public int targetIndex;
+        public uint flags;
+        public uint debugShotInfoPacked;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct TargetAcquisitionStateData
+    {
+        public Vector4 lastKnownTargetAndScore;
+        public Vector4 timers;
+        public Vector4 debugRejectCounts0;
+        public Vector4 debugRejectCounts1;
+        public int currentTargetIndex;
+        public int lastAttackerIndex;
+        public uint flags;
+        public int debugVisibleSampleIndex;
+    }
+
     [Header("资源引用")]
     [Tooltip("推荐直接拖入已生成的 Qianxia crowd VAT prefab 根节点，用来复用动画资产、材质来源和渲染根节点偏移。")]
     [SerializeField] private CrowdVatPlayer _templatePrefab;
@@ -245,14 +536,20 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
     [Tooltip("出生布局随机种子。固定后可以稳定复现同一套人群分布。")]
     [SerializeField] private int _randomSeed = 12345;
 
-    [Header("地形贴地 / 碰撞")]
-    [Tooltip("启用后，人群会按 Terrain 高度图把脚底吸附回地表，避免角色和地形穿模。")]
+    [Header("Scene Query 静态世界")]
+    [Tooltip("可选的 Scene Query 字段资产。可统一提供 Ground / Walkable / Static SDF 数据；未提供的部分会回退到本组件上的旧字段。")]
+    [SerializeField] private CrowdVatSceneQueryFieldAsset _sceneQueryFieldAsset;
+    [Tooltip("参与 Environment SDF 烘焙的场景 Collider 列表。战斗遮挡现在只使用 Environment SDF，不再使用 static ray。")]
+    [SerializeField] private Collider[] _environmentSdfObstacleColliders = Array.Empty<Collider>();
+
+    [Header("Terrain 引用 / 诊断")]
+    [Tooltip("旧 Terrain 解析开关。人物运行时不再通过 GPU Terrain heightmap 贴地；Terrain 仅保留给初始化、诊断和战斗遮挡等非 SDF 主链用途。")]
     [SerializeField] private bool _enableTerrainCollision = true;
-    [Tooltip("未手动指定 Terrain 时，自动使用场景里的 Terrain 作为贴地来源。")]
+    [Tooltip("未手动指定 Terrain 时，自动使用场景里的 Terrain 作为参考来源。")]
     [SerializeField] private bool _autoResolveTerrain = true;
-    [Tooltip("用于人群贴地的 Terrain。留空时会自动查找。")]
+    [Tooltip("参考 Terrain。人物运行时高度校正以 baked/environment SDF 或 static SDF 为准。")]
     [SerializeField] private Terrain _terrain;
-    [Tooltip("贴地后额外抬高一点点，避免脚底和地表完全重合。")]
+    [Tooltip("Terrain 参考高度偏移，仅用于兼容路径与诊断；SDF 主链不依赖它。")]
     [SerializeField] private float _terrainHeightOffset = 0.02f;
     [Tooltip("启用后，额外使用 3D static SDF 体积参与 capsule PBD 碰撞投影。")]
     [SerializeField] private bool _enableStaticSdfCollision;
@@ -290,13 +587,13 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
     [Tooltip("CampB 的中心点，使用 CrowdVatIndirectRenderer 本地空间的 XZ 坐标。X 表示左右，Y 表示前后(Z)。")]
     [SerializeField] private Vector2 _campBCenterXZ = new Vector2(0.0f, 6.0f);
     [InspectorName("使用空物体控制阵营")]
-    [Tooltip("启用后，CampA / CampB 的中心和范围优先由控制空物体与四个角点空物体驱动。")]
+    [Tooltip("启用后，CampA / CampB 的中心和初始生成范围优先由控制空物体与四个角点空物体驱动；这只是出生分布，不限制后续运行时移动。")]
     [SerializeField] private bool _useFactionControlTransforms = true;
     [InspectorName("CampA 控制空物体")]
-    [Tooltip("推荐使用 CrowdVatIndirectRenderer 的子物体。直接移动它即可调整 CampA 中心，展开后拖四个角点即可修改范围。")]
+    [Tooltip("推荐使用 CrowdVatIndirectRenderer 的子物体。直接移动它即可调整 CampA 中心，展开后拖四个角点即可修改 CampA 的初始生成范围，不限制后续运行时移动。")]
     [SerializeField] private Transform _campAControlTransform;
     [InspectorName("CampB 控制空物体")]
-    [Tooltip("推荐使用 CrowdVatIndirectRenderer 的子物体。直接移动它即可调整 CampB 中心，展开后拖四个角点即可修改范围。")]
+    [Tooltip("推荐使用 CrowdVatIndirectRenderer 的子物体。直接移动它即可调整 CampB 中心，展开后拖四个角点即可修改 CampB 的初始生成范围，不限制后续运行时移动。")]
     [SerializeField] private Transform _campBControlTransform;
     [SerializeField] [HideInInspector] private bool _useExplicitFactionAreaSizes;
     [SerializeField] [HideInInspector] private Vector2 _campAAreaSize = new Vector2(48.0f, 21.0f);
@@ -328,79 +625,333 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
     [SerializeField] [Range(0.0f, 1.0f)] private float _normalizedStartOffsetRandom = 1.0f;
 
     [Header("空间查询 / PBD 近似")]
+    [InspectorName("启用近似碰撞")]
+    [Tooltip("启用 GPU 侧近似碰撞、空间网格、PBD 分离和空间查询。关闭后人群实例不会做人和人、环境近似分离。")]
     [SerializeField] private bool _enableApproximateCollision = true;
+    [InspectorName("碰撞半径")]
+    [Tooltip("人和人自碰撞使用的 XZ 平面圆盘半径，单位为本地空间米。数值越大，人与人之间间隔越宽。")]
     [SerializeField] [Min(0.01f)] private float _collisionRadius = 0.35f;
+    [InspectorName("碰撞高度")]
+    [Tooltip("角色胶囊高度，主要用于环境约束、空间查询和战斗命中代理，不直接参与人和人的 XZ 圆盘分离。")]
     [SerializeField] [Min(0.02f)] private float _collisionHeight = 1.65f;
+    [InspectorName("网格尺寸")]
+    [Tooltip("GPU broadphase 网格单元尺寸。应大于等于角色直径附近；太小会增加网格开销，太大可能让单格候选过多。")]
     [SerializeField] [Min(0.05f)] private float _queryCellSize = 0.8f;
-    [SerializeField] [Min(4)] private int _maxCellOccupancy = 24;
+    [InspectorName("模拟边界额外留白")]
+    [Tooltip("GPU PBD / 空间网格在出生区域外额外保留的本地空间距离。小队自由半径较大或点击移动到边缘时，留白不足会把人压到边界上形成重叠。")]
+    [SerializeField] [Min(0.0f)] private float _simulationBoundsPadding = 16.0f;
+    [InspectorName("单格最大容量")]
+    [Tooltip("每个网格单元最多记录多少个实例。密集人群下如果容量太小，会漏掉部分邻居、目标或空间查询候选。")]
+    [SerializeField] [Min(4)] private int _maxCellOccupancy = 256;
+    [InspectorName("最大空间查询数")]
+    [Tooltip("每帧最多处理多少个外部空间查询请求。用于调试、选择、命中或其他系统查询人群代理。")]
     [SerializeField] [Min(1)] private int _maxSpatialQueries = 32;
+    [InspectorName("每查询最大命中数")]
+    [Tooltip("每个空间查询最多写回多少个命中结果。数值越大，结果越完整，但 GPU buffer 占用越高。")]
     [SerializeField] [Min(1)] private int _maxHitsPerSpatialQuery = 32;
-    [SerializeField] [Min(1)] private int _solverIterations = 2;
+    [InspectorName("PBD 迭代次数")]
+    [Tooltip("人和人自碰撞 PBD 约束的求解轮数。每轮读取预测位置、投影圆盘约束，再进入下一轮；更高更稳定、更少互穿，但 GPU 成本更高。")]
+    [SerializeField] [Min(1)] private int _solverIterations = 8;
+    [InspectorName("胶囊采样数")]
+    [Tooltip("环境 PBD 胶囊约束沿高度方向采样的点数。数值越高，对墙面、地面和障碍更稳定，但成本更高。")]
     [SerializeField] [Range(2, 8)] private int _capsulePbdSampleCount = 4;
-    [SerializeField] [Range(0.0f, 1.0f)] private float _selfCollisionStrength = 0.9f;
-    [SerializeField] [Range(0.0f, 1.0f)] private float _anchorStiffness = 0.08f;
+    [InspectorName("自碰撞强度")]
+    [Tooltip("人和人自碰撞位置投影强度。0 表示不推开，1 表示按本轮 PBD 逆质量约束结果完全分离。")]
+    [SerializeField] [Range(0.0f, 1.0f)] private float _selfCollisionStrength = 1.0f;
+    [InspectorName("自碰撞容差")]
+    [Tooltip("人和人自碰撞的微小容差，单位为本地空间米。用于避免边缘接触时每帧来回纠正造成抖动。")]
+    [SerializeField] [Min(0.0f)] private float _selfCollisionSlop = 0.015f;
+    [InspectorName("自碰撞单步最大推开")]
+    [Tooltip("人和人自碰撞每次 PBD 迭代最多能修正的距离，单位为本地空间米。密集重叠时调大，抖动时调小。")]
+    [SerializeField] [Min(0.01f)] private float _selfCollisionMaxPushPerStep = 1.2f;
+    [InspectorName("目标约束强度")]
+    [Tooltip("预测阶段把行人位置拉向小队导航目标的软约束强度。值越大越坚定朝目标走，值越小越容易被人群和障碍挤开。")]
+    [SerializeField] [Range(0.0f, 1.0f)] private float _goalStiffness = 0.2f;
+    [InspectorName("启用局部避障")]
+    [Tooltip("启用后，实例会在预测移动阶段读取附近人群，提前做轻量侧向调整；最终不穿透仍由 PBD 自碰撞负责。")]
+    [SerializeField] private bool _enableLocalAvoidance = true;
+    [InspectorName("避障感知半径")]
+    [Tooltip("局部避障读取附近邻居的半径，单位为本地空间米。建议略大于角色直径，过大会增加 GPU 成本并让人群过早绕开。")]
+    [SerializeField] [Min(0.05f)] private float _localAvoidanceRadius = 2.6f;
+    [InspectorName("侧向避让强度")]
+    [Tooltip("前方有人时产生侧向预避让速度的强度。0 表示不做侧向预避让。")]
+    [SerializeField] [Range(0.0f, 1.0f)] private float _localAvoidanceStrength = 0.45f;
+    [InspectorName("避障最大检查邻居")]
+    [Tooltip("单个实例每帧局部避障最多处理的邻居数量上限。用于限制高密度区域的 GPU 成本。")]
+    [SerializeField] [Min(1)] private int _localAvoidanceMaxNeighbors = 32;
+    [InspectorName("速度阻尼")]
+    [Tooltip("预测阶段对上一帧 PBD 反推速度的保留比例。PBD 求解结束后会用最终位置减去本帧旧位置重新反推速度，供下一帧惯性、朝向和局部避障使用。")]
     [SerializeField] [Range(0.0f, 1.0f)] private float _velocityDamping = 0.82f;
+    [InspectorName("单步最大推开")]
+    [Tooltip("交互球每帧最多能把实例推开多远，单位为本地空间米。用于限制玩家/交互源造成的瞬时位移。")]
     [SerializeField] [Min(0.01f)] private float _maxPushPerStep = 0.18f;
+    [InspectorName("最大出生点偏移")]
+    [Tooltip("静态模式下实例允许偏离出生点的最大距离。运行时小队移动不再使用编队槽位或保持距离投影。")]
     [SerializeField] [Min(0.01f)] private float _maxDisplacementFromSpawn = 1.25f;
+    [InspectorName("非活跃回锚强度")]
+    [Tooltip("实例不在 active bubble 或交互范围内时，回到静态出生锚点的强度。显式小队移动会绕过 inactive 分支。")]
     [SerializeField] [Range(0.0f, 1.0f)] private float _inactiveReturnStrength = 0.22f;
-
-    [Header("Active Bubble / 玩家驱散")]
+    [Header("Active Bubble / 外部驱散")]
+    [InspectorName("启用 Active Bubble")]
+    [Tooltip("启用近场模拟范围控制。它只用于运动优化和近场交互，不再决定人和人自碰撞是否计算。")]
     [SerializeField] private bool _enableActiveBubble = true;
+    [InspectorName("自动查找玩家控制器")]
+    [Tooltip("自动查找场景中的 CharacterController，用于玩家交互球和调试引用；不会自动作为 active bubble 目标。")]
     [SerializeField] private bool _autoResolveCharacterController = true;
+    [InspectorName("玩家控制器")]
+    [Tooltip("可选的玩家 CharacterController。主要用于玩家近场驱散球，不作为人和人自碰撞触发条件。")]
     [SerializeField] private CharacterController _characterController;
+    [InspectorName("Active Bubble 目标")]
+    [Tooltip("可选 active bubble 目标。留空时不会自动使用玩家角色；人和人自碰撞始终按全存活实例计算。")]
     [SerializeField] private Transform _activeBubbleTarget;
+    [InspectorName("优先玩家名称")]
+    [Tooltip("自动查找玩家控制器时优先匹配的对象名称。找不到时再回退到场景中的 CharacterController。")]
     [SerializeField] private string _preferredCharacterName = "QianxiaThirdPerson";
+    [InspectorName("Active Bubble 半径")]
+    [Tooltip("active bubble 的主半径。进入该范围的实例会执行近场预测和交互运动。")]
     [SerializeField] [Min(0.1f)] private float _activeBubbleRadius = 14.0f;
+    [InspectorName("Active Bubble 保持半径")]
+    [Tooltip("已经活跃的实例离开主半径后，在该保持半径内仍会继续模拟，避免边界频繁开关。")]
     [SerializeField] [Min(0.1f)] private float _activeBubbleRetentionRadius = 18.0f;
-    [SerializeField] private bool _useCharacterAsInteractionSphere = true;
+    [InspectorName("玩家参与驱散")]
+    [Tooltip("启用后，会把玩家 CharacterController 转成一个 interaction sphere，用于近场推开人群；关闭时玩家不参与人群碰撞/驱散。")]
+    [SerializeField] private bool _useCharacterAsInteractionSphere = false;
+    [InspectorName("玩家驱散半径倍率")]
+    [Tooltip("玩家驱散球半径相对角色碰撞半径的倍率。越大，人群越早被玩家推开。")]
     [SerializeField] [Min(0.1f)] private float _characterInteractionRadiusMultiplier = 2.2f;
+    [InspectorName("玩家驱散强度")]
+    [Tooltip("玩家驱散球推开人群的强度。0 表示玩家不推开人群。")]
     [SerializeField] [Min(0.0f)] private float _characterInteractionStrength = 0.14f;
+    [InspectorName("额外交互球")]
     [Tooltip("可选的近场驱散源。第一版先用球体近似，只影响人群的 XZ 平面位置。")]
     [SerializeField] private InteractionSphere[] _interactionSpheres = Array.Empty<InteractionSphere>();
 
+    [Header("GPU Combat / 开枪")]
+    [Tooltip("启用后，每个 GPU 实例都会独立索敌并维护自己的开火状态。")]
+    [SerializeField] private bool _enableGpuInstanceCombat = true;
+    [Tooltip("每个实例搜索敌对目标的最大距离。")]
+    [SerializeField] [Min(0.1f)] private float _combatRange = 36.0f;
+    [Tooltip("每个实例每秒最多开火多少次。0 表示只索敌不触发开火闪光。")]
+    [SerializeField] [Min(0.0f)] private float _combatShotsPerSecond = 3.0f;
+    [Tooltip("每个实例射击间隔的随机波动幅度。0 表示所有人严格同频，0.2 表示各自间隔会在基础值上下 20% 内浮动。")]
+    [SerializeField] [Range(0.0f, 1.0f)] private float _combatShotIntervalJitter = 0.2f;
+    [Tooltip("每次开枪的基础角度散布，单位为度。散布会改变真实子弹射线，因此可能打偏、打到前方其他人或先打到掩体。")]
+    [SerializeField] [Min(0.0f)] private float _combatShotSpreadDegrees = 2.0f;
+    [Tooltip("射击命中胶囊相对人群碰撞胶囊额外放大的半径。用于贴近角色可见轮廓，避免视觉 tracer 擦到角色但逻辑 miss。")]
+    [SerializeField] [Min(0.0f)] private float _combatHitRadiusPadding = 0.18f;
+    [Tooltip("射击命中胶囊相对人群碰撞胶囊额外增加的高度。用于覆盖头发、动作和 VAT 网格边界的视觉高度。")]
+    [SerializeField] [Min(0.0f)] private float _combatHitHeightPadding = 0.2f;
+    #pragma warning disable 0414
+    [Tooltip("已废弃：Combat 遮挡不再使用 Terrain 高度图，保留字段仅用于兼容旧场景序列化。")]
+    [SerializeField, HideInInspector] private bool _enableCombatTerrainOcclusion = true;
+    [Tooltip("已废弃：Combat 遮挡不再使用 Terrain 高度图固定间距采样。")]
+    [SerializeField, HideInInspector] [Min(0.1f)] private float _combatTerrainOcclusionSampleSpacing = 0.75f;
+    #pragma warning restore 0414
+    [Tooltip("Combat baked Environment SDF 遮挡的距离阈值。枪线距离环境表面低于该值时，视为被遮挡。")]
+    [SerializeField] [Min(0.0f)] private float _combatTerrainOcclusionClearance = 0.25f;
+    [Tooltip("枪线起点相对角色脚底抬升的高度。")]
+    [SerializeField] [Min(0.0f)] private float _combatOriginHeight = 1.35f;
+    [Tooltip("没有 VAT 渲染资源时的瞄准高度回退值。有 VAT 模型时，目标采样点使用 VAT MeshBounds 的本地顶部高度。")]
+    [SerializeField] [Min(0.0f)] private float _combatTargetHeight = 1.35f;
+    [Tooltip("开火闪光的衰减速度。")]
+    [SerializeField] [Min(0.0f)] private float _combatMuzzleFlashDecay = 10.0f;
+    [Tooltip("每个人群实例的最大血量。血量在 GPU combat 中维护，归零后才会死亡。")]
+    [SerializeField] [Min(1.0f)] private float _combatMaxHealth = 100.0f;
+    [Tooltip("每次真实命中人群实例时扣除的血量。")]
+    [SerializeField] [Min(0.0f)] private float _combatDamagePerHit = 34.0f;
+    [Tooltip("受击反馈缓存的衰减速度，仅用于状态读取和调试；人物本体不再闪红，命中表现由子弹命中贴图负责。")]
+    [SerializeField] [Min(0.0f)] private float _combatHitFlashDecay = 8.0f;
+    [Tooltip("缓存目标因遮挡失效后，等待多久再允许重新做一次完整索敌。用于压住掩体后的高频重扫。")]
+    [SerializeField] [Min(0.0f)] private float _combatOccludedTargetRetryDelay = 0.08f;
+    [Tooltip("完整索敌后仍没找到可见目标时，等待多久再重试下一轮索敌。")]
+    [SerializeField] [Min(0.0f)] private float _combatNoTargetRetryDelay = 0.22f;
+    [Tooltip("近处 AI 完整搜索目标的最短间隔。目标锁定期间只做轻量校验，不做完整重扫。")]
+    [SerializeField] [Min(0.02f)] private float _targetAcquisitionSearchIntervalMin = 0.2f;
+    [Tooltip("近处 AI 完整搜索目标的最长间隔。每个实例会用稳定随机数落在最短/最长之间，避免同帧扎堆。")]
+    [SerializeField] [Min(0.02f)] private float _targetAcquisitionSearchIntervalMax = 0.5f;
+    [Tooltip("距离 active bubble 超过该范围后，目标搜索间隔会逐渐放大，用于远处 AI 降频。没有 active bubble 时保持近处间隔。")]
+    [SerializeField] [Min(0.1f)] private float _targetAcquisitionFarDistance = 42.0f;
+    [Tooltip("远处 AI 搜索间隔倍率。3 表示 0.2~0.5 秒会放大到约 0.6~1.5 秒。")]
+    [SerializeField] [Min(1.0f)] private float _targetAcquisitionFarIntervalMultiplier = 3.0f;
+    [Tooltip("目标必须落在该水平视野角内才会被选中。")]
+    [SerializeField] [Range(1.0f, 360.0f)] private float _targetAcquisitionFovDegrees = 140.0f;
+    [Tooltip("单次完整索敌最多检查多少个 grid 候选。数值越大越稳，但密集人群下 GPU 成本越高。")]
+    [SerializeField] [Min(1)] private int _targetAcquisitionMaxCandidateChecks = 48;
+    [Tooltip("当前目标参与评分时的额外加分，用于减少来回切目标。")]
+    [SerializeField] [Min(0.0f)] private float _targetAcquisitionCurrentTargetBonus = 0.35f;
+    [Tooltip("最近攻击者参与评分时的额外加分；当前版本先保留字段，后续接入伤害事件后生效。")]
+    [SerializeField] [Min(0.0f)] private float _targetAcquisitionLastAttackerBonus = 0.6f;
+    [Tooltip("选中一个新目标后，至少保持多久不做目标切换。目标死亡、越界或严重遮挡时仍会提前失效。")]
+    [SerializeField] [Min(0.0f)] private float _targetAcquisitionLockDuration = 1.25f;
+    [Tooltip("当前目标短暂被挡住后保留多久。宽限期内不开火，但不会立刻抖动切目标。")]
+    [SerializeField] [Min(0.0f)] private float _targetAcquisitionLostSightGrace = 0.25f;
+    [Tooltip("目标评分里的距离权重。")]
+    [SerializeField] [Min(0.0f)] private float _targetAcquisitionDistanceScoreWeight = 0.55f;
+    [Tooltip("目标评分里的视角权重，目标越靠近正前方得分越高。")]
+    [SerializeField] [Min(0.0f)] private float _targetAcquisitionViewScoreWeight = 0.45f;
+    [Header("GPU Combat / 弹道")]
+    [Tooltip("启用后，会为当前可见且正在开火的实例补一层 GPU tracer。")]
+    [SerializeField] private bool _enableCombatTracer = true;
+    [Tooltip("弹道层使用的 Shader。留空时会按默认名字查找。")]
+    [SerializeField] private Shader _combatTracerShader;
+    [Tooltip("可选的 tracer 材质模板；留空时会在运行时创建默认材质。")]
+    [SerializeField] private Material _combatTracerMaterialTemplate;
+    [Tooltip("枪口火光序列帧贴图，默认使用 Assets/Project/Crowds/Texture/qiangkou.png。")]
+    [SerializeField] private Texture2D _combatMuzzleFlashTexture;
+    [Tooltip("子弹曳光贴图，默认使用 Assets/Project/Crowds/Texture/子弹曳光.png。")]
+    [SerializeField] private Texture2D _combatTracerTexture;
+    [Tooltip("命中火花序列帧贴图，默认使用 Assets/Project/Crowds/Texture/子弹命中——雾.png。")]
+    [SerializeField] private Texture2D _combatImpactTexture;
+    [Tooltip("弹道宽度，单位为世界空间米。")]
+    [SerializeField] [Min(0.001f)] private float _combatTracerWidth = 0.09f;
+    [Tooltip("弹道亮度倍率。")]
+    [SerializeField] [Min(0.0f)] private float _combatTracerBrightness = 1.8f;
+    [Tooltip("低于这个 muzzle flash 强度后，不再继续画 tracer。")]
+    [SerializeField] [Range(0.0f, 1.0f)] private float _combatTracerMinFlash = 0.04f;
+    [Tooltip("枪口火光 billboard 尺寸，单位为世界空间米。")]
+    [SerializeField] [Min(0.001f)] private float _combatMuzzleFlashSize = 0.42f;
+    [Tooltip("命中火花 billboard 尺寸，单位为世界空间米。")]
+    [SerializeField] [Min(0.001f)] private float _combatImpactFlashSize = 0.55f;
+    [Tooltip("命中火花贴图从出现到消失的持续时间，单位为秒。")]
+    [SerializeField] [Min(0.01f)] private float _combatImpactFlashDuration = 0.28f;
+    [Tooltip("命中火花沿射线反方向抬出的距离，用于减少贴地或贴墙闪烁。")]
+    [SerializeField] [Min(0.0f)] private float _combatImpactPointOffset = 0.04f;
+    [Tooltip("枪口火光亮度倍率。")]
+    [SerializeField] [Min(0.0f)] private float _combatMuzzleFlashBrightness = 2.2f;
+    [Tooltip("命中火花亮度倍率。")]
+    [SerializeField] [Min(0.0f)] private float _combatImpactFlashBrightness = 1.8f;
+    [Tooltip("枪口火光贴图的序列帧列数。")]
+    [SerializeField] [Min(1)] private int _combatMuzzleFlashFlipbookColumns = 4;
+    [Tooltip("枪口火光贴图的序列帧行数。")]
+    [SerializeField] [Min(1)] private int _combatMuzzleFlashFlipbookRows = 4;
+    [Tooltip("命中火花贴图的序列帧列数。")]
+    [SerializeField] [Min(1)] private int _combatImpactFlashFlipbookColumns = 4;
+    [Tooltip("命中火花贴图的序列帧行数。")]
+    [SerializeField] [Min(1)] private int _combatImpactFlashFlipbookRows = 4;
+    [Tooltip("CampA 的 tracer 颜色。")]
+    [SerializeField] private Color _combatTracerColorCampA = new Color(1.0f, 0.42f, 0.18f, 1.0f);
+    [Tooltip("CampB 的 tracer 颜色。")]
+    [SerializeField] private Color _combatTracerColorCampB = new Color(0.22f, 0.74f, 1.0f, 1.0f);
+
     [Header("模板渲染根节点")]
+    [InspectorName("网格根节点本地位置")]
+    [Tooltip("模板角色网格根节点相对 renderer 的本地位置偏移。用于适配 prefab 中模型根节点不在原点的情况。")]
     [SerializeField] private Vector3 _meshRootLocalPosition = Vector3.zero;
+    [InspectorName("网格根节点本地旋转")]
+    [Tooltip("模板角色网格根节点相对 renderer 的本地欧拉角偏移。用于修正模型朝向。")]
     [SerializeField] private Vector3 _meshRootLocalEulerAngles = Vector3.zero;
+    [InspectorName("网格根节点本地缩放")]
+    [Tooltip("模板角色网格根节点相对 renderer 的本地缩放。通常保持为 1，除非源模型比例需要整体修正。")]
     [SerializeField] private Vector3 _meshRootLocalScale = Vector3.one;
 
     [Header("渲染")]
+    [InspectorName("阴影投射")]
+    [Tooltip("人群 indirect draw 的阴影投射模式。")]
     [SerializeField] private ShadowCastingMode _shadowCastingMode = ShadowCastingMode.On;
+    [InspectorName("接收阴影")]
+    [Tooltip("人群材质是否接收场景阴影。")]
     [SerializeField] private bool _receiveShadows = true;
+    [InspectorName("包围盒扩展")]
+    [Tooltip("渲染 bounds 额外扩展距离，避免动画、弹道或命中特效在边缘被裁剪。")]
     [SerializeField] [Min(0.0f)] private float _boundsPadding = 2.0f;
+    [InspectorName("启用视锥剔除")]
+    [Tooltip("启用后，CPU/GPU 会按相机视锥裁剪可见人群实例。关闭后更保守但成本更高。")]
     [SerializeField] private bool _enableFrustumCulling = true;
+    [InspectorName("渲染分块尺寸")]
+    [Tooltip("可见性分块的世界空间尺寸。更小剔除更精细但 chunk 数更多；更大则相反。")]
     [SerializeField] [Min(0.5f)] private float _renderChunkWorldSize = 8.0f;
 
     private ComputeBuffer _spawnDataBuffer;
-    private ComputeBuffer _simulationStateBufferA;
-    private ComputeBuffer _simulationStateBufferB;
-    private ComputeBuffer _simulationReadBuffer;
-    private ComputeBuffer _simulationWriteBuffer;
+    private ComputeBuffer _simulationPositionYawBufferA;
+    private ComputeBuffer _simulationPositionYawBufferB;
+    private ComputeBuffer _simulationPositionYawReadBuffer;
+    private ComputeBuffer _simulationPositionYawWriteBuffer;
+    private ComputeBuffer _simulationScaleBufferA;
+    private ComputeBuffer _simulationScaleBufferB;
+    private ComputeBuffer _simulationScaleReadBuffer;
+    private ComputeBuffer _simulationScaleWriteBuffer;
+    private ComputeBuffer _simulationVelocityBufferA;
+    private ComputeBuffer _simulationVelocityBufferB;
+    private ComputeBuffer _simulationVelocityReadBuffer;
+    private ComputeBuffer _simulationVelocityWriteBuffer;
     private ComputeBuffer _activeStateBuffer;
+    private ComputeBuffer _deathStateBuffer;
+    private ComputeBuffer _aliveInstanceIndexBuffer;
+    private ComputeBuffer _aliveInstanceCounterBuffer;
+    private ComputeBuffer _aliveInstanceDispatchArgsBuffer;
+    private ComputeBuffer _activeInstanceIndexBuffer;
+    private ComputeBuffer _activeInstanceCounterBuffer;
+    private ComputeBuffer _activeInstanceDispatchArgsBuffer;
     private ComputeBuffer _gridCounterBuffer;
     private ComputeBuffer _gridOccupantBuffer;
-    private ComputeBuffer _spatialElementBuffer;
+    private ComputeBuffer _spatialCapsuleStartRadiusBuffer;
+    private ComputeBuffer _spatialCapsuleEndHeightBuffer;
+    private ComputeBuffer _spatialOwnerIndexBuffer;
+    private ComputeBuffer _spatialTargetMaskBuffer;
+    private ComputeBuffer _spatialFlagsBuffer;
+    private ComputeBuffer _spatialFactionBuffer;
     private ComputeBuffer _spatialQueryBuffer;
     private ComputeBuffer _spatialQueryResultBuffer;
     private ComputeBuffer _spatialQueryHitBuffer;
     private ComputeBuffer _interactionSphereBuffer;
+    private ComputeBuffer _combatStateBuffer;
+    private ComputeBuffer _targetAcquisitionStateBuffer;
+    private ComputeBuffer _squadStateBuffer;
+    private ComputeBuffer _squadAliveCountBuffer;
+    private ComputeBuffer _agentSquadDataBuffer;
+    private ComputeBuffer _formationSlotBuffer;
+    private ComputeBuffer _agentCoreBuffer;
+    private ComputeBuffer _agentPhysicsExtBuffer;
+    private ComputeBuffer _animationClipMetadataBuffer;
+    private ComputeBuffer _instanceAnimationStateBuffer;
     private ComputeBuffer _instanceTransformBuffer;
     private ComputeBuffer _instanceFrameDataBuffer;
+    private ComputeBuffer _instanceFrameBlendDataBuffer;
     private ComputeBuffer _visibleInstanceIndexBuffer;
+    private ComputeBuffer _visibleInstanceCounterBuffer;
+    private ComputeBuffer _visibleRuntimeSquadMaskBuffer;
+    private ComputeBuffer _instanceRenderChunkBuffer;
+    private ComputeBuffer _visibleRenderChunkMaskBuffer;
     private GraphicsBuffer[] _indirectArgsBuffers = Array.Empty<GraphicsBuffer>();
+    private GraphicsBuffer _combatTracerArgsBuffer;
     private RuntimeRenderResource _runtimeRenderResource;
     private bool _hasRuntimeRenderResource;
+    private Mesh _combatTracerMesh;
+    private Material _combatTracerMaterial;
     private Bounds _localCrowdBounds = new Bounds(Vector3.zero, Vector3.one);
     private RenderChunk[] _renderChunks = Array.Empty<RenderChunk>();
     private GraphicsBuffer.IndirectDrawIndexedArgs[] _indirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+    private AnimationClipGpuData[] _animationClipGpuCache = Array.Empty<AnimationClipGpuData>();
+    private InstanceAnimationStateCpuData[] _instanceAnimationStateCpuCache = Array.Empty<InstanceAnimationStateCpuData>();
+    private InstanceAnimationStateGpuData[] _instanceAnimationStateGpuCache = Array.Empty<InstanceAnimationStateGpuData>();
     private CrowdVatAnimationAsset.ClipInfo _currentClip;
+    private int _currentClipIndex = InvalidClipIndex;
     private InteractionSphereData[] _interactionSphereUploadCache = Array.Empty<InteractionSphereData>();
     private CrowdVatSpatialQueryRequest[] _runtimeSpatialQueries = Array.Empty<CrowdVatSpatialQueryRequest>();
     private SpatialQueryData[] _spatialQueryUploadCache = Array.Empty<SpatialQueryData>();
     private SpatialQueryResultData[] _spatialQueryResultCache = Array.Empty<SpatialQueryResultData>();
     private SpatialQueryHitData[] _spatialQueryHitCache = Array.Empty<SpatialQueryHitData>();
+    private InstanceCombatStateData[] _combatStateReadbackCache = Array.Empty<InstanceCombatStateData>();
+    private CrowdVatSquadState[] _runtimeSquadStates = Array.Empty<CrowdVatSquadState>();
+    private CrowdVatAgentSquadAssignment[] _runtimeAgentSquadData = Array.Empty<CrowdVatAgentSquadAssignment>();
+    private CrowdVatFormationSlot[] _runtimeFormationSlots = Array.Empty<CrowdVatFormationSlot>();
+    private readonly CrowdVatGpuBridgeState _gpuBridgeState = new CrowdVatGpuBridgeState();
+    private readonly CrowdVatFramePacket _legacyFramePacketScratch = new CrowdVatFramePacket();
+    private RuntimeSquadStateGpuData[] _squadStateUploadCache = Array.Empty<RuntimeSquadStateGpuData>();
+    private uint[] _runtimeSquadAliveCountUploadCache = Array.Empty<uint>();
+    private uint[] _runtimeSquadAliveCountReadbackCache = Array.Empty<uint>();
+    private RuntimeAgentSquadDataGpuData[] _agentSquadUploadCache = Array.Empty<RuntimeAgentSquadDataGpuData>();
+    private RuntimeFormationSlotGpuData[] _formationSlotUploadCache = Array.Empty<RuntimeFormationSlotGpuData>();
+    private CrowdVatAgentCore[] _agentCoreUploadCache = Array.Empty<CrowdVatAgentCore>();
+    private CrowdVatAgentPhysicsExt[] _agentPhysicsExtUploadCache = Array.Empty<CrowdVatAgentPhysicsExt>();
+    private RuntimeSquadRenderChunk[] _runtimeSquadRenderChunks = Array.Empty<RuntimeSquadRenderChunk>();
     private uint[] _visibleInstanceIndexCache = Array.Empty<uint>();
+    private uint[] _visibleRuntimeSquadMaskUploadCache = Array.Empty<uint>();
+    private uint[] _visibleRenderChunkMaskUploadCache = Array.Empty<uint>();
+    private uint[] _allInstanceIndicesCache = Array.Empty<uint>();
     private Texture _resolvedTerrainHeightmap;
     private Texture3D _resolvedStaticSdfTexture;
+    private Texture3D _resolvedEnvironmentDistanceFieldTexture;
     private Texture3D _fallbackStaticSdfTexture;
     private Vector2 _gridMinXZ;
     private Vector2 _gridMaxXZ;
@@ -412,6 +963,7 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
     private float _playbackTime;
     private float _minimumPlaybackSpeedMultiplier = 1.0f;
     private float _maximumQueryAgentRadius = 0.35f;
+    private bool _hasResolvedEnvironmentDistanceField;
     private bool _hasResolvedTerrainCollision;
     private bool _hasResolvedStaticSdfCollision;
     private int _gridCellCount;
@@ -419,2359 +971,38 @@ public sealed class CrowdVatIndirectRenderer : MonoBehaviour
     private bool _hasVisibleBounds;
     private int _visibleInstanceCount;
     private readonly Plane[] _frustumPlanes = new Plane[6];
+    private int _buildAliveInstanceListKernel = -1;
+    private int _buildAliveDispatchArgsKernel = -1;
+    private int _buildActiveInstanceListKernel = -1;
+    private int _buildActiveDispatchArgsKernel = -1;
+    private int _buildVisibleRuntimeInstanceListKernel = -1;
+    private int _buildVisibleChunkInstanceListKernel = -1;
+    private int _buildVisibleIndirectArgsKernel = -1;
     private int _predictKernel = -1;
     private int _clearGridKernel = -1;
     private int _buildGridKernel = -1;
+    private int _buildSpatialElementsKernel = -1;
     private int _solveCrowdKernel = -1;
+    private int _resolveTargetAcquisitionKernel = -1;
+    private int _resolveInstanceCombatKernel = -1;
     private int _clearSpatialQueriesKernel = -1;
     private int _resolveSpatialQueriesKernel = -1;
     private int _finalizeKernel = -1;
+    private int _captureAiDebugGpuStageKernel = -1;
+    private int _discoverAiDebugGpuCandidatesKernel = -1;
     private int _activeSpatialQueryCount;
-
-    private void Reset()
-    {
-        SyncTemplateBindings();
-        MarkResourcesDirty();
-    }
-
-    private void Awake()
-    {
-        SyncTemplateBindings();
-        InitializeIfNeeded();
-    }
-
-    private void OnEnable()
-    {
-        SubscribeRenderCallbacks();
-        SyncTemplateBindings();
-        InitializeIfNeeded();
-
-        if (_playOnEnable)
-            PlayClip(_clipName);
-    }
-
-    private void LateUpdate()
-    {
-        if (!InitializeIfNeeded())
-            return;
-
-        AdvancePlayback(Time.deltaTime);
-        UpdateGpuBuffers();
-    }
-
-    private void OnDisable()
-    {
-        UnsubscribeRenderCallbacks();
-        ReleaseResources();
-    }
-
-    private void OnDestroy()
-    {
-        UnsubscribeRenderCallbacks();
-        ReleaseResources();
-    }
-
-    private void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)
-    {
-        if (!ShouldRenderForCamera(camera) || !InitializeIfNeeded())
-            return;
-
-        if (!Application.isPlaying)
-            UpdateGpuBuffers();
-
-        Draw(camera);
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        if (!_enableActiveBubble || !TryGetActiveBubbleLocalCenter(out Vector3 localCenter))
-            return;
-
-        Matrix4x4 previousMatrix = Gizmos.matrix;
-        Gizmos.matrix = transform.localToWorldMatrix;
-        Gizmos.color = new Color(0.22f, 0.85f, 1.0f, 0.55f);
-        Gizmos.DrawWireSphere(localCenter, _activeBubbleRadius);
-        Gizmos.color = new Color(0.12f, 0.55f, 1.0f, 0.35f);
-        Gizmos.DrawWireSphere(localCenter, _activeBubbleRetentionRadius);
-        Gizmos.matrix = previousMatrix;
-    }
-
-    private void OnValidate()
-    {
-        _instanceCount = Mathf.Max(1, _instanceCount);
-        _areaSize.x = Mathf.Max(0.01f, _areaSize.x);
-        _areaSize.y = Mathf.Max(0.01f, _areaSize.y);
-        _campAAreaSize.x = Mathf.Max(0.01f, _campAAreaSize.x);
-        _campAAreaSize.y = Mathf.Max(0.01f, _campAAreaSize.y);
-        _campBAreaSize.x = Mathf.Max(0.01f, _campBAreaSize.x);
-        _campBAreaSize.y = Mathf.Max(0.01f, _campBAreaSize.y);
-        _baseScale = Mathf.Max(0.01f, _baseScale);
-        _scaleMultiplierRange.x = Mathf.Max(0.01f, _scaleMultiplierRange.x);
-        _scaleMultiplierRange.y = Mathf.Max(_scaleMultiplierRange.x, _scaleMultiplierRange.y);
-        _playbackSpeedMultiplierRange.x = Mathf.Max(0.01f, _playbackSpeedMultiplierRange.x);
-        _playbackSpeedMultiplierRange.y = Mathf.Max(_playbackSpeedMultiplierRange.x, _playbackSpeedMultiplierRange.y);
-        _collisionRadius = Mathf.Max(0.01f, _collisionRadius);
-        _collisionHeight = Mathf.Max(_collisionRadius * 2.0f, _collisionHeight);
-        _staticSdfWorldSize.x = Mathf.Max(0.01f, _staticSdfWorldSize.x);
-        _staticSdfWorldSize.y = Mathf.Max(0.01f, _staticSdfWorldSize.y);
-        _staticSdfWorldSize.z = Mathf.Max(0.01f, _staticSdfWorldSize.z);
-        _queryCellSize = Mathf.Max(0.05f, _queryCellSize);
-        _maxCellOccupancy = Mathf.Max(4, _maxCellOccupancy);
-        _maxSpatialQueries = Mathf.Max(1, _maxSpatialQueries);
-        _maxHitsPerSpatialQuery = Mathf.Max(1, _maxHitsPerSpatialQuery);
-        _solverIterations = Mathf.Max(1, _solverIterations);
-        _capsulePbdSampleCount = Mathf.Clamp(_capsulePbdSampleCount, 2, 8);
-        _maxPushPerStep = Mathf.Max(0.01f, _maxPushPerStep);
-        _maxDisplacementFromSpawn = Mathf.Max(0.01f, _maxDisplacementFromSpawn);
-        _factionCenterGap = Mathf.Max(0.0f, _factionCenterGap);
-        _inactiveReturnStrength = Mathf.Clamp01(_inactiveReturnStrength);
-        _activeBubbleRadius = Mathf.Max(0.1f, _activeBubbleRadius);
-        _activeBubbleRetentionRadius = Mathf.Max(_activeBubbleRadius, _activeBubbleRetentionRadius);
-        _characterInteractionRadiusMultiplier = Mathf.Max(0.1f, _characterInteractionRadiusMultiplier);
-        _characterInteractionStrength = Mathf.Max(0.0f, _characterInteractionStrength);
-        _meshRootLocalScale.x = Mathf.Max(0.001f, _meshRootLocalScale.x);
-        _meshRootLocalScale.y = Mathf.Max(0.001f, _meshRootLocalScale.y);
-        _meshRootLocalScale.z = Mathf.Max(0.001f, _meshRootLocalScale.z);
-        _renderChunkWorldSize = Mathf.Max(0.5f, _renderChunkWorldSize);
-        SyncExplicitFactionAreasFromControlTransforms();
-        SyncExplicitFactionCentersFromControlTransforms();
-
-        SyncTemplateBindings();
-        MarkResourcesDirty();
-    }
-
-    [ContextMenu("Rebuild Crowd Layout")]
-    public void RebuildCrowdLayout()
-    {
-        MarkResourcesDirty();
-        InitializeIfNeeded();
-    }
-
-    public bool UseFactionControlTransforms => _useFactionControlTransforms;
-
-    public CrowdVatFactionLayoutMode FactionLayoutMode => _factionLayout;
-
-    public Transform CampAControlTransform => _campAControlTransform;
-
-    public Transform CampBControlTransform => _campBControlTransform;
-
-    public bool TryGetDebugSpawnArea(out Vector2 centerXZ, out Vector2 sizeXZ)
-    {
-        SpawnAreaContext spawnArea = ResolveSpawnAreaContext();
-        centerXZ = spawnArea.centerXZ;
-        sizeXZ = spawnArea.size;
-        return sizeXZ.x > 0.0f && sizeXZ.y > 0.0f;
-    }
-
-    public bool TryGetDebugFactionArea(CrowdVatFaction faction, out Vector2 centerXZ, out Vector2 sizeXZ)
-    {
-        centerXZ = Vector2.zero;
-        sizeXZ = Vector2.zero;
-        if (_factionLayout != CrowdVatFactionLayoutMode.TwoOpposingFactions)
-            return false;
-
-        SpawnAreaContext spawnArea = ResolveSpawnAreaContext();
-        centerXZ = GetFactionCenterXZ(spawnArea, faction);
-        sizeXZ = GetFactionAreaSize(spawnArea.size, faction);
-        return sizeXZ.x > 0.0f && sizeXZ.y > 0.0f;
-    }
-
-    public bool TryGetDebugGridBounds(out Vector2 minXZ, out Vector2 maxXZ, out Vector2Int dimensions)
-    {
-        return TryGetDebugGridBounds(out minXZ, out maxXZ, out dimensions, out _);
-    }
-
-    public bool TryGetDebugGridBounds(out Vector2 minXZ, out Vector2 maxXZ, out Vector2Int dimensions, out float cellSize)
-    {
-        minXZ = _gridMinXZ;
-        maxXZ = _gridMaxXZ;
-        dimensions = _gridDimensions;
-        cellSize = _queryCellSize;
-        return _gridCellCount > 0 && dimensions.x > 0 && dimensions.y > 0 && cellSize > 0.0f;
-    }
-
-    public bool TryGetDebugActiveBubble(out Vector3 worldCenter, out float radius, out float retentionRadius)
-    {
-        worldCenter = Vector3.zero;
-        radius = 0.0f;
-        retentionRadius = 0.0f;
-        if (!_enableActiveBubble || !TryGetActiveBubbleLocalCenter(out Vector3 localCenter))
-            return false;
-
-        worldCenter = transform.TransformPoint(localCenter);
-        radius = _activeBubbleRadius;
-        retentionRadius = _activeBubbleRetentionRadius;
-        return true;
-    }
-
-    public int GetDebugSpatialQueries(List<CrowdVatSpatialQueryRequest> queries)
-    {
-        if (queries == null)
-            throw new ArgumentNullException(nameof(queries));
-
-        queries.Clear();
-
-        AppendDebugInteractionSphereQueries(queries);
-
-        if (_activeSpatialQueryCount <= 0 || _runtimeSpatialQueries == null)
-            return queries.Count;
-
-        int count = Mathf.Min(_activeSpatialQueryCount, _runtimeSpatialQueries.Length);
-        for (int index = 0; index < count; index++)
-            queries.Add(_runtimeSpatialQueries[index]);
-
-        return queries.Count;
-    }
-
-    public void SetFactionControlTransforms(Transform campAControlTransform, Transform campBControlTransform)
-    {
-        _campAControlTransform = campAControlTransform;
-        _campBControlTransform = campBControlTransform;
-        _useFactionControlTransforms = _campAControlTransform != null || _campBControlTransform != null;
-        SyncExplicitFactionCentersFromControlTransforms();
-    }
-
-    public void SetFactionRangeControlTransforms(
-        Transform campANorthWestCornerTransform,
-        Transform campANorthEastCornerTransform,
-        Transform campASouthEastCornerTransform,
-        Transform campASouthWestCornerTransform,
-        Transform campBNorthWestCornerTransform,
-        Transform campBNorthEastCornerTransform,
-        Transform campBSouthEastCornerTransform,
-        Transform campBSouthWestCornerTransform)
-    {
-        _campANorthWestCornerTransform = campANorthWestCornerTransform;
-        _campANorthEastCornerTransform = campANorthEastCornerTransform;
-        _campASouthEastCornerTransform = campASouthEastCornerTransform;
-        _campASouthWestCornerTransform = campASouthWestCornerTransform;
-        _campBNorthWestCornerTransform = campBNorthWestCornerTransform;
-        _campBNorthEastCornerTransform = campBNorthEastCornerTransform;
-        _campBSouthEastCornerTransform = campBSouthEastCornerTransform;
-        _campBSouthWestCornerTransform = campBSouthWestCornerTransform;
-        SyncExplicitFactionAreasFromControlTransforms();
-    }
-
-    public void SyncExplicitFactionCentersFromControlTransforms()
-    {
-        bool updated = false;
-        if (TryGetFactionControlCenterXZ(CrowdVatFaction.CampA, out Vector2 campACenter))
-        {
-            _campACenterXZ = campACenter;
-            updated = true;
-        }
-        else if (TryGetFactionRangeBoundsFromCornerTransforms(CrowdVatFaction.CampA, out Vector2 campARangeCenter, out _))
-        {
-            _campACenterXZ = campARangeCenter;
-            updated = true;
-        }
-
-        if (TryGetFactionControlCenterXZ(CrowdVatFaction.CampB, out Vector2 campBCenter))
-        {
-            _campBCenterXZ = campBCenter;
-            updated = true;
-        }
-        else if (TryGetFactionRangeBoundsFromCornerTransforms(CrowdVatFaction.CampB, out Vector2 campBRangeCenter, out _))
-        {
-            _campBCenterXZ = campBRangeCenter;
-            updated = true;
-        }
-
-        if (updated)
-            _useExplicitFactionCenters = true;
-    }
-
-    public void SyncExplicitFactionAreasFromControlTransforms()
-    {
-        bool updated = false;
-        if (TryGetFactionRangeBoundsFromCornerTransforms(CrowdVatFaction.CampA, out _, out Vector2 campAAreaSize))
-        {
-            _campAAreaSize = campAAreaSize;
-            updated = true;
-        }
-
-        if (TryGetFactionRangeBoundsFromCornerTransforms(CrowdVatFaction.CampB, out _, out Vector2 campBAreaSize))
-        {
-            _campBAreaSize = campBAreaSize;
-            updated = true;
-        }
-
-        if (updated)
-            _useExplicitFactionAreaSizes = true;
-    }
-
-    public void SyncFactionControlTransformsFromExplicitCenters()
-    {
-        SyncFactionControlTransform(_campAControlTransform, _campACenterXZ);
-        SyncFactionControlTransform(_campBControlTransform, _campBCenterXZ);
-    }
-
-    public void SyncFactionRangeControlTransformsFromExplicitAreas()
-    {
-        SyncFactionRangeCornerTransforms(
-            _campAControlTransform,
-            _campACenterXZ,
-            _campAAreaSize,
-            _campANorthWestCornerTransform,
-            _campANorthEastCornerTransform,
-            _campASouthEastCornerTransform,
-            _campASouthWestCornerTransform);
-        SyncFactionRangeCornerTransforms(
-            _campBControlTransform,
-            _campBCenterXZ,
-            _campBAreaSize,
-            _campBNorthWestCornerTransform,
-            _campBNorthEastCornerTransform,
-            _campBSouthEastCornerTransform,
-            _campBSouthWestCornerTransform);
-    }
-
-    public void NotifyFactionControlTransformsChanged()
-    {
-        SyncExplicitFactionCentersFromControlTransforms();
-        SyncExplicitFactionAreasFromControlTransforms();
-        SyncFactionControlTransformsFromExplicitCenters();
-        SyncFactionRangeControlTransformsFromExplicitAreas();
-        MarkFactionControlStateDirtyAndRebuild();
-    }
-
-    public void NotifyFactionControlPointChanged(CrowdVatFaction faction, CrowdVatFactionControlPointKind kind, Transform controlPointTransform)
-    {
-        if (kind == CrowdVatFactionControlPointKind.Center)
-        {
-            NotifyFactionControlTransformsChanged();
-            return;
-        }
-
-        SyncExplicitFactionCentersFromControlTransforms();
-        if (!TrySyncExplicitFactionAreaFromMovedCorner(faction, controlPointTransform))
-            SyncExplicitFactionAreasFromControlTransforms();
-
-        SyncFactionControlTransformsFromExplicitCenters();
-        SyncFactionRangeControlTransformsFromExplicitAreas();
-        MarkFactionControlStateDirtyAndRebuild();
-    }
-
-    private void MarkFactionControlStateDirtyAndRebuild()
-    {
-#if UNITY_EDITOR
-        UnityEditor.EditorUtility.SetDirty(this);
-        if (gameObject.scene.IsValid())
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
-#endif
-        RebuildCrowdLayout();
-    }
-
-    public void PlayClip(string clipName)
-    {
-        SyncTemplateBindings();
-        if (!TryResolveClip(clipName, out _currentClip))
-        {
-            _hasClip = false;
-            return;
-        }
-
-        _hasClip = true;
-        _isPlaying = true;
-        _playbackTime = 0.0f;
-    }
-
-    public void Stop()
-    {
-        _isPlaying = false;
-    }
-
-    public void Resume()
-    {
-        if (_hasClip)
-            _isPlaying = true;
-    }
-
-    public void SetSpatialQueries(CrowdVatSpatialQueryRequest[] queries)
-    {
-        if (queries == null || queries.Length == 0)
-        {
-            _runtimeSpatialQueries = Array.Empty<CrowdVatSpatialQueryRequest>();
-            _activeSpatialQueryCount = 0;
-            return;
-        }
-
-        int count = Mathf.Min(queries.Length, _maxSpatialQueries);
-        if (_runtimeSpatialQueries == null || _runtimeSpatialQueries.Length != count)
-            _runtimeSpatialQueries = new CrowdVatSpatialQueryRequest[count];
-
-        Array.Copy(queries, _runtimeSpatialQueries, count);
-        _activeSpatialQueryCount = count;
-    }
-
-    public void ClearSpatialQueries()
-    {
-        _runtimeSpatialQueries = Array.Empty<CrowdVatSpatialQueryRequest>();
-        _activeSpatialQueryCount = 0;
-    }
-
-    private void AppendDebugInteractionSphereQueries(List<CrowdVatSpatialQueryRequest> queries)
-    {
-        RefreshRuntimeTargets();
-
-        if (_useCharacterAsInteractionSphere &&
-            TryBuildCharacterInteractionDebugQuery(out CrowdVatSpatialQueryRequest characterQuery))
-        {
-            queries.Add(characterQuery);
-        }
-
-        if (_interactionSpheres == null)
-            return;
-
-        for (int sphereIndex = 0; sphereIndex < _interactionSpheres.Length; sphereIndex++)
-        {
-            if (TryBuildCustomInteractionDebugQuery(_interactionSpheres[sphereIndex], sphereIndex, out CrowdVatSpatialQueryRequest customQuery))
-                queries.Add(customQuery);
-        }
-    }
-
-    private bool TryBuildCharacterInteractionDebugQuery(out CrowdVatSpatialQueryRequest query)
-    {
-        query = default;
-        if (_characterController == null || _characterInteractionStrength <= 0.0f)
-            return false;
-
-        Vector3 worldCenter = _characterController.transform.TransformPoint(_characterController.center);
-        float radius = Mathf.Max(_characterController.radius, _characterController.height * 0.25f) * _characterInteractionRadiusMultiplier;
-        query = CreateDebugSphereQuery(DebugCharacterInteractionQueryId, worldCenter, radius, CrowdVatSpatialQueryFlags.ActiveOnly);
-        return true;
-    }
-
-    private bool TryBuildCustomInteractionDebugQuery(InteractionSphere sphere, int sphereIndex, out CrowdVatSpatialQueryRequest query)
-    {
-        query = default;
-        if (sphere.target == null || sphere.radius <= 0.0f || sphere.strength <= 0.0f)
-            return false;
-
-        float radiusScale = MaxAbsComponent(sphere.target.lossyScale);
-        float radius = sphere.radius * Mathf.Max(radiusScale, 0.0001f);
-        query = CreateDebugSphereQuery(DebugCustomInteractionQueryIdBase - sphereIndex, sphere.target.position, radius, CrowdVatSpatialQueryFlags.None);
-        return true;
-    }
-
-    private static CrowdVatSpatialQueryRequest CreateDebugSphereQuery(int queryId, Vector3 worldCenter, float radius, CrowdVatSpatialQueryFlags flags)
-    {
-        return new CrowdVatSpatialQueryRequest
-        {
-            queryId = queryId,
-            targetMask = CrowdVatSpatialTargetMask.CrowdAgent,
-            factionMask = CrowdVatFactionMask.All,
-            shape = CrowdVatSpatialQueryShape.OverlapSphere,
-            flags = flags,
-            worldStart = worldCenter,
-            worldEnd = worldCenter,
-            radius = radius,
-            maxHits = 0u
-        };
-    }
-
-    public int ReadSpatialQueryResults(List<CrowdVatSpatialQueryResult> results, List<CrowdVatSpatialQueryHit> hits)
-    {
-        if (results == null)
-            throw new ArgumentNullException(nameof(results));
-        if (hits == null)
-            throw new ArgumentNullException(nameof(hits));
-
-        results.Clear();
-        hits.Clear();
-
-        if (_activeSpatialQueryCount <= 0 ||
-            _spatialQueryResultBuffer == null ||
-            _spatialQueryHitBuffer == null)
-        {
-            return 0;
-        }
-
-        EnsureSpatialQueryReadbackCaches();
-        _spatialQueryResultBuffer.GetData(_spatialQueryResultCache, 0, 0, _activeSpatialQueryCount);
-        _spatialQueryHitBuffer.GetData(_spatialQueryHitCache, 0, 0, _activeSpatialQueryCount * _maxHitsPerSpatialQuery);
-
-        int totalWrittenHits = 0;
-        for (int queryIndex = 0; queryIndex < _activeSpatialQueryCount; queryIndex++)
-        {
-            SpatialQueryResultData resultData = _spatialQueryResultCache[queryIndex];
-            int writtenHits = Mathf.Min((int)resultData.writtenHits, _maxHitsPerSpatialQuery);
-            totalWrittenHits += writtenHits;
-
-            results.Add(new CrowdVatSpatialQueryResult
-            {
-                queryId = (int)resultData.queryId,
-                totalHits = (int)resultData.totalHits,
-                writtenHits = writtenHits,
-                overflow = resultData.overflow != 0u
-            });
-
-            int hitBaseIndex = queryIndex * _maxHitsPerSpatialQuery;
-            List<CrowdVatSpatialQueryHit> sortedHits = new List<CrowdVatSpatialQueryHit>(writtenHits);
-            for (int hitIndex = 0; hitIndex < writtenHits; hitIndex++)
-            {
-                SpatialQueryHitData hitData = _spatialQueryHitCache[hitBaseIndex + hitIndex];
-                sortedHits.Add(new CrowdVatSpatialQueryHit
-                {
-                    queryId = (int)hitData.queryId,
-                    ownerIndex = (int)hitData.ownerIndex,
-                    targetMask = (CrowdVatSpatialTargetMask)hitData.targetMask,
-                    flags = (CrowdVatSpatialQueryFlags)hitData.flags,
-                    faction = (CrowdVatFaction)hitData.faction,
-                    normalizedDistance = hitData.normalizedDistance
-                });
-            }
-
-            sortedHits.Sort(static (left, right) => left.normalizedDistance.CompareTo(right.normalizedDistance));
-            hits.AddRange(sortedHits);
-        }
-
-        return totalWrittenHits;
-    }
-
-    private bool InitializeIfNeeded()
-    {
-        RefreshRuntimeTargets();
-
-        bool needsRebuild = _resourcesDirty || !AreBuffersReady();
-        if (needsRebuild)
-            ReleaseResources();
-
-        if (!ResolveRuntimeRenderResource(out CrowdVatAnimationAsset primaryAnimationAsset))
-            return false;
-
-        if (_updateCompute == null)
-            return false;
-
-        Shader shader = ResolveIndirectShader();
-        if (shader == null)
-            return false;
-
-        if (needsRebuild)
-        {
-            ResolveKernelHandles();
-            BuildRuntimeMaterials(shader);
-            BuildInstanceBuffers();
-            BuildIndirectArgsBuffers();
-            BindStaticResources();
-            _resourcesDirty = false;
-        }
-        else if (_predictKernel < 0 ||
-                 _clearGridKernel < 0 ||
-                 _buildGridKernel < 0 ||
-                 _solveCrowdKernel < 0 ||
-                 _clearSpatialQueriesKernel < 0 ||
-                 _resolveSpatialQueriesKernel < 0 ||
-                 _finalizeKernel < 0)
-        {
-            ResolveKernelHandles();
-        }
-
-        if (!_hasClip && primaryAnimationAsset.TryGetClip(_clipName, out _currentClip))
-            _hasClip = true;
-
-        return _hasRuntimeRenderResource &&
-            _visibleInstanceIndexBuffer != null &&
-            _indirectArgsBuffers.Length > 0;
-    }
-
-    private Shader ResolveIndirectShader()
-    {
-        if (_indirectShader != null)
-            return _indirectShader;
-
-        _indirectShader = Shader.Find(DefaultShaderName);
-        return _indirectShader;
-    }
-
-    private bool ResolveRuntimeRenderResource(out CrowdVatAnimationAsset primaryAnimationAsset)
-    {
-        CrowdVatAnimationAsset animationAsset = ResolveConfiguredAnimationAsset();
-        CrowdVatPlayer templatePrefab = ResolveConfiguredTemplatePrefab();
-        if (animationAsset == null || animationAsset.Mesh == null)
-        {
-            primaryAnimationAsset = null;
-            _runtimeRenderResource = default;
-            _hasRuntimeRenderResource = false;
-            return false;
-        }
-
-        RuntimeRenderResource previousResource = _runtimeRenderResource;
-        Material[] preservedRuntimeMaterials =
-            previousResource.animationAsset == animationAsset &&
-            previousResource.mesh == animationAsset.Mesh &&
-            previousResource.templatePrefab == templatePrefab
-                ? previousResource.runtimeMaterials
-                : null;
-
-        ResolveCrowdRootRows(templatePrefab, out Vector4 row0, out Vector4 row1, out Vector4 row2, out Matrix4x4 rootLocalMatrix);
-        _runtimeRenderResource = new RuntimeRenderResource
-        {
-            animationAsset = animationAsset,
-            templatePrefab = templatePrefab,
-            mesh = animationAsset.Mesh,
-            runtimeMaterials = preservedRuntimeMaterials,
-            crowdRootRow0 = row0,
-            crowdRootRow1 = row1,
-            crowdRootRow2 = row2,
-            agentLocalBounds = TransformBounds(rootLocalMatrix, animationAsset.MeshBounds)
-        };
-        _hasRuntimeRenderResource = true;
-        primaryAnimationAsset = animationAsset;
-        return true;
-    }
-
-    private CrowdVatPlayer ResolveConfiguredTemplatePrefab()
-    {
-        return _templatePrefab;
-    }
-
-    private CrowdVatAnimationAsset ResolveConfiguredAnimationAsset()
-    {
-        if (_templatePrefab != null && _templatePrefab.AnimationAsset != null)
-            return _templatePrefab.AnimationAsset;
-
-        return _animationAsset;
-    }
-
-    private void ResolveCrowdRootRows(
-        CrowdVatPlayer templatePrefab,
-        out Vector4 row0,
-        out Vector4 row1,
-        out Vector4 row2,
-        out Matrix4x4 rootLocalMatrix)
-    {
-        Vector3 localPosition = _meshRootLocalPosition;
-        Vector3 localEulerAngles = _meshRootLocalEulerAngles;
-        Vector3 localScale = _meshRootLocalScale;
-
-        if (templatePrefab != null && templatePrefab.RenderRoot != null)
-        {
-            Transform renderRoot = templatePrefab.RenderRoot;
-            localPosition = renderRoot.localPosition;
-            localEulerAngles = renderRoot.localEulerAngles;
-            localScale = renderRoot.localScale;
-        }
-
-        rootLocalMatrix = Matrix4x4.TRS(localPosition, Quaternion.Euler(localEulerAngles), localScale);
-        row0 = new Vector4(rootLocalMatrix.m00, rootLocalMatrix.m10, rootLocalMatrix.m20, rootLocalMatrix.m03);
-        row1 = new Vector4(rootLocalMatrix.m01, rootLocalMatrix.m11, rootLocalMatrix.m21, rootLocalMatrix.m13);
-        row2 = new Vector4(rootLocalMatrix.m02, rootLocalMatrix.m12, rootLocalMatrix.m22, rootLocalMatrix.m23);
-    }
-
-    private void ResolveKernelHandles()
-    {
-        _predictKernel = _updateCompute.FindKernel(PredictKernelName);
-        _clearGridKernel = _updateCompute.FindKernel(ClearGridKernelName);
-        _buildGridKernel = _updateCompute.FindKernel(BuildGridKernelName);
-        _solveCrowdKernel = _updateCompute.FindKernel(SolveCrowdKernelName);
-        _clearSpatialQueriesKernel = _updateCompute.FindKernel(ClearSpatialQueriesKernelName);
-        _resolveSpatialQueriesKernel = _updateCompute.FindKernel(ResolveSpatialQueriesKernelName);
-        _finalizeKernel = _updateCompute.FindKernel(FinalizeKernelName);
-    }
-
-    private bool AreBuffersReady()
-    {
-        return _spawnDataBuffer != null &&
-            _simulationStateBufferA != null &&
-            _simulationStateBufferB != null &&
-            _simulationReadBuffer != null &&
-            _simulationWriteBuffer != null &&
-            _activeStateBuffer != null &&
-            _gridCounterBuffer != null &&
-            _gridOccupantBuffer != null &&
-            _spatialElementBuffer != null &&
-            _spatialQueryBuffer != null &&
-            _spatialQueryResultBuffer != null &&
-            _spatialQueryHitBuffer != null &&
-            _interactionSphereBuffer != null &&
-            _instanceTransformBuffer != null &&
-            _instanceFrameDataBuffer != null &&
-            _visibleInstanceIndexBuffer != null &&
-            _indirectArgsBuffers.Length > 0;
-    }
-
-    private void SyncTemplateBindings()
-    {
-        if (_templatePrefab == null)
-            return;
-
-        if (_templatePrefab.AnimationAsset != null)
-            _animationAsset = _templatePrefab.AnimationAsset;
-
-        Transform renderRoot = _templatePrefab.RenderRoot;
-        if (renderRoot == null)
-            return;
-
-        _meshRootLocalPosition = renderRoot.localPosition;
-        _meshRootLocalEulerAngles = renderRoot.localEulerAngles;
-        _meshRootLocalScale = renderRoot.localScale;
-    }
-
-    private void RefreshRuntimeTargets()
-    {
-        if (_activeBubbleTarget != null && _activeBubbleTarget.gameObject.activeInHierarchy)
-            _resolvedActiveBubbleTarget = _activeBubbleTarget;
-        else
-            _resolvedActiveBubbleTarget = null;
-
-        if (_characterController != null && !_characterController.gameObject.activeInHierarchy)
-            _characterController = null;
-
-        if (_autoResolveCharacterController && _characterController == null)
-            _characterController = FindPreferredCharacterController();
-
-        if (_resolvedActiveBubbleTarget == null && _characterController != null)
-            _resolvedActiveBubbleTarget = _characterController.transform;
-
-        RefreshTerrainReference();
-    }
-
-    private CharacterController FindPreferredCharacterController()
-    {
-        CharacterController[] controllers = FindObjectsByType<CharacterController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-        CharacterController fallback = null;
-
-        for (int index = 0; index < controllers.Length; index++)
-        {
-            CharacterController controller = controllers[index];
-            if (controller == null)
-                continue;
-
-            if (controller.CompareTag("Player"))
-                return controller;
-
-            if (!string.IsNullOrEmpty(_preferredCharacterName) &&
-                string.Equals(controller.name, _preferredCharacterName, StringComparison.Ordinal))
-            {
-                return controller;
-            }
-
-            if (fallback == null)
-                fallback = controller;
-        }
-
-        return fallback;
-    }
-
-    private void RefreshTerrainReference()
-    {
-        Terrain previousTerrain = _terrain;
-        if (_terrain != null && (_terrain.terrainData == null || !_terrain.gameObject.activeInHierarchy))
-            _terrain = null;
-
-        if (_autoResolveTerrain && _terrain == null)
-            _terrain = FindPreferredTerrain();
-
-        if (previousTerrain != _terrain)
-            MarkResourcesDirty();
-    }
-
-    private Terrain FindPreferredTerrain()
-    {
-        if (Terrain.activeTerrain != null && Terrain.activeTerrain.terrainData != null)
-            return Terrain.activeTerrain;
-
-        Terrain terrain = FindFirstObjectByType<Terrain>();
-        return terrain != null && terrain.terrainData != null ? terrain : null;
-    }
-
-    private bool TryResolveClip(string clipName, out CrowdVatAnimationAsset.ClipInfo clip)
-    {
-        CrowdVatAnimationAsset clipSource = ResolveConfiguredAnimationAsset();
-        if (clipSource == null)
-        {
-            clip = default;
-            return false;
-        }
-
-        return clipSource.TryGetClip(clipName, out clip);
-    }
-
-    private void BuildRuntimeMaterials(Shader shader)
-    {
-        if (!_hasRuntimeRenderResource)
-            return;
-
-        RuntimeRenderResource resource = _runtimeRenderResource;
-        Material[] sourceMaterials = ResolveSourceMaterials(resource.templatePrefab, resource.animationAsset);
-        int subMeshCount = Mathf.Max(1, resource.mesh.subMeshCount);
-        int materialCount = Mathf.Max(1, Mathf.Min(subMeshCount, sourceMaterials.Length > 0 ? sourceMaterials.Length : subMeshCount));
-        resource.runtimeMaterials = new Material[materialCount];
-
-        for (int materialIndex = 0; materialIndex < materialCount; materialIndex++)
-        {
-            Material runtimeMaterial = _indirectMaterialTemplate != null
-                ? new Material(_indirectMaterialTemplate)
-                : new Material(shader);
-
-            runtimeMaterial.name = $"{resource.animationAsset.name}_Indirect_{materialIndex:00}";
-            runtimeMaterial.hideFlags = HideFlags.HideAndDontSave;
-            runtimeMaterial.enableInstancing = true;
-
-            Material sourceMaterial = sourceMaterials.Length > 0
-                ? sourceMaterials[Mathf.Min(materialIndex, sourceMaterials.Length - 1)]
-                : null;
-            CopySourceMaterialProperties(sourceMaterial, runtimeMaterial);
-            resource.runtimeMaterials[materialIndex] = runtimeMaterial;
-        }
-
-        _runtimeRenderResource = resource;
-    }
-
-    private Material[] ResolveSourceMaterials(CrowdVatPlayer templatePrefab, CrowdVatAnimationAsset animationAsset)
-    {
-        if (templatePrefab != null && templatePrefab.MeshRenderer != null)
-        {
-            Material[] sharedMaterials = templatePrefab.MeshRenderer.sharedMaterials;
-            if (sharedMaterials != null && sharedMaterials.Length > 0)
-                return sharedMaterials;
-        }
-
-        return animationAsset.Materials ?? Array.Empty<Material>();
-    }
-
-    private void BuildInstanceBuffers()
-    {
-        InstanceSpawnData[] spawnData = BuildSpawnData();
-        InstanceSimulationState[] simulationState = BuildInitialSimulationState(spawnData);
-
-        _spawnDataBuffer = new ComputeBuffer(_instanceCount, Marshal.SizeOf<InstanceSpawnData>());
-        _spawnDataBuffer.SetData(spawnData);
-
-        int simulationStride = Marshal.SizeOf<InstanceSimulationState>();
-        _simulationStateBufferA = new ComputeBuffer(_instanceCount, simulationStride);
-        _simulationStateBufferB = new ComputeBuffer(_instanceCount, simulationStride);
-        _simulationStateBufferA.SetData(simulationState);
-        _simulationStateBufferB.SetData(simulationState);
-        _simulationReadBuffer = _simulationStateBufferA;
-        _simulationWriteBuffer = _simulationStateBufferB;
-        _activeStateBuffer = new ComputeBuffer(_instanceCount, sizeof(uint));
-        uint[] activeState = new uint[_instanceCount];
-        for (int instanceIndex = 0; instanceIndex < activeState.Length; instanceIndex++)
-            activeState[instanceIndex] = 1u;
-        _activeStateBuffer.SetData(activeState);
-
-        _instanceTransformBuffer = new ComputeBuffer(_instanceCount, Marshal.SizeOf<MatrixRows>());
-        _instanceFrameDataBuffer = new ComputeBuffer(_instanceCount, Marshal.SizeOf<Vector4>());
-
-        BuildSimulationGridLayout(spawnData);
-        _gridCounterBuffer = new ComputeBuffer(_gridCellCount, sizeof(uint));
-        _gridOccupantBuffer = new ComputeBuffer(_gridCellCount * _maxCellOccupancy, sizeof(uint));
-        _spatialElementBuffer = new ComputeBuffer(_instanceCount, Marshal.SizeOf<SpatialElementData>());
-        _spatialQueryBuffer = new ComputeBuffer(_maxSpatialQueries, Marshal.SizeOf<SpatialQueryData>());
-        _spatialQueryResultBuffer = new ComputeBuffer(_maxSpatialQueries, Marshal.SizeOf<SpatialQueryResultData>());
-        _spatialQueryHitBuffer = new ComputeBuffer(_maxSpatialQueries * _maxHitsPerSpatialQuery, Marshal.SizeOf<SpatialQueryHitData>());
-        _spatialQueryUploadCache = new SpatialQueryData[_maxSpatialQueries];
-        _spatialQueryResultCache = new SpatialQueryResultData[_maxSpatialQueries];
-        _spatialQueryHitCache = new SpatialQueryHitData[_maxSpatialQueries * _maxHitsPerSpatialQuery];
-
-        int interactionCapacity = GetInteractionSphereCapacity();
-        _interactionSphereBuffer = new ComputeBuffer(interactionCapacity, Marshal.SizeOf<InteractionSphereData>());
-        _interactionSphereUploadCache = new InteractionSphereData[interactionCapacity];
-        _interactionSphereBuffer.SetData(_interactionSphereUploadCache);
-
-        Bounds referenceAgentLocalBounds = ResolveReferenceAgentLocalBounds();
-        _localCrowdBounds = BuildLocalCrowdBounds(spawnData, referenceAgentLocalBounds);
-        BuildRenderChunks(spawnData, referenceAgentLocalBounds);
-    }
-
-    private Bounds ResolveReferenceAgentLocalBounds()
-    {
-        return _hasRuntimeRenderResource
-            ? _runtimeRenderResource.agentLocalBounds
-            : new Bounds(Vector3.zero, Vector3.one);
-    }
-
-    private int GetInteractionSphereCapacity()
-    {
-        int manualCount = _interactionSpheres != null ? _interactionSpheres.Length : 0;
-        int automaticCount = _useCharacterAsInteractionSphere ? 1 : 0;
-        return Mathf.Max(1, manualCount + automaticCount);
-    }
-
-    private void BuildSimulationGridLayout(InstanceSpawnData[] spawnData)
-    {
-        float padding = Mathf.Max(_maxDisplacementFromSpawn, _collisionRadius) + _queryCellSize;
-        GetSpawnExtentsXZ(spawnData, out Vector2 minXZ, out Vector2 maxXZ);
-        Vector2 paddedMin = minXZ - Vector2.one * padding;
-        Vector2 paddedMax = maxXZ + Vector2.one * padding;
-        Vector2 paddedSize = new Vector2(
-            Mathf.Max(0.01f, paddedMax.x - paddedMin.x),
-            Mathf.Max(0.01f, paddedMax.y - paddedMin.y));
-        _gridDimensions = new Vector2Int(
-            Mathf.Max(1, Mathf.CeilToInt(paddedSize.x / _queryCellSize)),
-            Mathf.Max(1, Mathf.CeilToInt(paddedSize.y / _queryCellSize)));
-        Vector2 actualSize = new Vector2(_gridDimensions.x * _queryCellSize, _gridDimensions.y * _queryCellSize);
-        Vector2 paddedCenter = (paddedMin + paddedMax) * 0.5f;
-        _gridMinXZ = paddedCenter - actualSize * 0.5f;
-        _gridMaxXZ = _gridMinXZ + actualSize;
-        _gridCellCount = Mathf.Max(1, _gridDimensions.x * _gridDimensions.y);
-    }
-
-    private InstanceSpawnData[] BuildSpawnData()
-    {
-        InstanceSpawnData[] spawnData = new InstanceSpawnData[_instanceCount];
-        _minimumPlaybackSpeedMultiplier = float.MaxValue;
-        _maximumQueryAgentRadius = 0.0f;
-
-        float clampedJitter = Mathf.Clamp01(_cellJitter);
-        float startOffsetStrength = Mathf.Clamp01(_normalizedStartOffsetRandom);
-        System.Random random = new System.Random(_randomSeed);
-        SpawnAreaContext spawnArea = ResolveSpawnAreaContext();
-
-        for (int instanceIndex = 0; instanceIndex < _instanceCount; instanceIndex++)
-        {
-            CrowdVatFaction faction = ResolveInstanceFaction(instanceIndex);
-            ResolveFactionPlacement(instanceIndex, faction, out int localIndex, out int localCount);
-
-            // 闃佃惀甯冨眬鍙奖鍝嶅嚭鐢熺偣鍜屽垵濮嬫湞鍚戯紝涓嶆敼鍙樺悗缁?GPU 杩愯鏃剁姸鎬佺粨鏋勩€?
-            Vector3 localPosition = _factionLayout == CrowdVatFactionLayoutMode.TwoOpposingFactions
-                ? BuildTwoFactionSpawnPosition(localIndex, localCount, faction, clampedJitter, random, spawnArea)
-                : BuildSingleCrowdSpawnPosition(instanceIndex, clampedJitter, random, spawnArea);
-            localPosition = ApplyTerrainHeightToLocalPosition(localPosition);
-
-            float yawRadians = _factionLayout == CrowdVatFactionLayoutMode.TwoOpposingFactions && _orientTowardEnemyFaction
-                ? GetOpposingFactionYawRadians(faction)
-                : Mathf.Deg2Rad * (float)(random.NextDouble() * 360.0);
-
-            float scaleMultiplier = RandomRange(random, _scaleMultiplierRange.x, _scaleMultiplierRange.y);
-            float playbackSpeedMultiplier = RandomRange(random, _playbackSpeedMultiplierRange.x, _playbackSpeedMultiplierRange.y);
-            float normalizedStartOffset = (float)random.NextDouble() * startOffsetStrength;
-
-            spawnData[instanceIndex] = new InstanceSpawnData
-            {
-                localPosition = localPosition,
-                yawRadians = yawRadians,
-                uniformScale = _baseScale * scaleMultiplier,
-                normalizedTimeOffset = normalizedStartOffset,
-                playbackSpeedMultiplier = playbackSpeedMultiplier,
-                faction = (uint)faction
-            };
-
-            _minimumPlaybackSpeedMultiplier = Mathf.Min(_minimumPlaybackSpeedMultiplier, playbackSpeedMultiplier);
-            _maximumQueryAgentRadius = Mathf.Max(
-                _maximumQueryAgentRadius,
-                Mathf.Max(0.01f, _collisionRadius * spawnData[instanceIndex].uniformScale));
-        }
-
-        if (_minimumPlaybackSpeedMultiplier == float.MaxValue)
-            _minimumPlaybackSpeedMultiplier = 1.0f;
-
-        if (_maximumQueryAgentRadius <= 0.0f)
-            _maximumQueryAgentRadius = Mathf.Max(0.01f, _collisionRadius * _baseScale);
-
-        return spawnData;
-    }
-
-    private CrowdVatFaction ResolveInstanceFaction(int instanceIndex)
-    {
-        if (_factionLayout != CrowdVatFactionLayoutMode.TwoOpposingFactions)
-            return CrowdVatFaction.CampA;
-
-        int campACount = Mathf.CeilToInt(_instanceCount * 0.5f);
-        return instanceIndex < campACount ? CrowdVatFaction.CampA : CrowdVatFaction.CampB;
-    }
-
-    private void ResolveFactionPlacement(int instanceIndex, CrowdVatFaction faction, out int localIndex, out int localCount)
-    {
-        if (_factionLayout != CrowdVatFactionLayoutMode.TwoOpposingFactions)
-        {
-            localIndex = instanceIndex;
-            localCount = _instanceCount;
-            return;
-        }
-
-        int campACount = Mathf.CeilToInt(_instanceCount * 0.5f);
-        int campBCount = Mathf.Max(0, _instanceCount - campACount);
-
-        if (faction == CrowdVatFaction.CampB)
-        {
-            localIndex = Mathf.Max(0, instanceIndex - campACount);
-            localCount = Mathf.Max(1, campBCount);
-            return;
-        }
-
-        localIndex = instanceIndex;
-        localCount = Mathf.Max(1, campACount);
-    }
-
-    private Vector3 BuildSingleCrowdSpawnPosition(int instanceIndex, float clampedJitter, System.Random random, SpawnAreaContext spawnArea)
-    {
-        ResolveGridPlacement(instanceIndex, _instanceCount, spawnArea.size, clampedJitter, random, out float localX, out float localZ);
-        localX += spawnArea.centerXZ.x;
-        localZ += spawnArea.centerXZ.y;
-        return new Vector3(localX, _heightOffset, localZ);
-    }
-
-    private Vector3 BuildTwoFactionSpawnPosition(int localIndex, int localCount, CrowdVatFaction faction, float clampedJitter, System.Random random, SpawnAreaContext spawnArea)
-    {
-        Vector2 campAreaSize = GetFactionAreaSize(spawnArea.size, faction);
-        ResolveGridPlacement(localIndex, localCount, campAreaSize, clampedJitter, random, out float localX, out float localZ);
-
-        Vector2 factionCenterXZ = GetFactionCenterXZ(spawnArea, faction);
-        localX += factionCenterXZ.x;
-        localZ += factionCenterXZ.y;
-        return new Vector3(localX, _heightOffset, localZ);
-    }
-
-    private bool TryGetFactionControlCenterXZ(CrowdVatFaction faction, out Vector2 centerXZ)
-    {
-        centerXZ = Vector2.zero;
-        if (!_useFactionControlTransforms || !TryGetFactionControlTransform(faction, out Transform controlTransform))
-            return false;
-
-        Vector3 localPosition = transform.InverseTransformPoint(controlTransform.position);
-        centerXZ = new Vector2(localPosition.x, localPosition.z);
-        return true;
-    }
-
-    private bool TryGetFactionControlTransform(CrowdVatFaction faction, out Transform controlTransform)
-    {
-        controlTransform = faction == CrowdVatFaction.CampA ? _campAControlTransform : _campBControlTransform;
-        return controlTransform != null;
-    }
-
-    private bool TryGetFactionRangeBoundsFromCornerTransforms(CrowdVatFaction faction, out Vector2 centerXZ, out Vector2 sizeXZ)
-    {
-        centerXZ = Vector2.zero;
-        sizeXZ = Vector2.zero;
-        TryGetFactionControlTransform(faction, out Transform controlTransform);
-        if (!TryGetFactionCornerTransforms(
-                faction,
-                out Transform northWestCornerTransform,
-                out Transform northEastCornerTransform,
-                out Transform southEastCornerTransform,
-                out Transform southWestCornerTransform))
-        {
-            return false;
-        }
-
-        if (controlTransform != null)
-        {
-            Vector3 northWestLocalOffset = controlTransform.InverseTransformPoint(northWestCornerTransform.position);
-            Vector3 northEastLocalOffset = controlTransform.InverseTransformPoint(northEastCornerTransform.position);
-            Vector3 southEastLocalOffset = controlTransform.InverseTransformPoint(southEastCornerTransform.position);
-            Vector3 southWestLocalOffset = controlTransform.InverseTransformPoint(southWestCornerTransform.position);
-
-            float halfWidth = Mathf.Max(
-                Mathf.Abs(northWestLocalOffset.x),
-                Mathf.Abs(northEastLocalOffset.x),
-                Mathf.Abs(southEastLocalOffset.x),
-                Mathf.Abs(southWestLocalOffset.x));
-            float halfDepth = Mathf.Max(
-                Mathf.Abs(northWestLocalOffset.z),
-                Mathf.Abs(northEastLocalOffset.z),
-                Mathf.Abs(southEastLocalOffset.z),
-                Mathf.Abs(southWestLocalOffset.z));
-
-            Vector3 controlLocalPosition = transform.InverseTransformPoint(controlTransform.position);
-            centerXZ = new Vector2(controlLocalPosition.x, controlLocalPosition.z);
-            sizeXZ = new Vector2(Mathf.Max(0.01f, halfWidth * 2.0f), Mathf.Max(0.01f, halfDepth * 2.0f));
-            return true;
-        }
-
-        Vector3 northWestLocalPosition = transform.InverseTransformPoint(northWestCornerTransform.position);
-        Vector3 northEastLocalPosition = transform.InverseTransformPoint(northEastCornerTransform.position);
-        Vector3 southEastLocalPosition = transform.InverseTransformPoint(southEastCornerTransform.position);
-        Vector3 southWestLocalPosition = transform.InverseTransformPoint(southWestCornerTransform.position);
-
-        float minX = Mathf.Min(northWestLocalPosition.x, northEastLocalPosition.x, southEastLocalPosition.x, southWestLocalPosition.x);
-        float maxX = Mathf.Max(northWestLocalPosition.x, northEastLocalPosition.x, southEastLocalPosition.x, southWestLocalPosition.x);
-        float minZ = Mathf.Min(northWestLocalPosition.z, northEastLocalPosition.z, southEastLocalPosition.z, southWestLocalPosition.z);
-        float maxZ = Mathf.Max(northWestLocalPosition.z, northEastLocalPosition.z, southEastLocalPosition.z, southWestLocalPosition.z);
-
-        centerXZ = new Vector2((minX + maxX) * 0.5f, (minZ + maxZ) * 0.5f);
-        sizeXZ = new Vector2(Mathf.Max(0.01f, maxX - minX), Mathf.Max(0.01f, maxZ - minZ));
-        return true;
-    }
-
-    private bool TryGetFactionCornerTransforms(
-        CrowdVatFaction faction,
-        out Transform northWestCornerTransform,
-        out Transform northEastCornerTransform,
-        out Transform southEastCornerTransform,
-        out Transform southWestCornerTransform)
-    {
-        if (faction == CrowdVatFaction.CampA)
-        {
-            northWestCornerTransform = _campANorthWestCornerTransform;
-            northEastCornerTransform = _campANorthEastCornerTransform;
-            southEastCornerTransform = _campASouthEastCornerTransform;
-            southWestCornerTransform = _campASouthWestCornerTransform;
-        }
-        else
-        {
-            northWestCornerTransform = _campBNorthWestCornerTransform;
-            northEastCornerTransform = _campBNorthEastCornerTransform;
-            southEastCornerTransform = _campBSouthEastCornerTransform;
-            southWestCornerTransform = _campBSouthWestCornerTransform;
-        }
-
-        return northWestCornerTransform != null &&
-               northEastCornerTransform != null &&
-               southEastCornerTransform != null &&
-               southWestCornerTransform != null;
-    }
-
-    private void SyncFactionControlTransform(Transform controlTransform, Vector2 centerXZ)
-    {
-        if (controlTransform == null)
-            return;
-
-        Vector3 localPosition = transform.InverseTransformPoint(controlTransform.position);
-        localPosition.x = centerXZ.x;
-        localPosition.z = centerXZ.y;
-        controlTransform.position = transform.TransformPoint(localPosition);
-        controlTransform.hasChanged = false;
-    }
-
-    private bool TrySyncExplicitFactionAreaFromMovedCorner(CrowdVatFaction faction, Transform movedCornerTransform)
-    {
-        if (movedCornerTransform == null || !TryGetFactionControlTransform(faction, out Transform controlTransform))
-            return false;
-
-        Vector3 localOffset = controlTransform.InverseTransformPoint(movedCornerTransform.position);
-        Vector2 areaSize = new Vector2(
-            Mathf.Max(0.01f, Mathf.Abs(localOffset.x) * 2.0f),
-            Mathf.Max(0.01f, Mathf.Abs(localOffset.z) * 2.0f));
-
-        if (faction == CrowdVatFaction.CampA)
-            _campAAreaSize = areaSize;
-        else
-            _campBAreaSize = areaSize;
-
-        _useExplicitFactionAreaSizes = true;
-        return true;
-    }
-
-    private void SyncFactionRangeCornerTransforms(
-        Transform controlTransform,
-        Vector2 centerXZ,
-        Vector2 sizeXZ,
-        Transform northWestCornerTransform,
-        Transform northEastCornerTransform,
-        Transform southEastCornerTransform,
-        Transform southWestCornerTransform)
-    {
-        if (controlTransform != null)
-            SyncFactionControlTransform(controlTransform, centerXZ);
-
-        if (northWestCornerTransform == null ||
-            northEastCornerTransform == null ||
-            southEastCornerTransform == null ||
-            southWestCornerTransform == null)
-        {
-            return;
-        }
-
-        Vector2 clampedSize = new Vector2(Mathf.Max(0.01f, sizeXZ.x), Mathf.Max(0.01f, sizeXZ.y));
-        Vector2 halfSize = clampedSize * 0.5f;
-        SyncFactionRangeCornerTransform(northWestCornerTransform, centerXZ + new Vector2(-halfSize.x, halfSize.y));
-        SyncFactionRangeCornerTransform(northEastCornerTransform, centerXZ + new Vector2(halfSize.x, halfSize.y));
-        SyncFactionRangeCornerTransform(southEastCornerTransform, centerXZ + new Vector2(halfSize.x, -halfSize.y));
-        SyncFactionRangeCornerTransform(southWestCornerTransform, centerXZ + new Vector2(-halfSize.x, -halfSize.y));
-    }
-
-    private void SyncFactionRangeCornerTransform(Transform cornerTransform, Vector2 cornerXZ)
-    {
-        if (cornerTransform == null)
-            return;
-
-        Vector3 localPosition = transform.InverseTransformPoint(cornerTransform.position);
-        localPosition.x = cornerXZ.x;
-        localPosition.z = cornerXZ.y;
-        cornerTransform.position = transform.TransformPoint(localPosition);
-        cornerTransform.hasChanged = false;
-    }
-
-    private Vector2 GetFactionCenterXZ(SpawnAreaContext spawnArea, CrowdVatFaction faction)
-    {
-        if (TryGetFactionControlCenterXZ(faction, out Vector2 controlCenterXZ))
-            return controlCenterXZ;
-
-        if (TryGetFactionRangeBoundsFromCornerTransforms(faction, out Vector2 rangeCenterXZ, out _))
-            return rangeCenterXZ;
-
-        if (_useExplicitFactionCenters)
-            return faction == CrowdVatFaction.CampA ? _campACenterXZ : _campBCenterXZ;
-
-        float factionOffset = GetFactionAxisOffset(spawnArea.size);
-        Vector2 factionCenter = spawnArea.centerXZ;
-        if (_factionSplitAxis == CrowdVatFactionSplitAxis.Width)
-            factionCenter.x += faction == CrowdVatFaction.CampA ? -factionOffset : factionOffset;
-        else
-            factionCenter.y += faction == CrowdVatFaction.CampA ? -factionOffset : factionOffset;
-
-        return factionCenter;
-    }
-
-    private Vector2 GetFactionAreaSize(Vector2 totalAreaSize, CrowdVatFaction faction)
-    {
-        if (TryGetFactionRangeBoundsFromCornerTransforms(faction, out _, out Vector2 controlAreaSize))
-            return controlAreaSize;
-
-        if (_useExplicitFactionAreaSizes)
-            return faction == CrowdVatFaction.CampA ? _campAAreaSize : _campBAreaSize;
-
-        float totalWidth = Mathf.Max(totalAreaSize.x, 0.01f);
-        float totalDepth = Mathf.Max(totalAreaSize.y, 0.01f);
-        float splitLength = _factionSplitAxis == CrowdVatFactionSplitAxis.Width ? totalWidth : totalDepth;
-        float clampedGap = Mathf.Clamp(_factionCenterGap, 0.0f, Mathf.Max(0.0f, splitLength - 0.02f));
-        float factionLength = Mathf.Max(0.01f, (splitLength - clampedGap) * 0.5f);
-
-        return _factionSplitAxis == CrowdVatFactionSplitAxis.Width
-            ? new Vector2(factionLength, totalDepth)
-            : new Vector2(totalWidth, factionLength);
-    }
-
-    private float GetFactionAxisOffset(Vector2 totalAreaSize)
-    {
-        float splitLength = _factionSplitAxis == CrowdVatFactionSplitAxis.Width
-            ? Mathf.Max(totalAreaSize.x, 0.01f)
-            : Mathf.Max(totalAreaSize.y, 0.01f);
-        float clampedGap = Mathf.Clamp(_factionCenterGap, 0.0f, Mathf.Max(0.0f, splitLength - 0.02f));
-        float factionLength = Mathf.Max(0.01f, (splitLength - clampedGap) * 0.5f);
-        return clampedGap * 0.5f + factionLength * 0.5f;
-    }
-
-    private float GetOpposingFactionYawRadians(CrowdVatFaction faction)
-    {
-        if (_factionSplitAxis == CrowdVatFactionSplitAxis.Width)
-            return faction == CrowdVatFaction.CampA ? Mathf.PI * 0.5f : -Mathf.PI * 0.5f;
-
-        return faction == CrowdVatFaction.CampA ? 0.0f : Mathf.PI;
-    }
-
-    private static void ResolveGridPlacement(
-        int instanceIndex,
-        int instanceCount,
-        Vector2 areaSize,
-        float clampedJitter,
-        System.Random random,
-        out float localX,
-        out float localZ)
-    {
-        int columns = Mathf.Max(1, Mathf.CeilToInt(Mathf.Sqrt(instanceCount * (areaSize.x / Mathf.Max(areaSize.y, 0.01f)))));
-        int rows = Mathf.Max(1, Mathf.CeilToInt(instanceCount / (float)columns));
-        float cellWidth = columns > 1 ? areaSize.x / (columns - 1) : 0.0f;
-        float cellDepth = rows > 1 ? areaSize.y / (rows - 1) : 0.0f;
-
-        int column = instanceIndex % columns;
-        int row = instanceIndex / columns;
-        float baseX = columns > 1 ? -areaSize.x * 0.5f + column * cellWidth : 0.0f;
-        float baseZ = rows > 1 ? -areaSize.y * 0.5f + row * cellDepth : 0.0f;
-
-        float jitterX = (float)(random.NextDouble() * 2.0 - 1.0) * cellWidth * 0.5f * clampedJitter;
-        float jitterZ = (float)(random.NextDouble() * 2.0 - 1.0) * cellDepth * 0.5f * clampedJitter;
-
-        localX = baseX + jitterX;
-        localZ = baseZ + jitterZ;
-    }
-
-    private SpawnAreaContext ResolveSpawnAreaContext()
-    {
-        if (_distributeAcrossWholeTerrain && TryGetResolvedTerrain(out Terrain terrain))
-            return BuildTerrainSpawnAreaContext(terrain);
-
-        return new SpawnAreaContext
-        {
-            size = new Vector2(Mathf.Max(_areaSize.x, 0.01f), Mathf.Max(_areaSize.y, 0.01f)),
-            centerXZ = Vector2.zero
-        };
-    }
-
-    private SpawnAreaContext BuildTerrainSpawnAreaContext(Terrain terrain)
-    {
-        Vector3 terrainMin = terrain.transform.position;
-        Vector3 terrainMax = terrainMin + terrain.terrainData.size;
-        Matrix4x4 worldToLocal = transform.worldToLocalMatrix;
-
-        Vector3 localCornerA = worldToLocal.MultiplyPoint3x4(new Vector3(terrainMin.x, transform.position.y, terrainMin.z));
-        Vector3 localCornerB = worldToLocal.MultiplyPoint3x4(new Vector3(terrainMin.x, transform.position.y, terrainMax.z));
-        Vector3 localCornerC = worldToLocal.MultiplyPoint3x4(new Vector3(terrainMax.x, transform.position.y, terrainMin.z));
-        Vector3 localCornerD = worldToLocal.MultiplyPoint3x4(new Vector3(terrainMax.x, transform.position.y, terrainMax.z));
-
-        float minX = Mathf.Min(localCornerA.x, localCornerB.x, localCornerC.x, localCornerD.x);
-        float maxX = Mathf.Max(localCornerA.x, localCornerB.x, localCornerC.x, localCornerD.x);
-        float minZ = Mathf.Min(localCornerA.z, localCornerB.z, localCornerC.z, localCornerD.z);
-        float maxZ = Mathf.Max(localCornerA.z, localCornerB.z, localCornerC.z, localCornerD.z);
-
-        return new SpawnAreaContext
-        {
-            size = new Vector2(Mathf.Max(0.01f, maxX - minX), Mathf.Max(0.01f, maxZ - minZ)),
-            centerXZ = new Vector2((minX + maxX) * 0.5f, (minZ + maxZ) * 0.5f)
-        };
-    }
-
-    private static void GetSpawnExtentsXZ(InstanceSpawnData[] spawnData, out Vector2 minXZ, out Vector2 maxXZ)
-    {
-        if (spawnData == null || spawnData.Length == 0)
-        {
-            minXZ = Vector2.zero;
-            maxXZ = Vector2.zero;
-            return;
-        }
-
-        minXZ = new Vector2(float.MaxValue, float.MaxValue);
-        maxXZ = new Vector2(float.MinValue, float.MinValue);
-        for (int index = 0; index < spawnData.Length; index++)
-        {
-            Vector3 localPosition = spawnData[index].localPosition;
-            minXZ.x = Mathf.Min(minXZ.x, localPosition.x);
-            minXZ.y = Mathf.Min(minXZ.y, localPosition.z);
-            maxXZ.x = Mathf.Max(maxXZ.x, localPosition.x);
-            maxXZ.y = Mathf.Max(maxXZ.y, localPosition.z);
-        }
-    }
-
-    private static InstanceSimulationState[] BuildInitialSimulationState(InstanceSpawnData[] spawnData)
-    {
-        InstanceSimulationState[] simulationState = new InstanceSimulationState[spawnData.Length];
-        for (int instanceIndex = 0; instanceIndex < spawnData.Length; instanceIndex++)
-        {
-            InstanceSpawnData spawn = spawnData[instanceIndex];
-            simulationState[instanceIndex] = new InstanceSimulationState
-            {
-                localPositionAndYaw = new Vector4(
-                    spawn.localPosition.x,
-                    spawn.localPosition.y,
-                    spawn.localPosition.z,
-                    spawn.yawRadians),
-                scaleAndVelocity = new Vector4(spawn.uniformScale, 0.0f, 0.0f, 0.0f)
-            };
-        }
-
-        return simulationState;
-    }
-
-    private Bounds BuildLocalCrowdBounds(InstanceSpawnData[] spawnData, Bounds agentLocalBounds)
-    {
-        if (spawnData == null || spawnData.Length == 0)
-            return new Bounds(agentLocalBounds.center, agentLocalBounds.size);
-
-        return BuildLocalBoundsForRange(spawnData, 0, spawnData.Length, agentLocalBounds);
-    }
-
-    private void BuildIndirectArgsBuffers()
-    {
-        if (!_hasRuntimeRenderResource)
-        {
-            _indirectArgsBuffers = Array.Empty<GraphicsBuffer>();
-            _indirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
-            _visibleInstanceIndexCache = Array.Empty<uint>();
-            return;
-        }
-
-        RuntimeRenderResource resource = _runtimeRenderResource;
-        int subMeshCount = resource.runtimeMaterials != null
-            ? Mathf.Min(resource.mesh.subMeshCount, resource.runtimeMaterials.Length)
-            : 0;
-        _indirectArgsBuffers = new GraphicsBuffer[subMeshCount];
-        _indirectArgsCache = new GraphicsBuffer.IndirectDrawIndexedArgs[subMeshCount];
-
-        for (int subMeshIndex = 0; subMeshIndex < subMeshCount; subMeshIndex++)
-        {
-            GraphicsBuffer buffer = new GraphicsBuffer(
-                GraphicsBuffer.Target.IndirectArguments,
-                1,
-                GraphicsBuffer.IndirectDrawIndexedArgs.size);
-            GraphicsBuffer.IndirectDrawIndexedArgs args = BuildIndirectArgs(resource.mesh, subMeshIndex, 0u);
-            buffer.SetData(new[] { args });
-            _indirectArgsBuffers[subMeshIndex] = buffer;
-            _indirectArgsCache[subMeshIndex] = args;
-        }
-
-        _visibleInstanceIndexBuffer = new ComputeBuffer(Mathf.Max(1, _instanceCount), sizeof(uint));
-        _visibleInstanceIndexCache = new uint[Mathf.Max(1, _instanceCount)];
-    }
-
-    private void BuildRenderChunks(InstanceSpawnData[] spawnData, Bounds agentLocalBounds)
-    {
-        if (spawnData == null || spawnData.Length == 0)
-        {
-            _renderChunks = Array.Empty<RenderChunk>();
-            return;
-        }
-
-        float chunkSize = Mathf.Max(0.5f, _renderChunkWorldSize);
-        Vector2 origin = new Vector2(_localCrowdBounds.min.x, _localCrowdBounds.min.z);
-        Dictionary<Vector2Int, List<int>> chunkInstanceLookup = new Dictionary<Vector2Int, List<int>>();
-        List<Vector2Int> chunkOrder = new List<Vector2Int>();
-
-        for (int instanceIndex = 0; instanceIndex < spawnData.Length; instanceIndex++)
-        {
-            Vector2 localXZ = new Vector2(spawnData[instanceIndex].localPosition.x, spawnData[instanceIndex].localPosition.z);
-            Vector2Int chunkCoord = new Vector2Int(
-                Mathf.FloorToInt((localXZ.x - origin.x) / chunkSize),
-                Mathf.FloorToInt((localXZ.y - origin.y) / chunkSize));
-
-            if (!chunkInstanceLookup.TryGetValue(chunkCoord, out List<int> indices))
-            {
-                indices = new List<int>();
-                chunkInstanceLookup.Add(chunkCoord, indices);
-                chunkOrder.Add(chunkCoord);
-            }
-
-            indices.Add(instanceIndex);
-        }
-
-        _renderChunks = new RenderChunk[chunkOrder.Count];
-        for (int chunkIndex = 0; chunkIndex < chunkOrder.Count; chunkIndex++)
-        {
-            List<int> indices = chunkInstanceLookup[chunkOrder[chunkIndex]];
-            uint[] instanceIndices = new uint[indices.Count];
-            for (int index = 0; index < indices.Count; index++)
-                instanceIndices[index] = (uint)indices[index];
-
-            _renderChunks[chunkIndex] = new RenderChunk
-            {
-                instanceIndices = instanceIndices,
-                localBounds = BuildLocalBoundsForIndices(spawnData, indices, agentLocalBounds)
-            };
-        }
-    }
-
-    private Bounds BuildLocalBoundsForRange(InstanceSpawnData[] spawnData, int startInstance, int instanceCount, Bounds agentLocalBounds)
-    {
-        bool hasBounds = false;
-        Bounds bounds = default;
-
-        for (int offset = 0; offset < instanceCount; offset++)
-        {
-            InstanceSpawnData instance = spawnData[startInstance + offset];
-            Matrix4x4 instanceMatrix = Matrix4x4.TRS(
-                instance.localPosition,
-                Quaternion.Euler(0.0f, instance.yawRadians * Mathf.Rad2Deg, 0.0f),
-                Vector3.one * instance.uniformScale);
-            Bounds instanceBounds = TransformBounds(instanceMatrix, agentLocalBounds);
-
-            if (!hasBounds)
-            {
-                bounds = instanceBounds;
-                hasBounds = true;
-                continue;
-            }
-
-            bounds.Encapsulate(instanceBounds.min);
-            bounds.Encapsulate(instanceBounds.max);
-        }
-
-        if (!hasBounds)
-            return new Bounds(agentLocalBounds.center, agentLocalBounds.size);
-
-        return ExpandRenderBounds(bounds);
-    }
-
-    private Bounds BuildLocalBoundsForIndices(InstanceSpawnData[] spawnData, IReadOnlyList<int> indices, Bounds agentLocalBounds)
-    {
-        if (indices == null || indices.Count == 0)
-            return new Bounds(agentLocalBounds.center, agentLocalBounds.size);
-
-        bool hasBounds = false;
-        Bounds bounds = default;
-
-        for (int i = 0; i < indices.Count; i++)
-        {
-            InstanceSpawnData instance = spawnData[indices[i]];
-            Matrix4x4 instanceMatrix = Matrix4x4.TRS(
-                instance.localPosition,
-                Quaternion.Euler(0.0f, instance.yawRadians * Mathf.Rad2Deg, 0.0f),
-                Vector3.one * instance.uniformScale);
-            Bounds instanceBounds = TransformBounds(instanceMatrix, agentLocalBounds);
-            if (!hasBounds)
-            {
-                bounds = instanceBounds;
-                hasBounds = true;
-                continue;
-            }
-
-            bounds.Encapsulate(instanceBounds.min);
-            bounds.Encapsulate(instanceBounds.max);
-        }
-
-        return ExpandRenderBounds(bounds);
-    }
-
-    private Bounds ExpandRenderBounds(Bounds bounds)
-    {
-        float dynamicPadding = _boundsPadding + (_enableApproximateCollision ? _maxDisplacementFromSpawn : 0.0f);
-        bounds.Expand(dynamicPadding * 2.0f);
-        return bounds;
-    }
-
-    private static GraphicsBuffer.IndirectDrawIndexedArgs BuildIndirectArgs(Mesh mesh, int subMeshIndex, uint instanceCount)
-    {
-        return new GraphicsBuffer.IndirectDrawIndexedArgs
-        {
-            indexCountPerInstance = mesh.GetIndexCount(subMeshIndex),
-            instanceCount = instanceCount,
-            startIndex = mesh.GetIndexStart(subMeshIndex),
-            baseVertexIndex = (uint)mesh.GetBaseVertex(subMeshIndex),
-            startInstance = 0u
-        };
-    }
-
-    private void BindStaticResources()
-    {
-        if (!_hasRuntimeRenderResource || _runtimeRenderResource.runtimeMaterials == null)
-            return;
-
-        RuntimeRenderResource resource = _runtimeRenderResource;
-        Texture2D boneTexture = resource.animationAsset.BoneAnimationTexture;
-
-        for (int materialIndex = 0; materialIndex < resource.runtimeMaterials.Length; materialIndex++)
-        {
-            Material runtimeMaterial = resource.runtimeMaterials[materialIndex];
-            runtimeMaterial.SetTexture(BoneAnimationTextureId, boneTexture);
-            runtimeMaterial.SetBuffer(InstanceTransformsId, _instanceTransformBuffer);
-            runtimeMaterial.SetBuffer(InstanceFrameDataId, _instanceFrameDataBuffer);
-            runtimeMaterial.SetBuffer(VisibleInstanceIndicesId, _visibleInstanceIndexBuffer);
-            runtimeMaterial.SetVector(CrowdRootLocalRow0Id, resource.crowdRootRow0);
-            runtimeMaterial.SetVector(CrowdRootLocalRow1Id, resource.crowdRootRow1);
-            runtimeMaterial.SetVector(CrowdRootLocalRow2Id, resource.crowdRootRow2);
-        }
-    }
-
-    private void AdvancePlayback(float deltaTime)
-    {
-        if (!_hasClip || !_isPlaying)
-            return;
-
-        float basePlaybackSpeed = Mathf.Max(0.0f, _playbackSpeed);
-        if (basePlaybackSpeed <= Mathf.Epsilon)
-            return;
-
-        float clipLength = Mathf.Max(_currentClip.LengthSeconds, 0.0f);
-        if (clipLength <= Mathf.Epsilon)
-            return;
-
-        bool shouldLoop = _loopOverride || _currentClip.Loop;
-        _playbackTime += deltaTime;
-
-        if (shouldLoop)
-            return;
-
-        float slowestDuration = clipLength / Mathf.Max(basePlaybackSpeed * Mathf.Max(_minimumPlaybackSpeedMultiplier, 0.01f), 0.01f);
-        if (_playbackTime >= slowestDuration)
-        {
-            _playbackTime = slowestDuration;
-            _isPlaying = false;
-        }
-    }
-
-    private void UpdateGpuBuffers()
-    {
-        if (!_hasClip || _simulationReadBuffer == null || _simulationWriteBuffer == null)
-            return;
-
-        RefreshRuntimeTargets();
-
-        float deltaTime = Mathf.Max(Time.deltaTime, 1e-4f);
-        int interactionSphereCount = UploadInteractionSpheres();
-        ConfigureCommonComputeParameters(deltaTime, interactionSphereCount);
-
-        BindPredictKernel();
-        DispatchInstances(_predictKernel);
-        SwapSimulationBuffers();
-
-        bool usesCrowdApproximation = _enableApproximateCollision && _instanceCount > 1;
-        bool usesEnvironmentPbd = _hasResolvedTerrainCollision || _hasResolvedStaticSdfCollision;
-        int solverPassCount = usesCrowdApproximation || usesEnvironmentPbd ? Mathf.Max(1, _solverIterations) : 0;
-        for (int iterationIndex = 0; iterationIndex < solverPassCount; iterationIndex++)
-        {
-            BindClearGridKernel();
-            DispatchGrid(_clearGridKernel);
-
-            BindBuildGridKernel();
-            DispatchInstances(_buildGridKernel);
-
-            BindSolveKernel();
-            DispatchInstances(_solveCrowdKernel);
-            SwapSimulationBuffers();
-        }
-
-        int spatialQueryCount = UploadSpatialQueries();
-        if (spatialQueryCount > 0)
-        {
-            _updateCompute.SetInt(GridBuildModeId, GridBuildModeAllQueryables);
-
-            BindClearGridKernel();
-            DispatchGrid(_clearGridKernel);
-
-            BindBuildGridKernel();
-            DispatchInstances(_buildGridKernel);
-
-            BindClearSpatialQueriesKernel();
-            DispatchSpatialQueries(_clearSpatialQueriesKernel, spatialQueryCount);
-
-            BindResolveSpatialQueriesKernel();
-            DispatchSpatialQueries(_resolveSpatialQueriesKernel, spatialQueryCount);
-
-            _updateCompute.SetInt(GridBuildModeId, GridBuildModeActiveOnly);
-        }
-
-        BindFinalizeKernel();
-        DispatchInstances(_finalizeKernel);
-    }
-
-    private void ConfigureCommonComputeParameters(float deltaTime, int interactionSphereCount)
-    {
-        Vector3 activeBubbleLocalCenter = Vector3.zero;
-        bool useActiveBubble = _enableActiveBubble && TryGetActiveBubbleLocalCenter(out activeBubbleLocalCenter);
-        bool useTerrainCollision = TryGetResolvedTerrain(out Terrain terrain) &&
-            terrain.terrainData.heightmapTexture != null;
-        bool useStaticSdfCollision = TryGetResolvedStaticSdf(out Texture3D staticSdfTexture);
-
-        _resolvedTerrainHeightmap = useTerrainCollision
-            ? terrain.terrainData.heightmapTexture
-            : Texture2D.blackTexture;
-        _resolvedStaticSdfTexture = useStaticSdfCollision
-            ? staticSdfTexture
-            : GetFallbackStaticSdfTexture();
-        _hasResolvedTerrainCollision = useTerrainCollision;
-        _hasResolvedStaticSdfCollision = useStaticSdfCollision;
-
-        _updateCompute.SetInt(InstanceCountId, _instanceCount);
-        _updateCompute.SetFloat(PlaybackTimeId, _playbackTime);
-        _updateCompute.SetFloat(BasePlaybackSpeedId, Mathf.Max(0.0f, _playbackSpeed));
-        _updateCompute.SetInt(ClipStartFrameId, _currentClip.StartFrame);
-        _updateCompute.SetInt(ClipFrameCountId, _currentClip.FrameCount);
-        _updateCompute.SetFloat(ClipLengthId, Mathf.Max(_currentClip.LengthSeconds, 0.0f));
-        _updateCompute.SetInt(ClipLoopId, (_loopOverride || _currentClip.Loop) ? 1 : 0);
-        _updateCompute.SetFloat(DeltaTimeId, deltaTime);
-        _updateCompute.SetInt(EnableApproximateCollisionId, _enableApproximateCollision ? 1 : 0);
-        _updateCompute.SetInt(UseActiveBubbleId, useActiveBubble ? 1 : 0);
-        _updateCompute.SetInt(InteractionSphereCountId, interactionSphereCount);
-        _updateCompute.SetVector(ActiveBubbleCenterId, new Vector4(activeBubbleLocalCenter.x, activeBubbleLocalCenter.y, activeBubbleLocalCenter.z, 0.0f));
-        _updateCompute.SetFloat(ActiveBubbleRadiusId, _activeBubbleRadius);
-        _updateCompute.SetFloat(ActiveBubbleRetentionRadiusId, _activeBubbleRetentionRadius);
-        _updateCompute.SetInts(GridDimId, _gridDimensions.x, _gridDimensions.y);
-        _updateCompute.SetInt(GridCellCountId, _gridCellCount);
-        _updateCompute.SetInt(MaxCellOccupancyId, _maxCellOccupancy);
-        _updateCompute.SetFloat(CellSizeId, _queryCellSize);
-        _updateCompute.SetFloat(InvCellSizeId, 1.0f / Mathf.Max(_queryCellSize, 1e-4f));
-        _updateCompute.SetVector(GridMinXZId, _gridMinXZ);
-        _updateCompute.SetVector(GridMaxXZId, _gridMaxXZ);
-        _updateCompute.SetFloat(CollisionRadiusId, _collisionRadius);
-        _updateCompute.SetFloat(CapsuleHeightId, _collisionHeight);
-        _updateCompute.SetInt(CapsulePbdSampleCountId, _capsulePbdSampleCount);
-        _updateCompute.SetFloat(MaxSpatialQueryElementRadiusId, Mathf.Max(_maximumQueryAgentRadius, _collisionRadius));
-        _updateCompute.SetFloat(AnchorStiffnessId, _anchorStiffness);
-        _updateCompute.SetFloat(VelocityDampingId, _velocityDamping);
-        _updateCompute.SetFloat(SelfCollisionStrengthId, _selfCollisionStrength);
-        _updateCompute.SetFloat(MaxPushPerStepId, _maxPushPerStep);
-        _updateCompute.SetFloat(MaxDisplacementFromSpawnId, _maxDisplacementFromSpawn);
-        _updateCompute.SetFloat(InactiveReturnStrengthId, _inactiveReturnStrength);
-        _updateCompute.SetInt(EnableTerrainCollisionId, useTerrainCollision ? 1 : 0);
-        _updateCompute.SetFloat(TerrainHeightOffsetId, _terrainHeightOffset);
-        _updateCompute.SetInt(EnableStaticSdfCollisionId, useStaticSdfCollision ? 1 : 0);
-        _updateCompute.SetVector(StaticSdfWorldCenterId, _staticSdfWorldCenter);
-        _updateCompute.SetVector(StaticSdfWorldSizeId, _staticSdfWorldSize);
-        _updateCompute.SetFloat(StaticSdfDistanceScaleId, _staticSdfDistanceScale);
-        _updateCompute.SetFloat(StaticSdfDistanceBiasId, _staticSdfDistanceBias);
-        _updateCompute.SetInt(GridBuildModeId, GridBuildModeActiveOnly);
-        _updateCompute.SetInt(SpatialQueryCountId, _activeSpatialQueryCount);
-        _updateCompute.SetInt(MaxSpatialQueryHitsId, _maxHitsPerSpatialQuery);
-
-        Matrix4x4 localToWorld = transform.localToWorldMatrix;
-        Matrix4x4 worldToLocal = transform.worldToLocalMatrix;
-        _updateCompute.SetVector(RootPositionId, new Vector4(localToWorld.m03, localToWorld.m13, localToWorld.m23, 0.0f));
-        _updateCompute.SetVector(RootRightId, new Vector4(localToWorld.m00, localToWorld.m10, localToWorld.m20, 0.0f));
-        _updateCompute.SetVector(RootUpId, new Vector4(localToWorld.m01, localToWorld.m11, localToWorld.m21, 0.0f));
-        _updateCompute.SetVector(RootForwardId, new Vector4(localToWorld.m02, localToWorld.m12, localToWorld.m22, 0.0f));
-        _updateCompute.SetVector(WorldToLocalRow0Id, new Vector4(worldToLocal.m00, worldToLocal.m01, worldToLocal.m02, worldToLocal.m03));
-        _updateCompute.SetVector(WorldToLocalRow1Id, new Vector4(worldToLocal.m10, worldToLocal.m11, worldToLocal.m12, worldToLocal.m13));
-        _updateCompute.SetVector(WorldToLocalRow2Id, new Vector4(worldToLocal.m20, worldToLocal.m21, worldToLocal.m22, worldToLocal.m23));
-
-        if (useTerrainCollision)
-        {
-            Vector3 terrainPosition = terrain.transform.position;
-            Vector3 terrainSize = terrain.terrainData.size;
-            _updateCompute.SetVector(TerrainPositionId, new Vector4(terrainPosition.x, terrainPosition.y, terrainPosition.z, 0.0f));
-            _updateCompute.SetVector(TerrainSizeId, new Vector4(terrainSize.x, terrainSize.y, terrainSize.z, 0.0f));
-        }
-        else
-        {
-            _updateCompute.SetVector(TerrainPositionId, Vector4.zero);
-            _updateCompute.SetVector(TerrainSizeId, Vector4.zero);
-        }
-    }
-
-    private void BindPredictKernel()
-    {
-        _updateCompute.SetBuffer(_predictKernel, SpawnDataId, _spawnDataBuffer);
-        _updateCompute.SetBuffer(_predictKernel, SimulationReadBufferId, _simulationReadBuffer);
-        _updateCompute.SetBuffer(_predictKernel, SimulationWriteBufferId, _simulationWriteBuffer);
-        _updateCompute.SetBuffer(_predictKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_predictKernel, InteractionSphereBufferId, _interactionSphereBuffer);
-        _updateCompute.SetTexture(_predictKernel, TerrainHeightmapId, _resolvedTerrainHeightmap != null ? _resolvedTerrainHeightmap : Texture2D.blackTexture);
-    }
-
-    private void BindClearGridKernel()
-    {
-        _updateCompute.SetBuffer(_clearGridKernel, GridCounterBufferId, _gridCounterBuffer);
-    }
-
-    private void BindBuildGridKernel()
-    {
-        _updateCompute.SetBuffer(_buildGridKernel, SpawnDataId, _spawnDataBuffer);
-        _updateCompute.SetBuffer(_buildGridKernel, SimulationReadBufferId, _simulationReadBuffer);
-        _updateCompute.SetBuffer(_buildGridKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_buildGridKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_buildGridKernel, GridOccupantBufferId, _gridOccupantBuffer);
-        _updateCompute.SetBuffer(_buildGridKernel, SpatialElementBufferId, _spatialElementBuffer);
-    }
-
-    private void BindSolveKernel()
-    {
-        _updateCompute.SetBuffer(_solveCrowdKernel, SpawnDataId, _spawnDataBuffer);
-        _updateCompute.SetBuffer(_solveCrowdKernel, SimulationReadBufferId, _simulationReadBuffer);
-        _updateCompute.SetBuffer(_solveCrowdKernel, SimulationWriteBufferId, _simulationWriteBuffer);
-        _updateCompute.SetBuffer(_solveCrowdKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_solveCrowdKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_solveCrowdKernel, GridOccupantBufferId, _gridOccupantBuffer);
-        _updateCompute.SetTexture(_solveCrowdKernel, TerrainHeightmapId, _resolvedTerrainHeightmap != null ? _resolvedTerrainHeightmap : Texture2D.blackTexture);
-        _updateCompute.SetTexture(_solveCrowdKernel, StaticSdfTextureId, _resolvedStaticSdfTexture != null ? _resolvedStaticSdfTexture : GetFallbackStaticSdfTexture());
-    }
-
-    private void BindFinalizeKernel()
-    {
-        _updateCompute.SetBuffer(_finalizeKernel, SpawnDataId, _spawnDataBuffer);
-        _updateCompute.SetBuffer(_finalizeKernel, SimulationReadBufferId, _simulationReadBuffer);
-        _updateCompute.SetBuffer(_finalizeKernel, InstanceTransformsId, _instanceTransformBuffer);
-        _updateCompute.SetBuffer(_finalizeKernel, InstanceFrameDataId, _instanceFrameDataBuffer);
-    }
-
-    private void BindClearSpatialQueriesKernel()
-    {
-        _updateCompute.SetBuffer(_clearSpatialQueriesKernel, SpatialQueryBufferId, _spatialQueryBuffer);
-        _updateCompute.SetBuffer(_clearSpatialQueriesKernel, SpatialQueryResultBufferId, _spatialQueryResultBuffer);
-        _updateCompute.SetBuffer(_clearSpatialQueriesKernel, SpatialQueryHitBufferId, _spatialQueryHitBuffer);
-    }
-
-    private void BindResolveSpatialQueriesKernel()
-    {
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, SimulationReadBufferId, _simulationReadBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, GridOccupantBufferId, _gridOccupantBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, SpatialElementBufferId, _spatialElementBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, SpatialQueryBufferId, _spatialQueryBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, SpatialQueryResultBufferId, _spatialQueryResultBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, SpatialQueryHitBufferId, _spatialQueryHitBuffer);
-    }
-
-    private int UploadInteractionSpheres()
-    {
-        int capacity = GetInteractionSphereCapacity();
-        if (_interactionSphereUploadCache == null || _interactionSphereUploadCache.Length != capacity)
-            _interactionSphereUploadCache = new InteractionSphereData[capacity];
-
-        if (_interactionSphereBuffer == null || _interactionSphereBuffer.count != capacity)
-            return 0;
-
-        int activeCount = 0;
-        if (_useCharacterAsInteractionSphere)
-            TryAppendCharacterInteractionSphere(ref activeCount);
-
-        if (_interactionSpheres != null)
-        {
-            for (int sphereIndex = 0; sphereIndex < _interactionSpheres.Length; sphereIndex++)
-            {
-                InteractionSphere sphere = _interactionSpheres[sphereIndex];
-                if (sphere.target == null || sphere.radius <= 0.0f || sphere.strength <= 0.0f)
-                    continue;
-
-                Vector3 localCenter = transform.InverseTransformPoint(sphere.target.position);
-                float radiusScale = MaxAbsComponent(sphere.target.lossyScale);
-                float scaledRadius = sphere.radius * Mathf.Max(radiusScale, 0.0001f);
-                _interactionSphereUploadCache[activeCount] = new InteractionSphereData
-                {
-                    localCenterAndRadius = new Vector4(localCenter.x, localCenter.y, localCenter.z, scaledRadius),
-                    parameters = new Vector4(sphere.strength, 0.0f, 0.0f, 0.0f)
-                };
-                activeCount++;
-            }
-        }
-
-        if (activeCount == 0)
-            _interactionSphereUploadCache[0] = default;
-
-        _interactionSphereBuffer.SetData(_interactionSphereUploadCache, 0, 0, Mathf.Max(1, activeCount));
-        return activeCount;
-    }
-
-    private int UploadSpatialQueries()
-    {
-        if (_activeSpatialQueryCount <= 0 ||
-            _runtimeSpatialQueries == null ||
-            _spatialQueryBuffer == null ||
-            _spatialQueryBuffer.count < _activeSpatialQueryCount)
-        {
-            return 0;
-        }
-
-        EnsureSpatialQueryReadbackCaches();
-
-        for (int queryIndex = 0; queryIndex < _activeSpatialQueryCount; queryIndex++)
-        {
-            CrowdVatSpatialQueryRequest request = _runtimeSpatialQueries[queryIndex];
-            Vector3 localStart = transform.InverseTransformPoint(request.worldStart);
-            Vector3 localEnd = transform.InverseTransformPoint(request.worldEnd);
-
-            _spatialQueryUploadCache[queryIndex] = new SpatialQueryData
-            {
-                localStartAndRadius = new Vector4(localStart.x, localStart.y, localStart.z, Mathf.Max(0.0f, request.radius)),
-                localEndAndPadding = new Vector4(localEnd.x, localEnd.y, localEnd.z, 0.0f),
-                queryId = unchecked((uint)request.queryId),
-                targetMask = (uint)request.targetMask,
-                factionMask = (uint)request.factionMask,
-                shape = (uint)request.shape,
-                flags = (uint)request.flags,
-                maxHits = (uint)Mathf.Clamp((int)request.maxHits, 0, _maxHitsPerSpatialQuery),
-                padding0 = 0u,
-                padding1 = 0u
-            };
-        }
-
-        _spatialQueryBuffer.SetData(_spatialQueryUploadCache, 0, 0, _activeSpatialQueryCount);
-        return _activeSpatialQueryCount;
-    }
-
-    private void TryAppendCharacterInteractionSphere(ref int activeCount)
-    {
-        if (_characterController == null || _characterInteractionStrength <= 0.0f || activeCount >= _interactionSphereUploadCache.Length)
-            return;
-
-        Vector3 worldCenter = _characterController.transform.TransformPoint(_characterController.center);
-        Vector3 localCenter = transform.InverseTransformPoint(worldCenter);
-        float radius = Mathf.Max(_characterController.radius, _characterController.height * 0.25f) * _characterInteractionRadiusMultiplier;
-
-        _interactionSphereUploadCache[activeCount] = new InteractionSphereData
-        {
-            localCenterAndRadius = new Vector4(localCenter.x, localCenter.y, localCenter.z, radius),
-            parameters = new Vector4(_characterInteractionStrength, 0.0f, 0.0f, 0.0f)
-        };
-        activeCount++;
-    }
-
-    private bool TryGetActiveBubbleLocalCenter(out Vector3 localCenter)
-    {
-        RefreshRuntimeTargets();
-
-        if (_characterController != null)
-        {
-            Vector3 worldCenter = _characterController.transform.TransformPoint(_characterController.center);
-            localCenter = transform.InverseTransformPoint(worldCenter);
-            return true;
-        }
-
-        if (_resolvedActiveBubbleTarget != null)
-        {
-            localCenter = transform.InverseTransformPoint(_resolvedActiveBubbleTarget.position);
-            return true;
-        }
-
-        localCenter = default;
-        return false;
-    }
-
-    private void DispatchInstances(int kernel)
-    {
-        int threadGroupCount = Mathf.CeilToInt(_instanceCount / (float)ThreadGroupSize);
-        _updateCompute.Dispatch(kernel, threadGroupCount, 1, 1);
-    }
-
-    private void DispatchGrid(int kernel)
-    {
-        int threadGroupCount = Mathf.CeilToInt(_gridCellCount / (float)ThreadGroupSize);
-        _updateCompute.Dispatch(kernel, threadGroupCount, 1, 1);
-    }
-
-    private void DispatchSpatialQueries(int kernel, int queryCount)
-    {
-        int threadGroupCount = Mathf.CeilToInt(queryCount / (float)SpatialQueryThreadGroupSize);
-        _updateCompute.Dispatch(kernel, threadGroupCount, 1, 1);
-    }
-
-    private void SwapSimulationBuffers()
-    {
-        ComputeBuffer buffer = _simulationReadBuffer;
-        _simulationReadBuffer = _simulationWriteBuffer;
-        _simulationWriteBuffer = buffer;
-    }
-
-    private void Draw()
-    {
-        Draw(ResolveRenderCamera());
-    }
-
-    private void Draw(Camera targetCamera)
-    {
-        if (!_hasRuntimeRenderResource || _indirectArgsBuffers.Length == 0)
-            return;
-
-        bool isSceneViewCamera = IsSceneViewCamera(targetCamera);
-        Bounds worldBounds = TransformBounds(transform.localToWorldMatrix, _localCrowdBounds);
-        bool hasFrustumPlanes = false;
-
-        if (_enableFrustumCulling && targetCamera != null && !isSceneViewCamera)
-        {
-            GeometryUtility.CalculateFrustumPlanes(targetCamera, _frustumPlanes);
-            hasFrustumPlanes = true;
-
-            if (!GeometryUtility.TestPlanesAABB(_frustumPlanes, worldBounds))
-            {
-                ResetVisibleIndirectCommands();
-                return;
-            }
-        }
-
-        BuildVisibleIndirectCommands(targetCamera, hasFrustumPlanes);
-
-        RuntimeRenderResource resource = _runtimeRenderResource;
-        if (_visibleInstanceCount <= 0 || !_hasVisibleBounds || resource.mesh == null || resource.runtimeMaterials == null)
-            return;
-
-        _visibleInstanceIndexBuffer.SetData(_visibleInstanceIndexCache, 0, 0, _visibleInstanceCount);
-        for (int subMeshIndex = 0; subMeshIndex < resource.runtimeMaterials.Length; subMeshIndex++)
-        {
-            GraphicsBuffer argsBuffer = _indirectArgsBuffers[subMeshIndex];
-            if (argsBuffer == null)
-                continue;
-
-            GraphicsBuffer.IndirectDrawIndexedArgs args = BuildIndirectArgs(resource.mesh, subMeshIndex, (uint)_visibleInstanceCount);
-            _indirectArgsCache[subMeshIndex] = args;
-            argsBuffer.SetData(new[] { args });
-
-            RenderParams renderParams = new RenderParams(resource.runtimeMaterials[subMeshIndex])
-            {
-                camera = targetCamera,
-                instanceID = gameObject.GetInstanceID(),
-                worldBounds = _visibleWorldBounds,
-                shadowCastingMode = _shadowCastingMode,
-                receiveShadows = _receiveShadows,
-                layer = gameObject.layer
-            };
-
-            Graphics.RenderMeshIndirect(renderParams, resource.mesh, argsBuffer, 1, 0);
-        }
-    }
-
-    private Camera ResolveRenderCamera()
-    {
-        if (Camera.main != null)
-            return Camera.main;
-
-        if (Camera.current != null)
-            return Camera.current;
-
-        return Camera.allCamerasCount > 0 ? Camera.allCameras[0] : null;
-    }
-
-    private void SubscribeRenderCallbacks()
-    {
-        RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
-        RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
-    }
-
-    private void UnsubscribeRenderCallbacks()
-    {
-        RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
-    }
-
-    private static bool ShouldRenderForCamera(Camera camera)
-    {
-        if (camera == null || !camera.enabled)
-            return false;
-
-        return camera.cameraType != CameraType.Preview && camera.cameraType != CameraType.Reflection;
-    }
-
-    private static bool IsSceneViewCamera(Camera camera)
-    {
-        return camera != null && camera.cameraType == CameraType.SceneView;
-    }
-
-    private void BuildVisibleIndirectCommands(Camera targetCamera, bool hasFrustumPlanes)
-    {
-        ResetVisibleIndirectCommands();
-
-        if (_renderChunks.Length == 0)
-        {
-            AddChunkToVisibleCommands(BuildAllInstanceIndices(), TransformBounds(transform.localToWorldMatrix, _localCrowdBounds));
-            return;
-        }
-
-        Matrix4x4 localToWorldMatrix = transform.localToWorldMatrix;
-
-        for (int chunkIndex = 0; chunkIndex < _renderChunks.Length; chunkIndex++)
-        {
-            RenderChunk chunk = _renderChunks[chunkIndex];
-            Bounds worldChunkBounds = TransformBounds(localToWorldMatrix, chunk.localBounds);
-
-            if (hasFrustumPlanes && !GeometryUtility.TestPlanesAABB(_frustumPlanes, worldChunkBounds))
-                continue;
-
-            AddChunkToVisibleCommands(chunk.instanceIndices, worldChunkBounds);
-        }
-    }
-
-    private void ResetVisibleIndirectCommands()
-    {
-        _visibleInstanceCount = 0;
-        _hasVisibleBounds = false;
-        _visibleWorldBounds = default;
-    }
-
-    private void AddChunkToVisibleCommands(uint[] instanceIndices, Bounds worldChunkBounds)
-    {
-        if (instanceIndices == null || instanceIndices.Length == 0)
-            return;
-
-        int writeOffset = _visibleInstanceCount;
-        if (writeOffset + instanceIndices.Length > _visibleInstanceIndexCache.Length)
-            return;
-
-        if (!_hasVisibleBounds)
-        {
-            _visibleWorldBounds = worldChunkBounds;
-            _hasVisibleBounds = true;
-        }
-        else
-        {
-            _visibleWorldBounds.Encapsulate(worldChunkBounds.min);
-            _visibleWorldBounds.Encapsulate(worldChunkBounds.max);
-        }
-
-        Array.Copy(instanceIndices, 0, _visibleInstanceIndexCache, writeOffset, instanceIndices.Length);
-        _visibleInstanceCount = writeOffset + instanceIndices.Length;
-    }
-
-    private uint[] BuildAllInstanceIndices()
-    {
-        uint[] indices = new uint[_instanceCount];
-        for (uint instanceIndex = 0; instanceIndex < indices.Length; instanceIndex++)
-            indices[instanceIndex] = instanceIndex;
-
-        return indices;
-    }
-
-    private void MarkResourcesDirty()
-    {
-        _resourcesDirty = true;
-        _predictKernel = -1;
-        _clearGridKernel = -1;
-        _buildGridKernel = -1;
-        _solveCrowdKernel = -1;
-        _clearSpatialQueriesKernel = -1;
-        _resolveSpatialQueriesKernel = -1;
-        _finalizeKernel = -1;
-    }
-
-    private void ReleaseResources()
-    {
-        ReleaseBuffer(ref _spawnDataBuffer);
-        ReleaseBuffer(ref _simulationStateBufferA);
-        ReleaseBuffer(ref _simulationStateBufferB);
-        _simulationReadBuffer = null;
-        _simulationWriteBuffer = null;
-        ReleaseBuffer(ref _activeStateBuffer);
-        ReleaseBuffer(ref _gridCounterBuffer);
-        ReleaseBuffer(ref _gridOccupantBuffer);
-        ReleaseBuffer(ref _spatialElementBuffer);
-        ReleaseBuffer(ref _spatialQueryBuffer);
-        ReleaseBuffer(ref _spatialQueryResultBuffer);
-        ReleaseBuffer(ref _spatialQueryHitBuffer);
-        ReleaseBuffer(ref _interactionSphereBuffer);
-        ReleaseBuffer(ref _instanceTransformBuffer);
-        ReleaseBuffer(ref _instanceFrameDataBuffer);
-        ReleaseBuffer(ref _visibleInstanceIndexBuffer);
-
-        if (_indirectArgsBuffers != null)
-        {
-            for (int bufferIndex = 0; bufferIndex < _indirectArgsBuffers.Length; bufferIndex++)
-                ReleaseBuffer(ref _indirectArgsBuffers[bufferIndex]);
-        }
-
-        _indirectArgsBuffers = Array.Empty<GraphicsBuffer>();
-        _indirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
-        _visibleInstanceIndexCache = Array.Empty<uint>();
-        _renderChunks = Array.Empty<RenderChunk>();
-        if (_hasRuntimeRenderResource && _runtimeRenderResource.runtimeMaterials != null)
-        {
-            for (int materialIndex = 0; materialIndex < _runtimeRenderResource.runtimeMaterials.Length; materialIndex++)
-                DestroyRuntimeMaterial(_runtimeRenderResource.runtimeMaterials[materialIndex]);
-        }
-
-        _runtimeRenderResource = default;
-        _hasRuntimeRenderResource = false;
-        if (_fallbackStaticSdfTexture != null)
-        {
-            if (Application.isPlaying)
-                Destroy(_fallbackStaticSdfTexture);
-            else
-                DestroyImmediate(_fallbackStaticSdfTexture);
-
-            _fallbackStaticSdfTexture = null;
-        }
-
-        _resolvedStaticSdfTexture = null;
-        _hasResolvedTerrainCollision = false;
-        _hasResolvedStaticSdfCollision = false;
-        _resourcesDirty = true;
-    }
-
-    private static void ReleaseBuffer(ref ComputeBuffer buffer)
-    {
-        if (buffer == null)
-            return;
-
-        buffer.Release();
-        buffer = null;
-    }
-
-    private static void ReleaseBuffer(ref GraphicsBuffer buffer)
-    {
-        if (buffer == null)
-            return;
-
-        buffer.Release();
-        buffer = null;
-    }
-
-    private static void DestroyRuntimeMaterial(Material material)
-    {
-        if (material == null)
-            return;
-
-        if (Application.isPlaying)
-            Destroy(material);
-        else
-            DestroyImmediate(material);
-    }
-
-    private static float RandomRange(System.Random random, float minValue, float maxValue)
-    {
-        if (maxValue <= minValue)
-            return minValue;
-
-        return minValue + (float)random.NextDouble() * (maxValue - minValue);
-    }
-
-    private static float MaxAbsComponent(Vector3 value)
-    {
-        Vector3 absolute = Abs(value);
-        return Mathf.Max(absolute.x, Mathf.Max(absolute.y, absolute.z));
-    }
-
-    private static void CopySourceMaterialProperties(Material sourceMaterial, Material destinationMaterial)
-    {
-        if (destinationMaterial == null)
-            return;
-
-        destinationMaterial.SetColor("_BaseColor", Color.white);
-        destinationMaterial.SetColor("_SpecColor", Color.white);
-        destinationMaterial.SetFloat("_AlphaClip", 0.0f);
-        destinationMaterial.SetFloat("_Cutoff", 0.5f);
-        destinationMaterial.SetFloat("_BumpScale", 1.0f);
-        destinationMaterial.SetFloat("_Smoothness", 1.0f);
-        destinationMaterial.SetFloat("_SpecularStrength", 0.12f);
-        destinationMaterial.SetFloat("_UseNormalMap", 0.0f);
-        destinationMaterial.SetFloat("_UseSpecGlossMap", 0.0f);
-
-        if (sourceMaterial == null)
-            return;
-
-        if (TryGetTexture(sourceMaterial, out Texture texture, out Vector2 scale, out Vector2 offset))
-        {
-            destinationMaterial.SetTexture("_BaseMap", texture);
-            destinationMaterial.SetTextureScale("_BaseMap", scale);
-            destinationMaterial.SetTextureOffset("_BaseMap", offset);
-        }
-
-        if (TryGetColor(sourceMaterial, out Color baseColor))
-            destinationMaterial.SetColor("_BaseColor", baseColor);
-
-        if (sourceMaterial.HasProperty("_Cutoff"))
-            destinationMaterial.SetFloat("_Cutoff", sourceMaterial.GetFloat("_Cutoff"));
-
-        if (sourceMaterial.HasProperty("_BumpMap"))
-        {
-            Texture normalTexture = sourceMaterial.GetTexture("_BumpMap");
-            destinationMaterial.SetTexture("_BumpMap", normalTexture);
-            destinationMaterial.SetFloat("_UseNormalMap", normalTexture != null ? 1.0f : 0.0f);
-        }
-
-        if (sourceMaterial.HasProperty("_BumpScale"))
-            destinationMaterial.SetFloat("_BumpScale", sourceMaterial.GetFloat("_BumpScale"));
-
-        if (sourceMaterial.HasProperty("_SpecGlossMap"))
-        {
-            Texture specGlossTexture = sourceMaterial.GetTexture("_SpecGlossMap");
-            destinationMaterial.SetTexture("_SpecGlossMap", specGlossTexture);
-            destinationMaterial.SetFloat("_UseSpecGlossMap", specGlossTexture != null ? 1.0f : 0.0f);
-        }
-
-        if (sourceMaterial.HasProperty("_SpecColor"))
-            destinationMaterial.SetColor("_SpecColor", sourceMaterial.GetColor("_SpecColor"));
-
-        if (sourceMaterial.HasProperty("_Smoothness"))
-            destinationMaterial.SetFloat("_Smoothness", sourceMaterial.GetFloat("_Smoothness"));
-
-        if (sourceMaterial.HasProperty("_SpecularStrength"))
-            destinationMaterial.SetFloat("_SpecularStrength", sourceMaterial.GetFloat("_SpecularStrength"));
-
-        bool alphaClip = sourceMaterial.HasProperty("_AlphaClip") && sourceMaterial.GetFloat("_AlphaClip") > 0.5f;
-        destinationMaterial.SetFloat("_AlphaClip", alphaClip ? 1.0f : 0.0f);
-    }
-
-    private static bool TryGetTexture(Material material, out Texture texture, out Vector2 scale, out Vector2 offset)
-    {
-        string[] candidates =
-        {
-            "_BaseMap",
-            "_MainTex"
-        };
-
-        for (int i = 0; i < candidates.Length; i++)
-        {
-            string propertyName = candidates[i];
-            if (!material.HasProperty(propertyName))
-                continue;
-
-            texture = material.GetTexture(propertyName);
-            scale = material.GetTextureScale(propertyName);
-            offset = material.GetTextureOffset(propertyName);
-            return texture != null;
-        }
-
-        texture = null;
-        scale = Vector2.one;
-        offset = Vector2.zero;
-        return false;
-    }
-
-    private static bool TryGetColor(Material material, out Color color)
-    {
-        string[] candidates =
-        {
-            "_BaseColor",
-            "_Color"
-        };
-
-        for (int i = 0; i < candidates.Length; i++)
-        {
-            string propertyName = candidates[i];
-            if (!material.HasProperty(propertyName))
-                continue;
-
-            color = material.GetColor(propertyName);
-            return true;
-        }
-
-        color = Color.white;
-        return false;
-    }
-
-    private static Bounds TransformBounds(Matrix4x4 matrix, Bounds bounds)
-    {
-        Vector3 center = matrix.MultiplyPoint3x4(bounds.center);
-        Vector3 extents = bounds.extents;
-        Vector3 axisX = new Vector3(matrix.m00, matrix.m10, matrix.m20);
-        Vector3 axisY = new Vector3(matrix.m01, matrix.m11, matrix.m21);
-        Vector3 axisZ = new Vector3(matrix.m02, matrix.m12, matrix.m22);
-        Vector3 transformedExtents =
-            Abs(axisX) * extents.x +
-            Abs(axisY) * extents.y +
-            Abs(axisZ) * extents.z;
-        return new Bounds(center, transformedExtents * 2.0f);
-    }
-
-    private static Vector3 Abs(Vector3 value)
-    {
-        return new Vector3(Mathf.Abs(value.x), Mathf.Abs(value.y), Mathf.Abs(value.z));
-    }
-
-    private bool TryGetResolvedTerrain(out Terrain terrain)
-    {
-        terrain = null;
-        if (!_enableTerrainCollision)
-            return false;
-
-        if (_terrain != null && _terrain.terrainData == null)
-            _terrain = null;
-
-        if (_autoResolveTerrain && _terrain == null)
-            _terrain = FindPreferredTerrain();
-
-        if (_terrain == null || _terrain.terrainData == null)
-            return false;
-
-        terrain = _terrain;
-        return true;
-    }
-
-    private bool TryGetResolvedStaticSdf(out Texture3D staticSdfTexture)
-    {
-        staticSdfTexture = null;
-        if (!_enableStaticSdfCollision || _staticSdfTexture == null)
-            return false;
-
-        if (_staticSdfWorldSize.x <= 0.0f || _staticSdfWorldSize.y <= 0.0f || _staticSdfWorldSize.z <= 0.0f)
-            return false;
-
-        staticSdfTexture = _staticSdfTexture;
-        return true;
-    }
-
-    private Texture3D GetFallbackStaticSdfTexture()
-    {
-        if (_fallbackStaticSdfTexture != null)
-            return _fallbackStaticSdfTexture;
-
-        _fallbackStaticSdfTexture = new Texture3D(1, 1, 1, TextureFormat.RGBAFloat, false)
-        {
-            name = "CrowdVatIndirectFallbackStaticSdf",
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-            hideFlags = HideFlags.HideAndDontSave
-        };
-        _fallbackStaticSdfTexture.SetPixels(new[] { new Color(1024.0f, 0.0f, 0.0f, 0.0f) });
-        _fallbackStaticSdfTexture.Apply(false, true);
-        return _fallbackStaticSdfTexture;
-    }
-
-    private Vector3 ApplyTerrainHeightToLocalPosition(Vector3 localPosition)
-    {
-        if (!TryGetResolvedTerrain(out Terrain terrain))
-            return localPosition;
-
-        Vector3 terrainMin = terrain.transform.position;
-        Vector3 terrainMax = terrainMin + terrain.terrainData.size;
-        Vector3 worldPosition = transform.TransformPoint(localPosition);
-
-        if (worldPosition.x < terrainMin.x || worldPosition.x > terrainMax.x ||
-            worldPosition.z < terrainMin.z || worldPosition.z > terrainMax.z)
-        {
-            return localPosition;
-        }
-
-        worldPosition.y = terrain.SampleHeight(worldPosition) + terrainMin.y + _terrainHeightOffset;
-        return transform.InverseTransformPoint(worldPosition);
-    }
-
-    private void EnsureSpatialQueryReadbackCaches()
-    {
-        if (_spatialQueryUploadCache == null || _spatialQueryUploadCache.Length != _maxSpatialQueries)
-            _spatialQueryUploadCache = new SpatialQueryData[_maxSpatialQueries];
-
-        if (_spatialQueryResultCache == null || _spatialQueryResultCache.Length != _maxSpatialQueries)
-            _spatialQueryResultCache = new SpatialQueryResultData[_maxSpatialQueries];
-
-        int hitCapacity = _maxSpatialQueries * _maxHitsPerSpatialQuery;
-        if (_spatialQueryHitCache == null || _spatialQueryHitCache.Length != hitCapacity)
-            _spatialQueryHitCache = new SpatialQueryHitData[hitCapacity];
-    }
+    private int _activeSquadStateCount;
+    private int _activeAgentSquadDataCount;
+    private int _activeFormationSlotCount;
+    private int _lastCombatStateReadbackFrame = -1;
+    private int _lastSquadAliveCountReadbackFrame = -1;
+    private bool _hasPendingSquadAliveCountReadback;
+    private int _squadAliveCountReadbackVersion;
+    private bool _runtimeSquadAliveCountDirty = true;
+    private bool _runtimeAgentSquadDataDirty = true;
+    private bool _runtimeFormationSlotsDirty = true;
+    private bool _runtimeSquadVisibilityDirty = true;
+    private bool _agentDataLayoutDirty = true;
+    private bool _usesGpuVisibleInstanceCompactionThisFrame;
+    private bool _visibleUnassignedInstancesThisFrame;
 }

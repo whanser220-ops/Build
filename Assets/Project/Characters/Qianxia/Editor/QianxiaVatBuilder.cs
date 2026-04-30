@@ -8,7 +8,7 @@ using UnityEngine;
 public static class QianxiaVatBuilder
 {
     private const string SourceModelAssetPath = "Assets/Project/Characters/Qianxia/SourceModels/LOD2.fbx";
-    private const string WalkClipAssetPath = "Assets/Project/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
+    private const string SourceAnimationsRoot = "Assets/Project/Characters/Qianxia/SourceAnimations";
     private const string OutputFolder = "Assets/Project/Characters/Qianxia/Generated/VAT";
     private const string OutputName = "QianxiaCrowdLod2Vat";
     private const string ShaderPath = "Assets/Project/Crowds/VAT/Shader/CrowdVatLit.shader";
@@ -54,22 +54,17 @@ public static class QianxiaVatBuilder
         if (sourceModelAsset == null)
             throw new InvalidOperationException($"Source crowd model was not found at `{sourceModelAssetPath}`.");
 
-        GameObject motionSourceAsset = AssetDatabase.LoadAssetAtPath<GameObject>(WalkClipAssetPath);
-        if (motionSourceAsset == null)
-            throw new InvalidOperationException($"Motion source model was not found at `{WalkClipAssetPath}`.");
-
         Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath);
         if (shader == null)
             throw new InvalidOperationException($"VAT shader was not found at `{ShaderPath}`.");
 
-        List<AnimationClip> clips = LoadClips(WalkClipAssetPath);
-        if (clips.Count == 0)
-            throw new InvalidOperationException($"No valid animation clips were found at `{WalkClipAssetPath}`.");
+        List<CrowdVatBaker.ClipSource> clipSources = LoadClipSources(SourceAnimationsRoot);
+        if (clipSources.Count == 0)
+            throw new InvalidOperationException($"No valid animation clips were found under `{SourceAnimationsRoot}`.");
 
         CrowdVatBaker.BakeResult result = CrowdVatBaker.BakeSkinnedMeshToVat(
             sourceModelAsset,
-            motionSourceAsset,
-            clips,
+            clipSources,
             OutputFolder,
             outputName,
             shader);
@@ -78,12 +73,60 @@ public static class QianxiaVatBuilder
         return result;
     }
 
+    private static List<CrowdVatBaker.ClipSource> LoadClipSources(string rootFolder)
+    {
+        string[] guids = AssetDatabase.FindAssets("t:Model", new[] { rootFolder });
+        List<string> assetPaths = guids
+            .Select(AssetDatabase.GUIDToAssetPath)
+            .Where(path => !string.IsNullOrWhiteSpace(path) && path.EndsWith(".fbx", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        List<CrowdVatBaker.ClipSource> clipSources = new List<CrowdVatBaker.ClipSource>();
+        for (int pathIndex = 0; pathIndex < assetPaths.Count; pathIndex++)
+        {
+            string assetPath = assetPaths[pathIndex];
+            GameObject motionSourceAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            if (motionSourceAsset == null)
+                continue;
+
+            List<AnimationClip> clips = LoadClips(assetPath);
+            for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
+            {
+                AnimationClip clip = clips[clipIndex];
+                if (clip == null)
+                    continue;
+
+                clipSources.Add(new CrowdVatBaker.ClipSource
+                {
+                    Clip = clip,
+                    MotionSourceAsset = motionSourceAsset,
+                    ClipNameOverride = BuildClipName(assetPath, clips.Count, clip)
+                });
+            }
+        }
+
+        return clipSources;
+    }
+
     private static List<AnimationClip> LoadClips(string assetPath)
     {
         return AssetDatabase.LoadAllAssetsAtPath(assetPath)
             .OfType<AnimationClip>()
             .Where(clip => clip != null && !IsPreviewClip(clip))
             .ToList();
+    }
+
+    private static string BuildClipName(string assetPath, int clipCountInAsset, AnimationClip clip)
+    {
+        string fileName = Path.GetFileNameWithoutExtension(assetPath);
+        if (clip == null)
+            return fileName;
+
+        if (clipCountInAsset <= 1 || string.Equals(fileName, clip.name, StringComparison.OrdinalIgnoreCase))
+            return fileName;
+
+        return $"{fileName}_{clip.name}";
     }
 
     private static string GetProjectRoot()

@@ -50,6 +50,13 @@ public enum CrowdVatSpatialQueryFlags
     ActiveOnly = 1 << 0
 }
 
+[Flags]
+public enum CrowdVatSpatialHitFlags
+{
+    None = 0,
+    Active = 1 << 0
+}
+
 [Serializable]
 public struct CrowdVatSpatialQueryRequest
 {
@@ -79,7 +86,29 @@ public struct CrowdVatSpatialQueryHit
     public int queryId;
     public int ownerIndex;
     public CrowdVatSpatialTargetMask targetMask;
-    public CrowdVatSpatialQueryFlags flags;
+    public CrowdVatSpatialHitFlags flags;
     public CrowdVatFaction faction;
     public float normalizedDistance;
+}
+
+[Serializable]
+public struct CrowdVatInstanceCombatState
+{
+    public int instanceIndex;
+    public bool active;
+    public bool dead;
+    public bool hasTarget;
+    public bool hasLineOfSight;
+    public bool firedThisFrame;
+    public int targetIndex;
+    public float distance;
+    public float muzzleFlash;
+    public float health;
+    public float normalizedHealth;
+    public float hitFlash;
+    public float lastDamage;
+    public Vector3 worldOrigin;
+    public Vector3 worldTargetPoint;
+    public bool hasImpact;
+    public Vector3 worldImpactNormal;
 }

@@ -46,6 +46,7 @@ public sealed class CrowdVatAnimationAsset : ScriptableObject
     public int BoneCount => _boneCount;
     public int BakeFrameRate => _bakeFrameRate;
     public ClipInfo[] Clips => _clips;
+    public int ClipCount => _clips?.Length ?? 0;
 
     public bool TryGetClip(string clipName, out ClipInfo clip)
     {
@@ -68,6 +69,42 @@ public sealed class CrowdVatAnimationAsset : ScriptableObject
         }
 
         clip = _clips[0];
+        return true;
+    }
+
+    public bool TryGetClipIndex(string clipName, out int clipIndex)
+    {
+        if (_clips == null || _clips.Length == 0)
+        {
+            clipIndex = -1;
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(clipName))
+        {
+            for (int i = 0; i < _clips.Length; i++)
+            {
+                if (string.Equals(_clips[i].Name, clipName, StringComparison.Ordinal))
+                {
+                    clipIndex = i;
+                    return true;
+                }
+            }
+        }
+
+        clipIndex = 0;
+        return true;
+    }
+
+    public bool TryGetClip(int clipIndex, out ClipInfo clip)
+    {
+        if (_clips == null || _clips.Length == 0 || clipIndex < 0 || clipIndex >= _clips.Length)
+        {
+            clip = default;
+            return false;
+        }
+
+        clip = _clips[clipIndex];
         return true;
     }
 

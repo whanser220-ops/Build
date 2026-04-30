@@ -1,6 +1,9 @@
-#pragma kernel Main
+#pragma kernel GenerateBlades
+#pragma kernel CullClusters
+#pragma kernel CullAndLod
+#pragma kernel FixupCullDispatchArgs
 
-static const float kTwoPi = 6.28318530718;
+static const float kPi = 3.14159265359;
 
 struct GrassBlade
 {
@@ -11,9 +14,14 @@ struct GrassBlade
     float width;
     float tilt;
     float bend;
-    float3 surfaceNorm;
+};
+
+struct VisibleGrassInstance
+{
+    uint bladeIndex;
+    float rotAngle;
     float windForce;
-    float sideBend;
+    float padding;
 };
 
 struct ClumpParameters
@@ -39,18 +47,41 @@ struct ClusterInstance
     uint grassCount;
     uint clumpTypeIndex;
     float sharedFacingAngle;
-    float padding;
+    uint startIndex;
 };
 
-AppendStructuredBuffer<GrassBlade> _GrassBladesLod0;
-AppendStructuredBuffer<GrassBlade> _GrassBladesLod1;
-AppendStructuredBuffer<GrassBlade> _GrassBladesLod2;
+struct ClusterDispatch
+{
+    uint clusterIndex;
+    uint sampleOffset;
+};
+
+struct ClusterCullingData
+{
+    float3 minWS;
+    uint dispatchStartIndex;
+    float3 maxWS;
+    uint dispatchCount;
+};
+
+RWStructuredBuffer<GrassBlade> _GeneratedGrassBlades;
+AppendStructuredBuffer<VisibleGrassInstance> _GrassBladesLod0;
+AppendStructuredBuffer<VisibleGrassInstance> _GrassBladesLod1;
+AppendStructuredBuffer<VisibleGrassInstance> _GrassBladesLod2;
 StructuredBuffer<ClusterInstance> _ClusterInstancesBuffer;
+StructuredBuffer<ClusterCullingData> _ClusterCullingDataBuffer;
+StructuredBuffer<ClusterDispatch> _ClusterDispatchBuffer;
+StructuredBuffer<ClusterDispatch> _VisibleClusterDispatchBuffer;
+AppendStructuredBuffer<ClusterDispatch> _VisibleClusterDispatchAppendBuffer;
 StructuredBuffer<ClumpParameters> _ClumpParametersBuffer;
+RWByteAddressBuffer _CullDispatchArgsBuffer;
 
 uint _ClusterCount;
-uint _MaxGrassPerCluster;
+uint _ClusterCullingCount;
+uint _ClusterDispatchCount;
+uint _GeneratedGrassBladeCount;
 int _ClumpParameterCount;
+uint _DispatchGridWidth;
 float3 _TerrainPosition;
 float3 _TerrainSize;
 float _HeightMapMultiplier;
@@ -59,6 +90,7 @@ float _DistanceCullStartDist;
 float _DistanceCullEndDist;
 float _DistanceCullMinimumGrassAmount;
 float4x4 _VP_MATRIX;
+float4 _FrustumPlanes[6];
 float _FrustumCullNearOffset;
 float _FrustumCullEdgeOffset;
 int _EnableDistanceCull;
@@ -98,32 +130,6 @@ float SampleHeight(float2 normalizedPos)
     return _HeightMap.SampleLevel(sampler_HeightMap, normalizedPos, 0).r * _HeightMapMultiplier;
 }
 
-uint DistanceCull(float distanceToCamera, float hash)
-{
-    float visibility = _DistanceCullEndDist <= _DistanceCullStartDist
-        ? (distanceToCamera <= _DistanceCullStartDist ? 1.0 : 0.0)
-        : (1.0 - smoothstep(_DistanceCullStartDist, _DistanceCullEndDist, distanceToCamera));
-    float keptAmount = lerp(_DistanceCullMinimumGrassAmount, 1.0, visibility);
-    return hash > 1.0 - keptAmount ? 1u : 0u;
-}
-
-void AppendBladeToLod(GrassBlade blade, float distanceToCamera)
-{
-    if (distanceToCamera <= _Lod0EndDistance)
-    {
-        _GrassBladesLod0.Append(blade);
-        return;
-    }
-
-    if (distanceToCamera <= _Lod1EndDistance)
-    {
-        _GrassBladesLod1.Append(blade);
-        return;
-    }
-
-    _GrassBladesLod2.Append(blade);
-}
-
 uint FrustumCull(float3 worldPos)
 {
     float4 clipPos = mul(_VP_MATRIX, float4(worldPos, 1.0));
@@ -138,30 +144,87 @@ uint FrustumCull(float3 worldPos)
         : 1u;
 }
 
-[numthreads(64, 1, 1)]
-void Main(uint3 dispatchThreadId : SV_DispatchThreadID)
+uint DistanceCull(float distanceToCamera, float hash)
 {
-    if (_ClusterCount == 0 || _MaxGrassPerCluster == 0)
+    float visibility = _DistanceCullEndDist <= _DistanceCullStartDist
+        ? (distanceToCamera <= _DistanceCullStartDist ? 1.0 : 0.0)
+        : (1.0 - smoothstep(_DistanceCullStartDist, _DistanceCullEndDist, distanceToCamera));
+    float keptAmount = lerp(_DistanceCullMinimumGrassAmount, 1.0, visibility);
+    return hash > 1.0 - keptAmount ? 1u : 0u;
+}
+
+void AppendBladeToLod(uint bladeIndex, float rotAngle, float windForce, float distanceToCamera)
+{
+    VisibleGrassInstance instance;
+    instance.bladeIndex = bladeIndex;
+    instance.rotAngle = rotAngle;
+    instance.windForce = windForce;
+    instance.padding = 0.0;
+
+    if (distanceToCamera <= _Lod0EndDistance)
+    {
+        _GrassBladesLod0.Append(instance);
+        return;
+    }
+
+    if (distanceToCamera <= _Lod1EndDistance)
+    {
+        _GrassBladesLod1.Append(instance);
+        return;
+    }
+
+    _GrassBladesLod2.Append(instance);
+}
+
+float AabbSqrDistanceToPoint(float3 minWS, float3 maxWS, float3 pointWS)
+{
+    float3 nearestPointWS = clamp(pointWS, minWS, maxWS);
+    float3 delta = pointWS - nearestPointWS;
+    return dot(delta, delta);
+}
+
+uint FrustumCullAabb(float3 minWS, float3 maxWS)
+{
+    float3 centerWS = (minWS + maxWS) * 0.5;
+    float3 extentsWS = (maxWS - minWS) * 0.5;
+
+    [unroll]
+    for (int i = 0; i < 6; i++)
+    {
+        float4 plane = _FrustumPlanes[i];
+        float distanceToPlane = dot(plane.xyz, centerWS) + plane.w;
+        float projectedRadius = dot(abs(plane.xyz), extentsWS);
+        if (distanceToPlane + projectedRadius < 0.0)
+            return 0u;
+    }
+
+    return 1u;
+}
+
+[numthreads(64, 1, 1)]
+void GenerateBlades(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
+{
+    uint dispatchIndex = groupId.x + (groupId.y * _DispatchGridWidth);
+    if (_ClusterCount == 0 || _ClusterDispatchCount == 0 || _ClumpParameterCount <= 0 || dispatchIndex >= _ClusterDispatchCount)
         return;
 
-    uint bladeIndex = dispatchThreadId.x;
-    uint totalBladeCapacity = _ClusterCount * _MaxGrassPerCluster;
-    if (bladeIndex >= totalBladeCapacity)
+    ClusterDispatch clusterDispatch = _ClusterDispatchBuffer[dispatchIndex];
+    if (clusterDispatch.clusterIndex >= _ClusterCount)
         return;
 
-    uint clusterIndex = bladeIndex / _MaxGrassPerCluster;
-    uint localBladeIndex = bladeIndex - clusterIndex * _MaxGrassPerCluster;
-
-    ClusterInstance cluster = _ClusterInstancesBuffer[clusterIndex];
+    ClusterInstance cluster = _ClusterInstancesBuffer[clusterDispatch.clusterIndex];
+    uint localBladeIndex = clusterDispatch.sampleOffset + groupThreadId.x;
     if (localBladeIndex >= cluster.grassCount)
+        return;
+
+    uint bladeIndex = cluster.startIndex + localBladeIndex;
+    if (bladeIndex >= _GeneratedGrassBladeCount)
         return;
 
     uint clumpTypeIndex = min(cluster.clumpTypeIndex, (uint)max(0, _ClumpParameterCount - 1));
     ClumpParameters bladeParameters = _ClumpParametersBuffer[clumpTypeIndex];
 
-    // Evenly distribute blades across the clump using a jittered Vogel disk.
-    // pullToCentre is intentionally ignored here so clumps stay uniformly filled.
-    float3 seedBase = float3((float)clusterIndex + 1.37, (float)localBladeIndex + 2.91, cluster.sharedFacingAngle + 0.73);
+    float3 seedBase = float3((float)clusterDispatch.clusterIndex + 1.37, (float)localBladeIndex + 2.91, cluster.sharedFacingAngle + 0.73);
     float bladeCount = max(1.0, (float)cluster.grassCount);
     float normalizedIndex = ((float)localBladeIndex + 0.5) / bladeCount;
     float radialJitter = Remap(Rand(seedBase + float3(0.17, 0.31, 0.73))) * (0.75 / bladeCount);
@@ -176,60 +239,118 @@ void Main(uint3 dispatchThreadId : SV_DispatchThreadID)
     position.xz += uniformOffset;
 
     float2 normalizedPos = (position.xz - _TerrainPosition.xz) / max(_TerrainSize.xz, float2(0.0001, 0.0001));
-    if (any(normalizedPos < 0.0) || any(normalizedPos > 1.0))
-        return;
-
+    // Safety clamp only. Cluster centers are already biased inward on CPU so this should
+    // only catch tiny numeric edge cases instead of folding a whole cluster onto the border.
+    normalizedPos = saturate(normalizedPos);
+    position.xz = _TerrainPosition.xz + normalizedPos * _TerrainSize.xz;
     position.y = _TerrainPosition.y + SampleHeight(normalizedPos);
 
-    float bladeHash = Rand(seedBase + float3(5.13, 2.17, 7.31));
-    float distanceToCamera = distance(position, _WSpaceCameraPos);
-    uint distanceCull = _EnableDistanceCull != 0 ? DistanceCull(distanceToCamera, bladeHash) : 1u;
-    uint frustumCull = _EnableFrustumCull != 0 ? FrustumCull(position) : 1u;
-    if (distanceCull == 0u || frustumCull == 0u)
-        return;
-
-    float baseHeight = bladeParameters.baseHeight;
-    float heightRandom = bladeParameters.heightRandom;
-    float baseWidth = bladeParameters.baseWidth;
-    float widthRandom = bladeParameters.widthRandom;
-    float baseTilt = bladeParameters.baseTilt;
-    float tiltRandom = bladeParameters.tiltRandom;
-    float baseBend = bladeParameters.baseBend;
-    float bendRandom = bladeParameters.bendRandom;
+    float2 sharedClumpFacing = float2(cos(cluster.sharedFacingAngle), sin(cluster.sharedFacingAngle));
+    float2 randomFacing = HashFloat2(float2((float)clusterDispatch.clusterIndex * 19.19 + localBladeIndex, (float)localBladeIndex * 7.73 + cluster.sharedFacingAngle)) * 2.0 - 1.0;
+    float2 bladeFacing = normalize(randomFacing + float2(1e-5, 0.0));
+    bladeFacing = normalize(lerp(bladeFacing, sharedClumpFacing, bladeParameters.pointInSameDirection));
 
     GrassBlade blade;
     blade.positionWS = position;
+    blade.rotAngle = atan2(bladeFacing.y, bladeFacing.x);
+    blade.hash = Rand(seedBase + float3(5.13, 2.17, 7.31));
+    blade.height = max(0.05, bladeParameters.baseHeight + Remap(Rand(seedBase + float3(1.12, 3.3, 17.6))) * bladeParameters.heightRandom);
+    blade.width = max(0.005, bladeParameters.baseWidth + Remap(Rand(seedBase + float3(9.41, 0.29, 5.17))) * bladeParameters.widthRandom);
+    blade.tilt = clamp(bladeParameters.baseTilt + Remap(Rand(seedBase + float3(4.73, 8.11, 2.53))) * bladeParameters.tiltRandom, -0.9999, 0.9999);
+    blade.bend = bladeParameters.baseBend + Remap(Rand(seedBase + float3(12.32, 0.23, 3.39))) * bladeParameters.bendRandom;
 
-    float2 sharedClumpFacing = float2(cos(cluster.sharedFacingAngle), sin(cluster.sharedFacingAngle));
-    float2 bladeFacing = normalize(HashFloat2(float2((float)clusterIndex * 19.19 + localBladeIndex, (float)localBladeIndex * 7.73 + cluster.sharedFacingAngle)) * 2.0 - 1.0 + float2(1e-5, 0.0));
-    bladeFacing = normalize(lerp(bladeFacing, sharedClumpFacing, bladeParameters.pointInSameDirection));
+    _GeneratedGrassBlades[bladeIndex] = blade;
+}
 
-    float2 worldUV = position.xz;
-    float2 localWindUV = worldUV * _LocalWindScale;
+[numthreads(64, 1, 1)]
+void CullClusters(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
+{
+    uint cullingIndex = groupThreadId.x + ((groupId.x + (groupId.y * _DispatchGridWidth)) * 64u);
+    if (_ClusterCullingCount == 0 || cullingIndex >= _ClusterCullingCount)
+        return;
+
+    ClusterCullingData cullingData = _ClusterCullingDataBuffer[cullingIndex];
+    if (cullingData.dispatchCount == 0u)
+        return;
+
+    if (_EnableFrustumCull != 0 && FrustumCullAabb(cullingData.minWS, cullingData.maxWS) == 0u)
+        return;
+
+    float maxDistanceSqr = _DistanceCullEndDist * _DistanceCullEndDist;
+    if (_EnableDistanceCull != 0 && _DistanceCullMinimumGrassAmount <= 0.0 && AabbSqrDistanceToPoint(cullingData.minWS, cullingData.maxWS, _WSpaceCameraPos) > maxDistanceSqr)
+        return;
+
+    uint dispatchEndIndex = min(cullingData.dispatchStartIndex + cullingData.dispatchCount, _ClusterDispatchCount);
+    for (uint dispatchIndex = cullingData.dispatchStartIndex; dispatchIndex < dispatchEndIndex; dispatchIndex++)
+        _VisibleClusterDispatchAppendBuffer.Append(_ClusterDispatchBuffer[dispatchIndex]);
+}
+
+[numthreads(64, 1, 1)]
+void CullAndLod(uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
+{
+    uint dispatchGridWidth = _CullDispatchArgsBuffer.Load(0);
+    uint visibleDispatchCount = _CullDispatchArgsBuffer.Load(12);
+    uint visibleDispatchIndex = groupId.x + (groupId.y * dispatchGridWidth);
+    if (visibleDispatchIndex >= visibleDispatchCount)
+        return;
+
+    ClusterDispatch clusterDispatch = _VisibleClusterDispatchBuffer[visibleDispatchIndex];
+    if (clusterDispatch.clusterIndex >= _ClusterCount)
+        return;
+
+    ClusterInstance cluster = _ClusterInstancesBuffer[clusterDispatch.clusterIndex];
+    uint localBladeIndex = clusterDispatch.sampleOffset + groupThreadId.x;
+    if (localBladeIndex >= cluster.grassCount)
+        return;
+
+    uint bladeIndex = cluster.startIndex + localBladeIndex;
+    if (_GeneratedGrassBladeCount == 0 || bladeIndex >= _GeneratedGrassBladeCount)
+        return;
+
+    GrassBlade blade = _GeneratedGrassBlades[bladeIndex];
+
+    if (_EnableFrustumCull != 0 && FrustumCull(blade.positionWS) == 0u)
+        return;
+
+    float distanceToCamera = distance(blade.positionWS, _WSpaceCameraPos);
+    if (_EnableDistanceCull != 0 && DistanceCull(distanceToCamera, blade.hash) == 0u)
+        return;
+
+    float2 bladeFacing = float2(cos(blade.rotAngle), sin(blade.rotAngle));
+    float2 localWindUV = blade.positionWS.xz * _LocalWindScale;
     localWindUV += _Time * float2(1.0, 0.7) * _LocalWindSpeed;
 
     float localWind = _LocalWindTex.SampleLevel(sampler_LocalWindTex, localWindUV, 0).r;
-    float localTheta = ((localWind * 2.0) - 1.0) * 3.14159;
+    float localTheta = ((localWind * 2.0) - 1.0) * kPi;
     float2 localWindDir = float2(cos(localTheta), sin(localTheta));
     float2 grassSideVec = normalize(float2(-bladeFacing.y, bladeFacing.x));
     float rotateBladeFromLocalWindAmount = dot(grassSideVec, localWindDir);
-    float localWindRotateAngle = rotateBladeFromLocalWindAmount * (3.14159 / 2.0) * _LocalWindRotateAmount;
+    float localWindRotateAngle = rotateBladeFromLocalWindAmount * (kPi * 0.5) * _LocalWindRotateAmount;
+    float windForce = localWind * _LocalWindStrength;
 
-    float combinedFacingAngle = atan2(bladeFacing.y, bladeFacing.x);
-    combinedFacingAngle += localWindRotateAngle;
-    blade.rotAngle = combinedFacingAngle;
+    AppendBladeToLod(bladeIndex, blade.rotAngle + localWindRotateAngle, windForce, distanceToCamera);
+}
 
-    blade.hash = bladeHash;
-    blade.height = max(0.05, baseHeight + Remap(Rand(seedBase + float3(1.12, 3.3, 17.6))) * heightRandom);
-    blade.width = max(0.005, baseWidth + Remap(Rand(seedBase + float3(9.41, 0.29, 5.17))) * widthRandom);
-    blade.tilt = clamp(baseTilt + Remap(Rand(seedBase + float3(4.73, 8.11, 2.53))) * tiltRandom, -0.9999, 0.9999);
-    blade.bend = baseBend + Remap(Rand(seedBase + float3(12.32, 0.23, 3.39))) * bendRandom;
-    blade.bend += localWind * _LocalWindStrength;
-    blade.surfaceNorm = float3(0.0, 1.0, 0.0);
-    blade.windForce = localWind * _LocalWindStrength;
+[numthreads(1, 1, 1)]
+void FixupCullDispatchArgs(uint3 dispatchThreadId : SV_DispatchThreadID)
+{
+    if (dispatchThreadId.x != 0u)
+        return;
 
-    
-    blade.sideBend = 0;
+    uint visibleDispatchCount = _CullDispatchArgsBuffer.Load(0);
+    if (visibleDispatchCount == 0u)
+    {
+        _CullDispatchArgsBuffer.Store(0, 0u);
+        _CullDispatchArgsBuffer.Store(4, 1u);
+        _CullDispatchArgsBuffer.Store(8, 1u);
+        _CullDispatchArgsBuffer.Store(12, 0u);
+        return;
+    }
 
-    AppendBladeToLod(blade, distanceToCamera);
+    uint dispatchGridWidth = min(visibleDispatchCount, 65535u);
+    uint dispatchGridHeight = (visibleDispatchCount + dispatchGridWidth - 1u) / dispatchGridWidth;
+    _CullDispatchArgsBuffer.Store(0, dispatchGridWidth);
+    _CullDispatchArgsBuffer.Store(4, max(1u, dispatchGridHeight));
+    _CullDispatchArgsBuffer.Store(8, 1u);
+    _CullDispatchArgsBuffer.Store(12, visibleDispatchCount);
 }
