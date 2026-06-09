@@ -7,9 +7,9 @@ using UnityEngine;
 public static class QianxiaRigDiagnostics
 {
     private const string MotionSourceAssetPath = "Assets/Project/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
-    private const string VatTargetAssetPath = "Assets/Project/Characters/Qianxia/SourceModels/LOD2.fbx";
+    private const string VatTargetAssetPath = QianxiaLodPrefabBuilder.Lod0AssetPath;
     private const string WalkClipAssetPath = "Assets/Project/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
-    private const string BoneTextureAssetPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod2Vat_BoneTex.asset";
+    private const string BoneTextureAssetPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod0Vat_BoneTex.asset";
 
     [MenuItem("Tools/Qianxia/Run Rig Diagnostics")]
     public static void RunRigDiagnosticsMenu()

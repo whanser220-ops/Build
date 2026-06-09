@@ -10,7 +10,7 @@ using UnityEditor;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public class NewGrassIndirectRenderer : MonoBehaviour
+public class NewGrassIndirectRenderer : MonoBehaviour, IGpuSemanticDrawProvider, IGpuSemanticDrawCommandProvider
 {
     private const int k_KernelThreadSize = 64;
     private const int k_ArgsCount = 5;
@@ -24,6 +24,20 @@ public class NewGrassIndirectRenderer : MonoBehaviour
     private const float k_MaxBladeRootRadiusScale = 1.08f;
     private const float k_MinAdaptiveCellExtent = 0.5f;
     private const float k_GoldenAngle = 2.39996323f;
+    private const string GrassRendererCppFile = "Assets/Project/CS/New_Grass/C#/NewGrassIndirectRenderer.cs";
+    private const string GrassShaderLod0File = "Assets/Project/CS/New_Grass/shader/NewGrassBezierBladeToon.shader";
+    private const string GrassShaderLod1File = "Assets/Project/CS/New_Grass/shader/NewGrassBezierBladeToonMid.shader";
+    private const string GrassShaderLod2File = "Assets/Project/CS/New_Grass/shader/NewGrassBezierBladeToonFar.shader";
+    private const string GrassRenderShaderEntry = "Forward";
+    private const string GrassRenderLod0PassId = "grass.render.lod0";
+    private const string GrassRenderLod1PassId = "grass.render.lod1";
+    private const string GrassRenderLod2PassId = "grass.render.lod2";
+    private static readonly string GrassRenderLod0Marker =
+        GpuPassMarkerUtility.BuildMarkerLabel(GrassRenderLod0PassId, "Grass / Render / LOD0");
+    private static readonly string GrassRenderLod1Marker =
+        GpuPassMarkerUtility.BuildMarkerLabel(GrassRenderLod1PassId, "Grass / Render / LOD1");
+    private static readonly string GrassRenderLod2Marker =
+        GpuPassMarkerUtility.BuildMarkerLabel(GrassRenderLod2PassId, "Grass / Render / LOD2");
 
     private static readonly int GrassBladesId = Shader.PropertyToID("_GrassBlades");
     private static readonly int GrassBladesLod0Id = Shader.PropertyToID("_GrassBladesLod0");
@@ -62,9 +76,25 @@ public class NewGrassIndirectRenderer : MonoBehaviour
     private static readonly int LocalWindRotateAmountId = Shader.PropertyToID("_LocalWindRotateAmount");
     private static readonly int Lod0EndDistanceId = Shader.PropertyToID("_Lod0EndDistance");
     private static readonly int Lod1EndDistanceId = Shader.PropertyToID("_Lod1EndDistance");
+    private static readonly int LodTransitionWidthId = Shader.PropertyToID("_LodTransitionWidth");
     private static readonly int DispatchGridWidthId = Shader.PropertyToID("_DispatchGridWidth");
     private static readonly int TimeId = Shader.PropertyToID("_Time");
     private static readonly int CullDispatchArgsBufferId = Shader.PropertyToID("_CullDispatchArgsBuffer");
+
+    private static readonly int[] k_SharedLodPosePropertyIds =
+    {
+        Shader.PropertyToID("_Height"),
+        Shader.PropertyToID("_BladeWidth"),
+        Shader.PropertyToID("_Tilt"),
+        Shader.PropertyToID("_TaperAmount"),
+        Shader.PropertyToID("_p1Offset"),
+        Shader.PropertyToID("_p2Offset"),
+        Shader.PropertyToID("_WaveAmplitude"),
+        Shader.PropertyToID("_WaveSpeed"),
+        Shader.PropertyToID("_SinOffsetRange"),
+        Shader.PropertyToID("_PushTipForward"),
+        Shader.PropertyToID("_CurvedNormalAmount")
+    };
 
     [Header("Resources")]
     [Tooltip("Compute shader used for grass generation and culling.")]
@@ -85,6 +115,8 @@ public class NewGrassIndirectRenderer : MonoBehaviour
     [Header("LOD")]
     [SerializeField] [Min(0.0f)] private float _lod0EndDistance = 14.0f;
     [SerializeField] [Min(0.0f)] private float _lod1EndDistance = 28.0f;
+    [Tooltip("(Deprecated) LOD cross-fade has been removed. This value is no longer used.")]
+    [SerializeField] [Min(0.0f)] private float _lodTransitionWidth = 4.0f;
     [Tooltip("Regenerate grass blades every frame in the editor.")]
     [SerializeField] private bool _regenerateEveryFrame = false;
 
@@ -190,6 +222,29 @@ public class NewGrassIndirectRenderer : MonoBehaviour
     private bool _hasCullState;
     private readonly Vector4[] _coarseCullFrustumPlanes = new Vector4[k_FrustumPlaneCount];
     private bool _hasLoggedMissingBakeWarning;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void RegisterGrassGpuPassDebugInfos()
+    {
+        RegisterGrassRenderGpuPass(GrassRenderLod0Marker, GrassShaderLod0File);
+        RegisterGrassRenderGpuPass(GrassRenderLod1Marker, GrassShaderLod1File);
+        RegisterGrassRenderGpuPass(GrassRenderLod2Marker, GrassShaderLod2File);
+    }
+
+    private static void RegisterGrassRenderGpuPass(string passName, string shaderFile)
+    {
+        GpuPassDebugRegistry.Register(new GpuPassDebugInfo
+        {
+            passName = passName,
+            cppFile = GrassRendererCppFile,
+            cppFunction = "NewGrassIndirectRenderer.DrawGrassLod",
+            shaderFile = shaderFile,
+            shaderEntry = GrassRenderShaderEntry,
+            passType = "indirect_draw",
+            dispatchKind = "draw_mesh_instanced_indirect"
+        });
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct ClumpParametersGPU
     {
@@ -263,6 +318,7 @@ public class NewGrassIndirectRenderer : MonoBehaviour
 
     private void OnEnable()
     {
+        GpuSemanticDrawRegistry.Register(this);
         RenderPipelineManager.beginCameraRendering += HandleBeginCameraRendering;
         _clusterDataDirty = true;
         _generatedGrassDirty = true;
@@ -275,6 +331,7 @@ public class NewGrassIndirectRenderer : MonoBehaviour
         _boundsHeight = Mathf.Max(0.1f, _boundsHeight);
         _lod0EndDistance = Mathf.Max(0.0f, _lod0EndDistance);
         _lod1EndDistance = Mathf.Max(_lod0EndDistance, _lod1EndDistance);
+        _lodTransitionWidth = Mathf.Max(0.0f, _lodTransitionWidth);
         _distributionThreshold = Mathf.Clamp01(_distributionThreshold);
         _distributionJitter = Mathf.Clamp01(_distributionJitter);
         _cullingCellSize = Mathf.Max(0.5f, _cullingCellSize);
@@ -316,11 +373,13 @@ public class NewGrassIndirectRenderer : MonoBehaviour
             GenerateGrassGeometry();
 
         UpdateVisibleGrass();
-        DrawGrass();
+        if (!ShouldUseGpuSemanticDrawPass())
+            DrawGrass();
     }
 
     private void OnDisable()
     {
+        GpuSemanticDrawRegistry.Unregister(this);
         RenderPipelineManager.beginCameraRendering -= HandleBeginCameraRendering;
         ReleaseResources();
     }
@@ -1915,9 +1974,9 @@ public class NewGrassIndirectRenderer : MonoBehaviour
 
         Bounds bounds = BuildRenderBounds();
 
-        DrawGrassLod(_drawMeshLod0, _grassBladesBufferLod0, _argsBufferLod0, bounds, grassMaterialLod0);
-        DrawGrassLod(_drawMeshLod1, _grassBladesBufferLod1, _argsBufferLod1, bounds, grassMaterialLod1);
-        DrawGrassLod(_drawMeshLod2, _grassBladesBufferLod2, _argsBufferLod2, bounds, grassMaterialLod2);
+        DrawGrassLod(_drawMeshLod0, _grassBladesBufferLod0, _argsBufferLod0, bounds, grassMaterialLod0, grassMaterialLod0, ShadowCastingMode.On, true);
+        DrawGrassLod(_drawMeshLod1, _grassBladesBufferLod1, _argsBufferLod1, bounds, grassMaterialLod1, grassMaterialLod0, ShadowCastingMode.Off, false);
+        DrawGrassLod(_drawMeshLod2, _grassBladesBufferLod2, _argsBufferLod2, bounds, grassMaterialLod2, grassMaterialLod0, ShadowCastingMode.Off, false);
     }
 
     private Material ResolveGrassMaterial(int lodIndex)
@@ -1930,16 +1989,30 @@ public class NewGrassIndirectRenderer : MonoBehaviour
         };
     }
 
-    private void DrawGrassLod(Mesh mesh, ComputeBuffer grassBladesBuffer, ComputeBuffer argsBuffer, Bounds bounds, Material material)
+    private void DrawGrassLod(
+        Mesh mesh,
+        ComputeBuffer grassBladesBuffer,
+        ComputeBuffer argsBuffer,
+        Bounds bounds,
+        Material material,
+        Material poseSourceMaterial,
+        ShadowCastingMode shadowCastingMode,
+        bool receiveShadows)
     {
-        if (mesh == null || grassBladesBuffer == null || argsBuffer == null || material == null)
+        if (!PrepareGrassLodDraw(mesh, grassBladesBuffer, argsBuffer, material, poseSourceMaterial))
             return;
 
-        _propertyBlock.Clear();
-        _propertyBlock.SetBuffer(GrassBladesId, grassBladesBuffer);
-        _propertyBlock.SetBuffer(GeneratedGrassBladesId, _generatedGrassBladesBuffer);
+        DrawGrassLodIndirectNow(mesh, material, bounds, argsBuffer, shadowCastingMode, receiveShadows);
+    }
 
-        material.enableInstancing = true;
+    private void DrawGrassLodIndirectNow(
+        Mesh mesh,
+        Material material,
+        Bounds bounds,
+        ComputeBuffer argsBuffer,
+        ShadowCastingMode shadowCastingMode,
+        bool receiveShadows)
+    {
         Graphics.DrawMeshInstancedIndirect(
             mesh,
             0,
@@ -1948,9 +2021,157 @@ public class NewGrassIndirectRenderer : MonoBehaviour
             argsBuffer,
             0,
             _propertyBlock,
-            ShadowCastingMode.On,
-            true,
+            shadowCastingMode,
+            receiveShadows,
             gameObject.layer);
+    }
+
+    public void RecordGpuSemanticDraws(RasterCommandBuffer commandBuffer, Camera camera, GpuSemanticDrawPhase phase)
+    {
+        if (phase != GpuSemanticDrawPhase.Opaque ||
+            commandBuffer == null ||
+            !ShouldUseGpuSemanticDrawPass(camera))
+        {
+            return;
+        }
+
+        RecordGrassSemanticOpaqueDraws(commandBuffer);
+    }
+
+    public void CollectGpuSemanticDrawCommands(List<GpuSemanticDrawCommand> commands, Camera camera, GpuSemanticDrawPhase phase)
+    {
+        if (commands == null ||
+            phase != GpuSemanticDrawPhase.Opaque ||
+            !ShouldUseGpuSemanticDrawPass(camera))
+        {
+            return;
+        }
+
+        commands.Add(new GpuSemanticDrawCommand(GrassRenderLod0Marker, RecordGrassLod0SemanticDraw));
+        commands.Add(new GpuSemanticDrawCommand(GrassRenderLod1Marker, RecordGrassLod1SemanticDraw));
+        commands.Add(new GpuSemanticDrawCommand(GrassRenderLod2Marker, RecordGrassLod2SemanticDraw));
+    }
+
+    private void RecordGrassSemanticOpaqueDraws(RasterCommandBuffer commandBuffer)
+    {
+        Material grassMaterialLod0 = ResolveGrassMaterial(0);
+        Material grassMaterialLod1 = ResolveGrassMaterial(1);
+        Material grassMaterialLod2 = ResolveGrassMaterial(2);
+        if (grassMaterialLod0 == null || grassMaterialLod1 == null || grassMaterialLod2 == null)
+            return;
+
+        RecordGrassLodSemanticDraw(commandBuffer, GrassRenderLod0Marker, _drawMeshLod0, _grassBladesBufferLod0, _argsBufferLod0, grassMaterialLod0, grassMaterialLod0, true);
+        RecordGrassLodSemanticDraw(commandBuffer, GrassRenderLod1Marker, _drawMeshLod1, _grassBladesBufferLod1, _argsBufferLod1, grassMaterialLod1, grassMaterialLod0, true);
+        RecordGrassLodSemanticDraw(commandBuffer, GrassRenderLod2Marker, _drawMeshLod2, _grassBladesBufferLod2, _argsBufferLod2, grassMaterialLod2, grassMaterialLod0, true);
+    }
+
+    private void RecordGrassLod0SemanticDraw(RasterCommandBuffer commandBuffer, Camera camera)
+    {
+        RecordGrassLodSemanticDraw(
+            commandBuffer,
+            GrassRenderLod0Marker,
+            _drawMeshLod0,
+            _grassBladesBufferLod0,
+            _argsBufferLod0,
+            ResolveGrassMaterial(0),
+            ResolveGrassMaterial(0),
+            false);
+    }
+
+    private void RecordGrassLod1SemanticDraw(RasterCommandBuffer commandBuffer, Camera camera)
+    {
+        RecordGrassLodSemanticDraw(
+            commandBuffer,
+            GrassRenderLod1Marker,
+            _drawMeshLod1,
+            _grassBladesBufferLod1,
+            _argsBufferLod1,
+            ResolveGrassMaterial(1),
+            ResolveGrassMaterial(0),
+            false);
+    }
+
+    private void RecordGrassLod2SemanticDraw(RasterCommandBuffer commandBuffer, Camera camera)
+    {
+        RecordGrassLodSemanticDraw(
+            commandBuffer,
+            GrassRenderLod2Marker,
+            _drawMeshLod2,
+            _grassBladesBufferLod2,
+            _argsBufferLod2,
+            ResolveGrassMaterial(2),
+            ResolveGrassMaterial(0),
+            false);
+    }
+
+    private void RecordGrassLodSemanticDraw(
+        RasterCommandBuffer commandBuffer,
+        string markerLabel,
+        Mesh mesh,
+        ComputeBuffer grassBladesBuffer,
+        ComputeBuffer argsBuffer,
+        Material material,
+        Material poseSourceMaterial,
+        bool wrapMarker)
+    {
+        if (string.IsNullOrEmpty(markerLabel) ||
+            !PrepareGrassLodDraw(mesh, grassBladesBuffer, argsBuffer, material, poseSourceMaterial))
+        {
+            return;
+        }
+
+        int forwardPassIndex = GpuSemanticDrawPassUtility.ResolveMaterialPassIndex(material, GrassRenderShaderEntry);
+        if (wrapMarker)
+            commandBuffer.BeginSample(markerLabel);
+
+        commandBuffer.DrawMeshInstancedIndirect(mesh, 0, material, forwardPassIndex, argsBuffer, 0, _propertyBlock);
+
+        if (wrapMarker)
+            commandBuffer.EndSample(markerLabel);
+    }
+
+    private bool PrepareGrassLodDraw(
+        Mesh mesh,
+        ComputeBuffer grassBladesBuffer,
+        ComputeBuffer argsBuffer,
+        Material material,
+        Material poseSourceMaterial)
+    {
+        if (mesh == null || grassBladesBuffer == null || argsBuffer == null || material == null)
+            return false;
+
+        _propertyBlock.Clear();
+        _propertyBlock.SetBuffer(GrassBladesId, grassBladesBuffer);
+        _propertyBlock.SetBuffer(GeneratedGrassBladesId, _generatedGrassBladesBuffer);
+        ApplySharedLodPoseProperties(poseSourceMaterial, material);
+        material.enableInstancing = true;
+        return true;
+    }
+
+    private bool ShouldUseGpuSemanticDrawPass()
+    {
+        return GpuSemanticDrawFeature.IsInstalled &&
+            GpuPassDebugRuntime.CaptureMetadataEnabled;
+    }
+
+    private bool ShouldUseGpuSemanticDrawPass(Camera camera)
+    {
+        return ShouldUseGpuSemanticDrawPass() &&
+            camera != null &&
+            camera.cameraType != CameraType.Preview &&
+            camera.cameraType != CameraType.Reflection;
+    }
+
+    private void ApplySharedLodPoseProperties(Material sourceMaterial, Material drawMaterial)
+    {
+        if (sourceMaterial == null || drawMaterial == null || ReferenceEquals(sourceMaterial, drawMaterial))
+            return;
+
+        foreach (int propertyId in k_SharedLodPosePropertyIds)
+        {
+            if (sourceMaterial.HasProperty(propertyId) && drawMaterial.HasProperty(propertyId))
+                _propertyBlock.SetFloat(propertyId, sourceMaterial.GetFloat(propertyId));
+        }
     }
 
     private Bounds BuildRenderBounds()
@@ -2019,66 +2240,4 @@ public class NewGrassIndirectRenderer : MonoBehaviour
 
         runtimeMesh = null;
     }
-}
-
-[CreateAssetMenu(fileName = "NewGrassBakedData", menuName = "Rendering/New Grass/Baked Data")]
-public class NewGrassBakedDataAsset : ScriptableObject
-{
-    [SerializeField] private Texture2D _sourceDistributionMap;
-    [SerializeField] private int _sourceSettingsHash;
-    [SerializeField] private int _totalBladeCount;
-    [SerializeField] [HideInInspector] private NewGrassBakedClusterInstanceData[] _clusters = Array.Empty<NewGrassBakedClusterInstanceData>();
-    [SerializeField] [HideInInspector] private NewGrassBakedClusterCullingCellData[] _cullingCells = Array.Empty<NewGrassBakedClusterCullingCellData>();
-    [SerializeField] [HideInInspector] private NewGrassBakedClusterDispatchData[] _dispatches = Array.Empty<NewGrassBakedClusterDispatchData>();
-
-    public Texture2D SourceDistributionMap => _sourceDistributionMap;
-    public int SourceSettingsHash => _sourceSettingsHash;
-    public int TotalBladeCount => _totalBladeCount;
-    public NewGrassBakedClusterInstanceData[] Clusters => _clusters ?? Array.Empty<NewGrassBakedClusterInstanceData>();
-    public NewGrassBakedClusterCullingCellData[] CullingCells => _cullingCells ?? Array.Empty<NewGrassBakedClusterCullingCellData>();
-    public NewGrassBakedClusterDispatchData[] Dispatches => _dispatches ?? Array.Empty<NewGrassBakedClusterDispatchData>();
-    public bool HasData => _clusters != null && _cullingCells != null && _dispatches != null;
-
-    public void SetData(
-        Texture2D sourceDistributionMap,
-        int sourceSettingsHash,
-        int totalBladeCount,
-        NewGrassBakedClusterInstanceData[] clusters,
-        NewGrassBakedClusterCullingCellData[] cullingCells,
-        NewGrassBakedClusterDispatchData[] dispatches)
-    {
-        _sourceDistributionMap = sourceDistributionMap;
-        _sourceSettingsHash = sourceSettingsHash;
-        _totalBladeCount = Mathf.Max(0, totalBladeCount);
-        _clusters = clusters ?? Array.Empty<NewGrassBakedClusterInstanceData>();
-        _cullingCells = cullingCells ?? Array.Empty<NewGrassBakedClusterCullingCellData>();
-        _dispatches = dispatches ?? Array.Empty<NewGrassBakedClusterDispatchData>();
-    }
-}
-
-[Serializable]
-public struct NewGrassBakedClusterInstanceData
-{
-    public Vector2 centerLocalXZ;
-    public float sigma;
-    public int grassCount;
-    public int clumpTypeIndex;
-    public float sharedFacingAngle;
-    public int startIndex;
-}
-
-[Serializable]
-public struct NewGrassBakedClusterCullingCellData
-{
-    public Vector3 minLocal;
-    public int dispatchStartIndex;
-    public Vector3 maxLocal;
-    public int dispatchCount;
-}
-
-[Serializable]
-public struct NewGrassBakedClusterDispatchData
-{
-    public int clusterIndex;
-    public int sampleOffset;
 }

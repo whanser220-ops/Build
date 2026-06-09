@@ -16,7 +16,7 @@ public static class QianxiaCharacterSetupUtility
     private const string GeneratedFolder = "Assets/Project/Characters/Qianxia/Generated";
     private const string AnimatorControllerPath = GeneratedFolder + "/QianxiaLocomotion.controller";
     private const string PrefabPath = GeneratedFolder + "/QianxiaThirdPerson.prefab";
-    private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
+    private const string InputActionsPath = "Assets/Project/Configs/Input/InputSystem_Actions.inputactions";
     private const string InstallRequestFile = ".workspace/artifacts/qianxia-install.request";
     private const string InstallResultFile = ".workspace/artifacts/qianxia-install.result.txt";
 

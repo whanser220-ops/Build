@@ -4,8 +4,14 @@
 
 - 版本：v0.4
 - 日期：2026-04-12
-- 状态：需求收敛完成，待以“胶囊体瓶子 + 立方体角色”占位模型推进技术样机
+- 状态：历史需求基线（原始占位样机阶段已完成，不再作为当前阶段说明）
+- 同步级别：归档
 - 适用范围：Unity 6 `URP` 中大量同款可乐瓶的统一 `PBD + neighbor grid + 实例化渲染` 系统
+- 当前实现锚点：
+  - `Assets/Project/CS/CokeBottlePbd/C#/BottlePileSystem.cs`
+  - `Assets/Project/CS/CokeBottlePbd/Editor/BottlePileSceneAutomation.cs`
+  - `Assets/Project/CS/CokeBottlePbd/C#/BottleSimulationConfig.cs`
+- 最后实现核对：2026-05-06
 
 ## 背景
 

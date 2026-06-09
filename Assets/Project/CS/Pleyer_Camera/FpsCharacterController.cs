@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 public class FpsCharacterController : MonoBehaviour
 {
     [Header("Input")]
-    [Tooltip("Project input actions asset. Defaults to Assets/InputSystem_Actions.inputactions.")]
+    [Tooltip("Project input actions asset. Defaults to Assets/Project/Configs/Input/InputSystem_Actions.inputactions.")]
     [SerializeField] private InputActionAsset _inputActions;
     [SerializeField] private string _actionMapName = "Player";
     [SerializeField] private string _moveActionName = "Move";
@@ -87,9 +87,10 @@ public class FpsCharacterController : MonoBehaviour
 
     private void UpdateLook()
     {
+        bool usingGamepad = IsUsingGamepadForLook();
         Vector2 lookInput = _lookAction != null ? _lookAction.ReadValue<Vector2>() : Vector2.zero;
-        bool usingGamepad = Gamepad.current != null && _lookAction != null && _lookAction.activeControl != null &&
-                            _lookAction.activeControl.device == Gamepad.current;
+        if (!usingGamepad && !CanConsumeMouseLookInput())
+            lookInput = Vector2.zero;
 
         float lookScale = usingGamepad ? _gamepadLookSensitivity * Time.deltaTime : _lookSensitivity;
         float yawDelta = lookInput.x * lookScale;
@@ -121,6 +122,19 @@ public class FpsCharacterController : MonoBehaviour
         velocity.y = _verticalVelocity;
 
         _characterController.Move(velocity * Time.deltaTime);
+    }
+
+    private bool IsUsingGamepadForLook()
+    {
+        return Gamepad.current != null
+               && _lookAction != null
+               && _lookAction.activeControl != null
+               && _lookAction.activeControl.device == Gamepad.current;
+    }
+
+    private bool CanConsumeMouseLookInput()
+    {
+        return !_lockCursorOnPlay || Cursor.lockState == CursorLockMode.Locked;
     }
 
     private void BindActions()

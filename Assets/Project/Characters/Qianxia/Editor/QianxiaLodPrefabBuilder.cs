@@ -6,9 +6,9 @@ using UnityEngine;
 
 public static class QianxiaLodPrefabBuilder
 {
-    public const string Lod0AssetPath = "Assets/Project/Characters/Qianxia/SourceModels/Ch36_nonPBR@Walking.fbx";
-    public const string Lod1AssetPath = "Assets/Project/Characters/Qianxia/SourceModels/LOD1.fbx";
-    public const string Lod2AssetPath = "Assets/Project/Characters/Qianxia/SourceModels/LOD2.fbx";
+    public const string Lod0AssetPath = "Assets/Project/Characters/Qianxia/SourceModels/LOD2.fbx";
+    public const string Lod1AssetPath = "Assets/Project/Characters/Qianxia/SourceModels/crowd1000.fbx";
+    public const string Lod2AssetPath = "Assets/Project/Characters/Qianxia/SourceModels/crowd500.fbx";
     public const string LodPrefabPath = "Assets/Project/Characters/Qianxia/Generated/QianxiaLodCharacter.prefab";
 
     private const string GeneratedFolder = "Assets/Project/Characters/Qianxia/Generated";

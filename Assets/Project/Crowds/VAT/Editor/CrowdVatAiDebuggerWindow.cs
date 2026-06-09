@@ -9,14 +9,20 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
     private const string WindowTitle = "AI Debugger V1.2";
     private const string ArtifactDirectoryName = ".workspace/artifacts/ai-debug";
     private static readonly string[] TargetKindLabels = { "Runtime ID", "Squad ID", "GPU Discovery" };
+    private static readonly CrowdVatAiDebugDiscoveryMode[] DiscoveryModeValues =
+    {
+        CrowdVatAiDebugDiscoveryMode.RegionSphere,
+        CrowdVatAiDebugDiscoveryMode.RegionBox,
+        CrowdVatAiDebugDiscoveryMode.ScreenRect,
+        CrowdVatAiDebugDiscoveryMode.SquadAll
+    };
+
     private static readonly string[] DiscoveryModeLabels =
     {
-        "异常自动发现",
         "区域录制 Sphere",
         "区域录制 Box",
         "屏幕矩形录制",
-        "小队全量扩展",
-        "小队异常抽样"
+        "小队全量扩展"
     };
 
     private readonly List<CrowdVatAiDebugTarget> _targets = new List<CrowdVatAiDebugTarget>();
@@ -31,8 +37,11 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
     private string _expectedBehavior = string.Empty;
     private string _status = "未开始录制。";
     private string _lastExportPath = string.Empty;
+    private string _reproStatus = "未开始复现轨迹录制。";
+    private string _lastTracePath = string.Empty;
+    private float _autoReplayAiDebugLeadTimeSeconds = 0.5f;
+    private CrowdVatAiDebugReproController _reproController;
     private double _lastRepaintTime;
-    private bool _showDiscoveryAdvanced;
     private bool _showDiscoveryRegionNumbers;
     private bool _isPickingDiscoveryCenter;
     private bool _isUpdateSubscribed;
@@ -76,6 +85,7 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
         DrawTargets();
         DrawGpuDiscoverySettings();
         DrawBugDescription();
+        DrawReproAutomation();
         DrawControls();
         DrawStatus();
         EditorGUILayout.EndScrollView();
@@ -96,6 +106,8 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
     private void DrawRendererField()
     {
         EditorGUILayout.Space();
+        CrowdVatAiDebugReproController reproController = TryGetReproController(false);
+        bool reproBusy = reproController != null && (reproController.IsRecordingTrace || reproController.IsReplayingTrace);
         EditorGUILayout.LabelField("录制对象", EditorStyles.boldLabel);
 
         using (new EditorGUILayout.HorizontalScope())
@@ -170,10 +182,9 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
         EditorGUILayout.LabelField("GPU Discovery 目标模式", EditorStyles.boldLabel);
         EditorGUILayout.LabelField("这些模式只在录制期启用；未录制时不会分配 discovery buffer，也不会 dispatch GPU 探针。", EditorStyles.wordWrappedMiniLabel);
 
-        _discoverySettings.mode = (CrowdVatAiDebugDiscoveryMode)EditorGUILayout.Popup(
-            "模式",
-            (int)_discoverySettings.mode,
-            DiscoveryModeLabels);
+        int selectedModeIndex = FindDiscoveryModeIndex(_discoverySettings.mode);
+        selectedModeIndex = EditorGUILayout.Popup("模式", selectedModeIndex, DiscoveryModeLabels);
+        _discoverySettings.mode = DiscoveryModeValues[selectedModeIndex];
         _discoverySettings.candidateCapacity = EditorGUILayout.IntSlider(
             "候选容量",
             _discoverySettings.candidateCapacity,
@@ -192,12 +203,20 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
                 DrawDiscoveryScreenRect();
                 break;
             case CrowdVatAiDebugDiscoveryMode.SquadAll:
-            case CrowdVatAiDebugDiscoveryMode.SquadAnomaly:
                 DrawDiscoverySquad();
                 break;
         }
+    }
 
-        DrawDiscoveryAdvanced();
+    private static int FindDiscoveryModeIndex(CrowdVatAiDebugDiscoveryMode mode)
+    {
+        for (int index = 0; index < DiscoveryModeValues.Length; index++)
+        {
+            if (DiscoveryModeValues[index] == mode)
+                return index;
+        }
+
+        return 0;
     }
 
     private void DrawDiscoveryRegionSphere()
@@ -259,10 +278,7 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
     private void DrawDiscoverySquad()
     {
         _discoverySettings.squadId = Mathf.Max(0, EditorGUILayout.IntField("Squad ID", _discoverySettings.squadId));
-        if (_discoverySettings.mode == CrowdVatAiDebugDiscoveryMode.SquadAnomaly)
-            EditorGUILayout.HelpBox("小队异常抽样会先在 GPU 侧过滤 Squad，再只记录有异常 reason 的成员。", MessageType.None);
-        else
-            EditorGUILayout.HelpBox("小队全量扩展会记录该 Squad 内 alive 成员；候选超过容量时只保留 bounded candidates。", MessageType.None);
+        EditorGUILayout.HelpBox("小队全量扩展会记录该 Squad 内 alive 成员；候选超过容量时只保留 bounded candidates。", MessageType.None);
     }
 
     private void DrawDiscoveryPointButtons()
@@ -286,24 +302,6 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
             EditorGUILayout.HelpBox("在 SceneView 左键点选一个位置，Esc 取消。", MessageType.Info);
     }
 
-    private void DrawDiscoveryAdvanced()
-    {
-        _showDiscoveryAdvanced = EditorGUILayout.Foldout(_showDiscoveryAdvanced, "异常阈值", true);
-        if (!_showDiscoveryAdvanced)
-            return;
-
-        EditorGUI.indentLevel++;
-        _discoverySettings.highSpeedThreshold = Mathf.Max(0.0f, EditorGUILayout.FloatField("高速阈值", _discoverySettings.highSpeedThreshold));
-        _discoverySettings.inactiveMovingSpeedThreshold = Mathf.Max(0.0f, EditorGUILayout.FloatField("inactive 移动阈值", _discoverySettings.inactiveMovingSpeedThreshold));
-        _discoverySettings.speedSpikeThreshold = Mathf.Max(0.0f, EditorGUILayout.FloatField("速度突变阈值", _discoverySettings.speedSpikeThreshold));
-        _discoverySettings.positionJumpThreshold = Mathf.Max(0.0f, EditorGUILayout.FloatField("位移跳变阈值", _discoverySettings.positionJumpThreshold));
-        _discoverySettings.stuckIntentSpeedThreshold = Mathf.Max(0.0f, EditorGUILayout.FloatField("卡住前移动记忆", _discoverySettings.stuckIntentSpeedThreshold));
-        _discoverySettings.stuckSpeedThreshold = Mathf.Max(0.0f, EditorGUILayout.FloatField("卡住速度阈值", _discoverySettings.stuckSpeedThreshold));
-        _discoverySettings.stuckMoveThreshold = Mathf.Max(0.0f, EditorGUILayout.FloatField("卡住位移阈值", _discoverySettings.stuckMoveThreshold));
-        _discoverySettings.stuckFrameThreshold = EditorGUILayout.IntSlider("卡住帧数", _discoverySettings.stuckFrameThreshold, 1, 600);
-        EditorGUI.indentLevel--;
-    }
-
     private void DrawBugDescription()
     {
         EditorGUILayout.Space();
@@ -319,14 +317,75 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
         _expectedBehavior = EditorGUILayout.TextArea(_expectedBehavior, GUILayout.MinHeight(56.0f));
     }
 
+    private void DrawReproAutomation()
+    {
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("复现自动化", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox(
+            "第一次手动跑时先录制角色/相机轨迹和小队命令；第二次可自动回放最近轨迹，并在热点前提前量自动开启 AI Debug。",
+            MessageType.None);
+
+        _autoReplayAiDebugLeadTimeSeconds = Mathf.Max(
+            0.0f,
+            EditorGUILayout.FloatField("热点前开启 AI Debug（秒）", _autoReplayAiDebugLeadTimeSeconds));
+
+        CrowdVatAiDebugReproController reproController = TryGetReproController(false);
+        bool isTraceRecording = reproController != null && reproController.IsRecordingTrace;
+        bool isTraceReplaying = reproController != null && reproController.IsReplayingTrace;
+        bool hasTracePath = !string.IsNullOrEmpty(_lastTracePath) && File.Exists(_lastTracePath);
+
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            using (new EditorGUI.DisabledScope(!Application.isPlaying || _renderer == null || _recorder.IsRecording || isTraceRecording || isTraceReplaying))
+            {
+                if (GUILayout.Button("开始录制轨迹", GUILayout.Height(28.0f)))
+                    StartTraceRecording();
+            }
+
+            using (new EditorGUI.DisabledScope(!isTraceRecording))
+            {
+                if (GUILayout.Button("结束并保存轨迹", GUILayout.Height(28.0f)))
+                    StopTraceRecordingAndSave();
+            }
+
+            using (new EditorGUI.DisabledScope(!isTraceRecording))
+            {
+                if (GUILayout.Button("丢弃轨迹", GUILayout.Width(84.0f), GUILayout.Height(28.0f)))
+                    DiscardTraceRecording();
+            }
+        }
+
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            using (new EditorGUI.DisabledScope(!Application.isPlaying || _renderer == null || _recorder.IsRecording || isTraceRecording || isTraceReplaying || !hasTracePath))
+            {
+                if (GUILayout.Button("回放最近轨迹 + AI Debug", GUILayout.Height(28.0f)))
+                    ReplayLatestTraceWithAiDebug();
+            }
+
+            using (new EditorGUI.DisabledScope(!hasTracePath))
+            {
+                if (GUILayout.Button("定位轨迹", GUILayout.Width(84.0f), GUILayout.Height(28.0f)))
+                    EditorUtility.RevealInFinder(_lastTracePath);
+            }
+        }
+
+        EditorGUILayout.HelpBox(_reproStatus, isTraceRecording || isTraceReplaying ? MessageType.Info : MessageType.None);
+
+        if (!string.IsNullOrEmpty(_lastTracePath))
+            EditorGUILayout.SelectableLabel(_lastTracePath, GUILayout.Height(EditorGUIUtility.singleLineHeight));
+    }
+
     private void DrawControls()
     {
         EditorGUILayout.Space();
+        CrowdVatAiDebugReproController reproController = TryGetReproController(false);
+        bool reproBusy = reproController != null && (reproController.IsRecordingTrace || reproController.IsReplayingTrace);
         EditorGUILayout.LabelField("录制控制", EditorStyles.boldLabel);
 
         using (new EditorGUILayout.HorizontalScope())
         {
-            using (new EditorGUI.DisabledScope(_recorder.IsRecording || _renderer == null || _targets.Count == 0 || !Application.isPlaying))
+            using (new EditorGUI.DisabledScope(_recorder.IsRecording || reproBusy || _renderer == null || _targets.Count == 0 || !Application.isPlaying))
             {
                 if (GUILayout.Button("开始录制", GUILayout.Height(32.0f)))
                     StartRecording();
@@ -362,6 +421,110 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
                     EditorUtility.RevealInFinder(_lastExportPath);
             }
         }
+    }
+
+    private void StartTraceRecording()
+    {
+        CrowdVatAiDebugReproController reproController = TryGetReproController(true);
+        if (reproController == null)
+        {
+            _reproStatus = "无法开始轨迹录制：未找到 CrowdVatIndirectRenderer。";
+            return;
+        }
+
+        if (reproController.StartTraceRecording())
+            SubscribeEditorUpdate();
+
+        SyncReproStatus(reproController);
+    }
+
+    private void StopTraceRecordingAndSave()
+    {
+        CrowdVatAiDebugReproController reproController = TryGetReproController(false);
+        if (reproController == null)
+            return;
+
+        if (reproController.StopTraceRecordingAndSave(GetReproTraceDirectory()))
+            SubscribeEditorUpdate();
+
+        SyncReproStatus(reproController);
+    }
+
+    private void DiscardTraceRecording()
+    {
+        CrowdVatAiDebugReproController reproController = TryGetReproController(false);
+        if (reproController == null)
+            return;
+
+        reproController.DiscardTraceRecording();
+        SyncReproStatus(reproController);
+    }
+
+    private void ReplayLatestTraceWithAiDebug()
+    {
+        CrowdVatAiDebugReproController reproController = TryGetReproController(true);
+        if (reproController == null)
+        {
+            _reproStatus = "无法开始轨迹回放：未找到 CrowdVatIndirectRenderer。";
+            return;
+        }
+
+        CrowdVatAiDebugDiscoverySettings discoverySettings = PrepareDiscoverySettingsForRecording();
+        if (discoverySettings.RequiresCameraMatrix() && !discoverySettings.hasWorldToClip)
+        {
+            _reproStatus = "无法开始轨迹回放：屏幕矩形录制缺少可用相机。";
+            return;
+        }
+
+        CrowdVatAiDebugReplayCaptureConfig captureConfig = new CrowdVatAiDebugReplayCaptureConfig
+        {
+            enableAiDebugCapture = true,
+            captureLeadTimeSeconds = _autoReplayAiDebugLeadTimeSeconds,
+            targets = new List<CrowdVatAiDebugTarget>(_targets),
+            discoverySettings = discoverySettings,
+            phenomenon = _phenomenon,
+            reproductionSteps = _reproductionSteps,
+            expectedBehavior = _expectedBehavior,
+            exportDirectory = GetArtifactDirectory()
+        };
+
+        if (reproController.StartReplay(_lastTracePath, captureConfig))
+            SubscribeEditorUpdate();
+
+        SyncReproStatus(reproController);
+    }
+
+    private CrowdVatAiDebugReproController TryGetReproController(bool createIfMissing)
+    {
+        if (_renderer == null)
+            return null;
+
+        if (_reproController != null)
+        {
+            _reproController.AssignRenderer(_renderer);
+            return _reproController;
+        }
+
+        _reproController = createIfMissing
+            ? CrowdVatAiDebugReproController.GetOrCreate(_renderer)
+            : _renderer.GetComponent<CrowdVatAiDebugReproController>();
+
+        if (_reproController != null)
+            _reproController.AssignRenderer(_renderer);
+
+        return _reproController;
+    }
+
+    private void SyncReproStatus(CrowdVatAiDebugReproController reproController)
+    {
+        if (reproController == null)
+            return;
+
+        _reproStatus = reproController.StatusMessage;
+        if (!string.IsNullOrEmpty(reproController.LastTracePath))
+            _lastTracePath = reproController.LastTracePath;
+        if (!string.IsNullOrEmpty(reproController.LastAiDebugExportPath))
+            _lastExportPath = reproController.LastAiDebugExportPath;
     }
 
     private void StartRecording()
@@ -422,12 +585,15 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
 
     private void OnEditorUpdate()
     {
+        CrowdVatAiDebugReproController reproController = TryGetReproController(false);
+        if (reproController != null)
+            SyncReproStatus(reproController);
+
         if (_recorder.IsRecording && !Application.isPlaying)
         {
             if (_renderer != null)
                 _renderer.ClearAiDebugRuntimeRecorder(_recorder);
             _recorder.Stop();
-            UnsubscribeEditorUpdate();
             _status = "Play 模式已结束，录制已停止；可以导出已有数据或丢弃。";
         }
         else if (_recorder.IsRecording)
@@ -436,6 +602,10 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
                 "，记录 " + _recorder.RecordCount +
                 " 条，未变化帧 " + _recorder.DroppedUnchangedFrames + "。";
         }
+
+        bool reproBusy = reproController != null && (reproController.IsRecordingTrace || reproController.IsReplayingTrace);
+        if (!_recorder.IsRecording && !reproBusy)
+            UnsubscribeEditorUpdate();
 
         double now = EditorApplication.timeSinceStartup;
         if (now - _lastRepaintTime > 0.25)
@@ -457,6 +627,11 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
     private void UnsubscribeEditorUpdate()
     {
         if (!_isUpdateSubscribed)
+            return;
+
+        CrowdVatAiDebugReproController reproController = TryGetReproController(false);
+        bool reproBusy = reproController != null && (reproController.IsRecordingTrace || reproController.IsReplayingTrace);
+        if (_recorder.IsRecording || reproBusy)
             return;
 
         EditorApplication.update -= OnEditorUpdate;
@@ -664,7 +839,10 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
             selectedRenderer = Selection.activeGameObject.GetComponentInChildren<CrowdVatIndirectRenderer>();
 
         if (selectedRenderer != null)
+        {
             _renderer = selectedRenderer;
+            _reproController = null;
+        }
     }
 
     private void TryAutoAssignRenderer()
@@ -673,6 +851,8 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
             return;
 
         _renderer = FindFirstObjectByType<CrowdVatIndirectRenderer>();
+        if (_renderer != null)
+            _reproController = null;
     }
 
     private static string GetArtifactDirectory()
@@ -680,5 +860,10 @@ public sealed class CrowdVatAiDebuggerWindow : EditorWindow
         DirectoryInfo projectRoot = Directory.GetParent(Application.dataPath);
         string rootPath = projectRoot != null ? projectRoot.FullName : Application.dataPath;
         return Path.Combine(rootPath, ArtifactDirectoryName);
+    }
+
+    private static string GetReproTraceDirectory()
+    {
+        return Path.Combine(GetArtifactDirectory(), "repro-traces");
     }
 }

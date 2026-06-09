@@ -347,6 +347,7 @@ Shader "New_Grass/BezierBlade"
 
             half4 Frag(Varyings IN) : SV_Target
             {
+
                 float3 curvedNorm = normalize(IN.curvedNormWS);
                 float3 originalNorm = normalize(IN.originalNormWS);
                 float3 tangentWS = normalize(IN.tangentWS);

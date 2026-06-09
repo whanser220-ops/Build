@@ -1,6 +1,8 @@
 {
     "name": "NewTree.EditMode.Tests",
-    "references": [],
+    "references": [
+        "Qianxia.RenderDocCapture.Shared"
+    ],
     "includePlatforms": [
         "Editor"
     ],

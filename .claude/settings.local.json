@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(codex:setup)",
+      "Skill(codex:rescue)",
+      "Read(//c/Users/huang/.claude/**)",
+      "Bash(where renderdoc-mcp *)",
+      "Bash(tasklist)",
+      "Read(//c/Program Files/RenderDoc/**)",
+      "Read(//c/Program Files \\(x86\\)/RenderDoc/**)",
+      "Bash(where qrenderdoc *)",
+      "Bash(./renderdoccmd.exe --help)",
+      "Bash(renderdoc-mcp *)",
+      "Bash(python -c ' *)",
+      "Skill(update-config)",
+      "Bash(\"C:/Program Files/RenderDoc/renderdoccmd.exe\" --help)",
+      "Bash(C:/Program Files/RenderDoc/renderdoccmd.exe thumb *)",
+      "Bash(python3 -c \"import renderdoc; print\\('renderdoc Python module available'\\)\")",
+      "Bash(python -c \"import renderdoc; print\\('renderdoc available'\\)\")",
+      "Bash(C:/unity/Unity6/renderdoc-mcp/RenderDocMCP-main/.venv/Scripts/python.exe *)",
+      "Bash(tasklist /FI \"IMAGENAME eq qrenderdoc.exe\")"
+    ]
+  }
+}

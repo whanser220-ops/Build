@@ -19,10 +19,19 @@ public static class CrowdVatDiagnostics
 
     private const string SampleScenePath = "Assets/Scenes/SampleScene.unity";
     private const string SampleSceneCrowdObjectName = "QianxiaCrowdIndirect";
-    private const string SourceModelAssetPath = "Assets/Project/Characters/Qianxia/SourceModels/LOD2.fbx";
     private const string WalkClipAssetPath = "Assets/Project/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
-    private const string VatPrefabPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod2Vat.prefab";
-    private const string AnimationAssetPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod2Vat.asset";
+    private const string Lod0SourceModelAssetPath = "Assets/Project/Characters/Qianxia/SourceModels/LOD2.fbx";
+    private const string Lod1SourceModelAssetPath = "Assets/Project/Characters/Qianxia/SourceModels/crowd1000.fbx";
+    private const string Lod2SourceModelAssetPath = "Assets/Project/Characters/Qianxia/SourceModels/crowd500.fbx";
+    private const string Lod0VatPrefabPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod0Vat.prefab";
+    private const string Lod1VatPrefabPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod1Vat.prefab";
+    private const string Lod2VatPrefabPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod2Vat.prefab";
+    private const string Lod0AnimationAssetPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod0Vat.asset";
+    private const string Lod1AnimationAssetPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod1Vat.asset";
+    private const string Lod2AnimationAssetPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod2Vat.asset";
+    private const string Lod0MeshAssetPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod0Vat_Mesh.asset";
+    private const string Lod1MeshAssetPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod1Vat_Mesh.asset";
+    private const string Lod2MeshAssetPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod2Vat_Mesh.asset";
     private const string ComputeShaderPath = "Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute";
     private const string ShaderPath = "Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectLit.shader";
 
@@ -75,7 +84,7 @@ public static class CrowdVatDiagnostics
         int activeFormationSlotCount = GetFieldValue<int>(renderer, "_activeFormationSlotCount");
         bool usesGpuVisibleCompaction = GetFieldValue<bool>(renderer, "_usesGpuVisibleInstanceCompactionThisFrame");
         bool visibleUnassignedInstances = GetFieldValue<bool>(renderer, "_visibleUnassignedInstancesThisFrame");
-        Array runtimeSquadRenderChunks = GetFieldValue<Array>(renderer, "_runtimeSquadRenderChunks");
+        Array runtimeSquadRenderChunks = GetField<Array>(renderer, "_runtimeSquadRenderChunks");
         uint[] visibleRuntimeSquadMask = GetField<uint[]>(renderer, "_visibleRuntimeSquadMaskUploadCache");
         uint aliveInstanceCountBeforeDraw = ReadCounterValue(GetPrivateFieldValue<ComputeBuffer>(renderer, "_aliveInstanceCounterBuffer"));
         uint visibleInstanceCountGpuBeforeDraw = ReadCounterValue(GetPrivateFieldValue<ComputeBuffer>(renderer, "_visibleInstanceCounterBuffer"));
@@ -83,12 +92,15 @@ public static class CrowdVatDiagnostics
         bool hasVisibleBounds = GetFieldValue<bool>(renderer, "_hasVisibleBounds");
         Bounds visibleWorldBounds = GetFieldValue<Bounds>(renderer, "_visibleWorldBounds");
         Bounds localCrowdBounds = GetFieldValue<Bounds>(renderer, "_localCrowdBounds");
-        Array renderChunks = GetFieldValue<Array>(renderer, "_renderChunks");
+        Array renderChunks = GetField<Array>(renderer, "_renderChunks");
         uint[] visibleInstanceIndices = GetField<uint[]>(renderer, "_visibleInstanceIndexCache");
         bool hasRuntimeRenderResource = GetFieldValue<bool>(renderer, "_hasRuntimeRenderResource");
+        bool hasSecondaryRuntimeRenderResource = GetFieldValue<bool>(renderer, "_hasSecondaryRuntimeRenderResource");
+        bool hasTertiaryRuntimeRenderResource = GetFieldValue<bool>(renderer, "_hasTertiaryRuntimeRenderResource");
         bool hasClip = GetFieldValue<bool>(renderer, "_hasClip");
         bool isPlaying = GetFieldValue<bool>(renderer, "_isPlaying");
         Array indirectArgsBuffers = GetFieldValue<Array>(renderer, "_indirectArgsBuffers");
+        Array activeVisibleLodRenderResources = GetFieldValue<Array>(renderer, "_activeVisibleLodRenderResources");
         object runtimeRenderResource = GetPrivateFieldValue(renderer, "_runtimeRenderResource");
         object templatePrefab = GetPrivateFieldValue(runtimeRenderResource, "templatePrefab");
         object animationAsset = GetPrivateFieldValue(runtimeRenderResource, "animationAsset");
@@ -153,6 +165,8 @@ public static class CrowdVatDiagnostics
         builder.AppendLine(
             $"initialized={initialized} hasRuntimeRenderResource={hasRuntimeRenderResource} hasClip={hasClip} isPlaying={isPlaying}");
         builder.AppendLine(
+            $"lodResources=secondary={hasSecondaryRuntimeRenderResource} tertiary={hasTertiaryRuntimeRenderResource} activeVisibleLodTierCount={(activeVisibleLodRenderResources != null ? activeVisibleLodRenderResources.Length : 0)}");
+        builder.AppendLine(
             $"templatePrefab={(templatePrefab != null ? templatePrefab.ToString() : "null")} animationAsset={(animationAsset != null ? animationAsset.ToString() : "null")}");
         builder.AppendLine(
             $"runtimeMesh={(runtimeMesh != null ? runtimeMesh.name : "null")} subMeshCount={(runtimeMesh != null ? runtimeMesh.subMeshCount : 0)} runtimeMaterialCount={(runtimeMaterials != null ? runtimeMaterials.Length : 0)} indirectArgsBufferCount={(indirectArgsBuffers != null ? indirectArgsBuffers.Length : 0)}");
@@ -180,10 +194,19 @@ public static class CrowdVatDiagnostics
     {
         StringBuilder builder = new StringBuilder();
         builder.AppendLine("Crowd VAT 资源检查");
-        builder.AppendLine(BuildAssetLine("Source Model", AssetDatabase.LoadAssetAtPath<GameObject>(SourceModelAssetPath), SourceModelAssetPath));
         builder.AppendLine(BuildAssetLine("Walk Clip", AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(WalkClipAssetPath), WalkClipAssetPath));
-        builder.AppendLine(BuildAssetLine("VAT Prefab", AssetDatabase.LoadAssetAtPath<GameObject>(VatPrefabPath), VatPrefabPath));
-        builder.AppendLine(BuildAssetLine("Animation Asset", AssetDatabase.LoadAssetAtPath<CrowdVatAnimationAsset>(AnimationAssetPath), AnimationAssetPath));
+        builder.AppendLine(BuildAssetLine("LOD0 Source Model", AssetDatabase.LoadAssetAtPath<GameObject>(Lod0SourceModelAssetPath), Lod0SourceModelAssetPath));
+        builder.AppendLine(BuildAssetLine("LOD1 Source Model", AssetDatabase.LoadAssetAtPath<GameObject>(Lod1SourceModelAssetPath), Lod1SourceModelAssetPath));
+        builder.AppendLine(BuildAssetLine("LOD2 Source Model", AssetDatabase.LoadAssetAtPath<GameObject>(Lod2SourceModelAssetPath), Lod2SourceModelAssetPath));
+        builder.AppendLine(BuildAssetLine("LOD0 VAT Prefab", AssetDatabase.LoadAssetAtPath<GameObject>(Lod0VatPrefabPath), Lod0VatPrefabPath));
+        builder.AppendLine(BuildAssetLine("LOD1 VAT Prefab", AssetDatabase.LoadAssetAtPath<GameObject>(Lod1VatPrefabPath), Lod1VatPrefabPath));
+        builder.AppendLine(BuildAssetLine("LOD2 VAT Prefab", AssetDatabase.LoadAssetAtPath<GameObject>(Lod2VatPrefabPath), Lod2VatPrefabPath));
+        builder.AppendLine(BuildAssetLine("LOD0 Animation Asset", AssetDatabase.LoadAssetAtPath<CrowdVatAnimationAsset>(Lod0AnimationAssetPath), Lod0AnimationAssetPath));
+        builder.AppendLine(BuildAssetLine("LOD1 Animation Asset", AssetDatabase.LoadAssetAtPath<CrowdVatAnimationAsset>(Lod1AnimationAssetPath), Lod1AnimationAssetPath));
+        builder.AppendLine(BuildAssetLine("LOD2 Animation Asset", AssetDatabase.LoadAssetAtPath<CrowdVatAnimationAsset>(Lod2AnimationAssetPath), Lod2AnimationAssetPath));
+        builder.AppendLine(BuildMeshAssetLine("LOD0 VAT Mesh", Lod0MeshAssetPath));
+        builder.AppendLine(BuildMeshAssetLine("LOD1 VAT Mesh", Lod1MeshAssetPath));
+        builder.AppendLine(BuildMeshAssetLine("LOD2 VAT Mesh", Lod2MeshAssetPath));
         builder.AppendLine(BuildAssetLine("Compute Shader", AssetDatabase.LoadAssetAtPath<ComputeShader>(ComputeShaderPath), ComputeShaderPath));
         builder.AppendLine(BuildAssetLine("Indirect Shader", AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath), ShaderPath));
         return builder.ToString();
@@ -192,6 +215,19 @@ public static class CrowdVatDiagnostics
     private static string BuildAssetLine(string label, UnityEngine.Object asset, string path)
     {
         return $"{label}: {(asset != null ? "OK" : "Missing")} ({path})";
+    }
+
+    private static string BuildMeshAssetLine(string label, string path)
+    {
+        Mesh mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+        if (mesh == null)
+            return $"{label}: Missing ({path})";
+
+        ulong totalIndexCount = 0;
+        for (int subMeshIndex = 0; subMeshIndex < mesh.subMeshCount; subMeshIndex++)
+            totalIndexCount += mesh.GetIndexCount(subMeshIndex);
+
+        return $"{label}: OK ({path}) triangles={totalIndexCount / 3} indices={totalIndexCount} vertices={mesh.vertexCount} subMeshes={mesh.subMeshCount}";
     }
 
     private static string BuildVisibleInstancePreview(int visibleInstanceCount, uint[] visibleInstanceIndices)

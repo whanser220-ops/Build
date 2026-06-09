@@ -1,0 +1,30 @@
+﻿# Unity generated
+Library/
+Temp/
+obj/
+Logs/
+UserSettings/
+
+# Build output
+Build/
+Builds/
+
+# Codex workspace artifacts
+.workspace/
+
+# IDE
+.idea/
+.vs/
+*.sln.DotSettings.user
+*.csproj.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python virtual env
+.venv*/
+__pycache__/
+
+# Built output (do not commit)
+DOC/

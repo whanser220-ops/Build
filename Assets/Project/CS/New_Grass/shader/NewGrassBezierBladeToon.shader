@@ -69,6 +69,7 @@ Shader "New_Grass/BezierBladeToon"
 
             HLSLPROGRAM
             #pragma target 4.5
+            #pragma enable_d3d11_debug_symbols
             #pragma vertex Vert
             #pragma fragment Frag
             #pragma multi_compile_instancing
@@ -372,6 +373,7 @@ Shader "New_Grass/BezierBladeToon"
 
             half4 Frag(Varyings IN) : SV_Target
             {
+
                 float3 curvedNorm = normalize(IN.curvedNormWS);
                 float3 originalNorm = normalize(IN.originalNormWS);
                 float3 tangentWS = normalize(IN.tangentWS);

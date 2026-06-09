@@ -3,9 +3,19 @@
 
 - 版本：v0.1
 - 日期：2026-04-18
-- 状态：可开工实现方案
+- 状态：已偏离实现（仓库已存在基础实现，本文不再只是“可开工方案”）
+- 同步级别：弱同步
 - 适用项目：Unity 6 `6000.0.46f1`、URP
 - 作者：Codex
+- 当前实现锚点：
+  - `Assets/Project/Crowds/VAT/Runtime/CrowdVatSquadController.cs`
+  - `Assets/Project/Crowds/VAT/Runtime/CrowdVatSquadCommandController.cs`
+  - `Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute`
+- 最后实现核对：2026-05-06
+- 替代关系：
+  - 替代：
+  - 被替代：
+    - `docs/plans/qianxia-crowd-current-implementation-baseline.md`
 - 上游参考：
   - [现有人群 VAT / Indirect 技术设计](C:/unity/Unity6/docs/plans/qianxia-crowd-vat-technical-design.md)
   - [大规模人群物理系统技术设计](C:/unity/Unity6/docs/plans/qianxia-large-scale-crowd-physics-design.md)

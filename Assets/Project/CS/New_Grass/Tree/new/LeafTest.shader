@@ -81,6 +81,7 @@ Shader "MyShader/Leaf_Test"
 
 		HLSLINCLUDE
 		#pragma target 4.5
+		#pragma enable_d3d11_debug_symbols
 		#pragma prefer_hlslcc gles
 		// ensure rendering platforms toggle list is visible
 

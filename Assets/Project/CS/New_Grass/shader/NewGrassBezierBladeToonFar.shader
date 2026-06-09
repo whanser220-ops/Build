@@ -49,6 +49,7 @@ Shader "New_Grass/BezierBladeToonFar"
 
             HLSLPROGRAM
             #pragma target 4.5
+            #pragma enable_d3d11_debug_symbols
             #pragma vertex Vert
             #pragma fragment Frag
             #pragma multi_compile_instancing
@@ -297,6 +298,7 @@ Shader "New_Grass/BezierBladeToonFar"
 
             half4 Frag(Varyings IN) : SV_Target
             {
+
                 float3 n = normalize(IN.curvedNormWS);
                 Light mainLight = GetMainLight();
                 float3 l = normalize(mainLight.direction);

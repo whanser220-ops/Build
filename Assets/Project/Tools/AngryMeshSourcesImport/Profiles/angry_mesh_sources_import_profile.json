@@ -1,0 +1,206 @@
+{
+    "profileVersion": 1,
+    "sourceRoot": "Assets/GameResources",
+    "statePath": "Assets/Project/Tools/AngryMeshSourcesImport/Profiles/angry_mesh_sources_import_state.json",
+    "autoApplyOnImport": true,
+    "rules": [
+        {
+            "id": "texture-skybox-hdr",
+            "enabled": true,
+            "order": 10,
+            "assetKind": "Texture",
+            "pathGlobs": [
+                "*/Sources/Textures/Skybox/**"
+            ],
+            "fileNameGlobs": [
+                "*.HDR",
+                "*.hdr"
+            ],
+            "texture": {
+                "apply": true,
+                "textureType": "Default",
+                "sRGBTexture": true,
+                "mipmapEnabled": true,
+                "maxTextureSize": 4096,
+                "textureCompression": "CompressedHQ",
+                "wrapMode": "Clamp",
+                "filterMode": "Trilinear",
+                "anisoLevel": 1
+            }
+        },
+        {
+            "id": "texture-normal",
+            "enabled": true,
+            "order": 20,
+            "assetKind": "Texture",
+            "pathGlobs": [
+                "*/Sources/Textures/**"
+            ],
+            "fileNameGlobs": [
+                "*_N.tif",
+                "*_Normal.tif"
+            ],
+            "texture": {
+                "apply": true,
+                "textureType": "NormalMap",
+                "sRGBTexture": false,
+                "mipmapEnabled": true,
+                "maxTextureSize": 2048,
+                "textureCompression": "CompressedHQ",
+                "wrapMode": "Repeat",
+                "filterMode": "Trilinear",
+                "anisoLevel": 8
+            }
+        },
+        {
+            "id": "texture-linear-mask",
+            "enabled": true,
+            "order": 30,
+            "assetKind": "Texture",
+            "pathGlobs": [
+                "*/Sources/Textures/**"
+            ],
+            "fileNameGlobs": [
+                "*_SMA.tif",
+                "*_Mask.tif",
+                "*_H.tif",
+                "*_O.tif"
+            ],
+            "texture": {
+                "apply": true,
+                "textureType": "Default",
+                "sRGBTexture": false,
+                "mipmapEnabled": true,
+                "maxTextureSize": 2048,
+                "textureCompression": "CompressedHQ",
+                "wrapMode": "Repeat",
+                "filterMode": "Trilinear",
+                "anisoLevel": 4
+            }
+        },
+        {
+            "id": "texture-color-default",
+            "enabled": true,
+            "order": 40,
+            "assetKind": "Texture",
+            "pathGlobs": [
+                "*/Sources/Textures/**"
+            ],
+            "fileNameGlobs": [
+                "*.tif"
+            ],
+            "texture": {
+                "apply": true,
+                "textureType": "Default",
+                "sRGBTexture": true,
+                "mipmapEnabled": true,
+                "maxTextureSize": 2048,
+                "textureCompression": "CompressedHQ",
+                "wrapMode": "Repeat",
+                "filterMode": "Trilinear",
+                "anisoLevel": 4
+            }
+        },
+        {
+            "id": "model-foliage-card",
+            "enabled": true,
+            "order": 100,
+            "assetKind": "Model",
+            "pathGlobs": [
+                "*/Sources/Meshes/Grass/**",
+                "*/Sources/Meshes/Flowers/**",
+                "*/Sources/Meshes/Leaves/**",
+                "*/Sources/Meshes/Plants/**",
+                "*/Sources/Meshes/VFX/**"
+            ],
+            "fileNameGlobs": [
+                "*.fbx"
+            ],
+            "model": {
+                "apply": true,
+                "globalScale": 1.0,
+                "isReadable": false,
+                "importCameras": false,
+                "importLights": false,
+                "importBlendShapes": false,
+                "generateColliders": false,
+                "generateSecondaryUV": false,
+                "optimizeMeshVertices": true,
+                "optimizeMeshPolygons": true,
+                "meshCompression": "Low",
+                "animationType": "None",
+                "materialImportMode": "None"
+            }
+        },
+        {
+            "id": "model-static-default",
+            "enabled": true,
+            "order": 110,
+            "assetKind": "Model",
+            "pathGlobs": [
+                "*/Sources/Meshes/**"
+            ],
+            "fileNameGlobs": [
+                "*.fbx"
+            ],
+            "model": {
+                "apply": true,
+                "globalScale": 1.0,
+                "isReadable": false,
+                "importCameras": false,
+                "importLights": false,
+                "importBlendShapes": false,
+                "generateColliders": false,
+                "generateSecondaryUV": false,
+                "optimizeMeshVertices": true,
+                "optimizeMeshPolygons": true,
+                "meshCompression": "Off",
+                "animationType": "None",
+                "materialImportMode": "None"
+            }
+        },
+        {
+            "id": "material-default",
+            "enabled": true,
+            "order": 200,
+            "assetKind": "Material",
+            "pathGlobs": [
+                "*/Sources/Materials/**"
+            ],
+            "fileNameGlobs": [
+                "*.mat"
+            ],
+            "material": {
+                "apply": true,
+                "enableInstancing": true,
+                "doubleSidedGI": false,
+                "renderQueue": -1,
+                "shaderName": ""
+            }
+        },
+        {
+            "id": "terrain-layer-track-only",
+            "enabled": true,
+            "order": 300,
+            "assetKind": "TerrainLayer",
+            "pathGlobs": [
+                "*/Sources/Terrain Layers/**"
+            ],
+            "fileNameGlobs": [
+                "*.terrainlayer"
+            ]
+        },
+        {
+            "id": "terrain-data-track-only",
+            "enabled": true,
+            "order": 310,
+            "assetKind": "Generic",
+            "pathGlobs": [
+                "*/Sources/Terrain Data/**"
+            ],
+            "fileNameGlobs": [
+                "*.asset"
+            ]
+        }
+    ]
+}

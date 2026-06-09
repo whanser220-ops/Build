@@ -1,0 +1,730 @@
+schema_version: 1
+shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+description: >
+  Crowd VAT indirect compute entry file. All kernels are authored as explicit
+  AI-maintained records and should map to a stable pass_id in
+  ../gpu_pass_catalog.yaml before being used for RenderDoc analysis.
+kernels:
+  - name: BuildAliveInstanceList
+    pass_id: crowd.workset.build_alive_list
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Reject dead instances.
+      - Atomically append alive instance indices.
+      - Produce the base workset for later indirect passes.
+    data_parallel_unit: one_thread_per_instance
+    input_scale:
+      primary_count: instance_count
+      expected_range: 10000-1000000
+    memory_access:
+      _DeathStateBuffer: { access: read, pattern: sequential_instance }
+      _AliveInstanceCounterBuffer: { access: read_write, pattern: single_counter_atomic }
+      _AliveInstanceIndexBuffer: { access: write, pattern: atomic_append }
+    known_risks:
+      - Atomic append pressure increases when most instances are alive.
+      - Alive list order is append order, so later passes should not assume spatial locality.
+    optimization_notes:
+      - Consider prefix-sum compaction only if atomic contention dominates at target scale.
+
+  - name: BuildAliveDispatchArgs
+    pass_id: crowd.workset.build_alive_dispatch_args
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Convert alive count to indirect dispatch dimensions.
+      - Clamp group count to at least one group.
+    data_parallel_unit: one_thread_per_dispatch_args
+    input_scale:
+      primary_count: alive_count
+      expected_range: 0-1000000
+    memory_access:
+      _AliveInstanceCounterBuffer: { access: read, pattern: single_counter }
+      _AliveInstanceDispatchArgsBuffer: { access: write, pattern: three_uint_args }
+    known_risks:
+      - Dispatches one group even when alive count is zero; downstream kernels must guard.
+    optimization_notes:
+      - Keep this pass adjacent to alive compaction for easier event correlation.
+
+  - name: ClearWakeGrid
+    pass_id: crowd.wake_grid.clear
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Clear per-cell wake grid counters.
+    data_parallel_unit: one_thread_per_wake_grid_cell
+    input_scale:
+      primary_count: wake_grid_cell_count
+      expected_range: 1024-1048576
+    memory_access:
+      _WakeGridCounterBuffer: { access: write, pattern: linear_grid_clear }
+    known_risks:
+      - Full-grid clear cost scales with cell count even when few agents moved.
+    optimization_notes:
+      - Prefer sparse clear if wake grid clear becomes visible in captures.
+
+  - name: BuildWakeGrid
+    pass_id: crowd.wake_grid.build
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Map alive instances to wake grid cells.
+      - Append bounded occupants per cell for neighbor wake tests.
+    data_parallel_unit: one_thread_per_alive_instance
+    input_scale:
+      primary_count: alive_count
+      expected_range: 10000-1000000
+    memory_access:
+      _AliveInstanceIndexBuffer: { access: read, pattern: indirect_sequential }
+      _SimulationStateBuffer: { access: read, pattern: indirect_per_instance }
+      _WakeGridCounterBuffer: { access: read_write, pattern: random_cell_atomic }
+      _WakeGridOccupantBuffer: { access: write, pattern: random_cell_scatter }
+    known_risks:
+      - Dense cells can contend on counter atomics.
+      - Cell overflow silently drops wake occupants beyond max occupancy.
+    optimization_notes:
+      - Compare occupancy histogram with timing before changing grid resolution.
+
+  - name: EvaluatePhysicsActive
+    pass_id: crowd.workset.evaluate_physics_active
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Wake or sleep physics-active state.
+      - Apply command, speed, anchor error and neighbor wake heuristics.
+      - Maintain activation hold and sleep timers.
+    data_parallel_unit: one_thread_per_alive_instance
+    input_scale:
+      primary_count: alive_count
+      expected_range: 10000-1000000
+    memory_access:
+      _AliveInstanceIndexBuffer: { access: read, pattern: indirect_sequential }
+      _SimulationStateBuffer: { access: read, pattern: indirect_per_instance }
+      _WakeGridCounterBuffer: { access: read, pattern: random_wake_cell }
+      _PhysicsActiveStateBuffer: { access: read_write, pattern: indirect_per_instance }
+      _PhysicsActivationMetaBuffer: { access: read_write, pattern: indirect_per_instance }
+    known_risks:
+      - Multi-condition wake/sleep logic can diverge heavily across agents.
+      - Neighbor wake reads inherit wake grid occupancy quality.
+    optimization_notes:
+      - Keep activation reasons visible in debug data when tuning thresholds.
+
+  - name: BuildPhysicsActiveInstanceList
+    pass_id: crowd.workset.build_physics_active_list
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Compact alive instances whose physics-active flag is set.
+    data_parallel_unit: one_thread_per_alive_instance
+    input_scale:
+      primary_count: alive_count
+      expected_range: 10000-1000000
+    memory_access:
+      _AliveInstanceIndexBuffer: { access: read, pattern: indirect_sequential }
+      _PhysicsActiveStateBuffer: { access: read, pattern: indirect_per_instance }
+      _PhysicsActiveInstanceCounterBuffer: { access: read_write, pattern: single_counter_atomic }
+      _PhysicsActiveInstanceIndexBuffer: { access: write, pattern: atomic_append }
+    known_risks:
+      - Atomic append pressure follows physics-active ratio.
+    optimization_notes:
+      - Use active ratio metrics to decide if compaction remains worthwhile.
+
+  - name: BuildPhysicsActiveDispatchArgs
+    pass_id: crowd.workset.build_physics_active_dispatch_args
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Convert physics-active count to indirect dispatch dimensions.
+    data_parallel_unit: one_thread_per_dispatch_args
+    input_scale:
+      primary_count: physics_active_count
+      expected_range: 0-1000000
+    memory_access:
+      _PhysicsActiveInstanceCounterBuffer: { access: read, pattern: single_counter }
+      _PhysicsActiveInstanceDispatchArgsBuffer: { access: write, pattern: three_uint_args }
+    known_risks:
+      - Downstream kernels must guard because group count is clamped to at least one.
+    optimization_notes:
+      - Keep this pass close to physics active compaction in frame ordering.
+
+  - name: EvaluateCombatActive
+    pass_id: crowd.combat.evaluate_active
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Select instances requiring combat processing.
+      - Preserve combat visual activity with hold timers.
+      - Stagger probe work across frames.
+    data_parallel_unit: one_thread_per_alive_instance
+    input_scale:
+      primary_count: alive_count
+      expected_range: 10000-1000000
+    memory_access:
+      _CombatStateBuffer: { access: read, pattern: indirect_per_instance }
+      _TargetAcquisitionStateBuffer: { access: read, pattern: indirect_per_instance }
+      _CombatActiveStateBuffer: { access: write, pattern: indirect_per_instance }
+      _CombatActivationMetaBuffer: { access: read_write, pattern: indirect_per_instance }
+    known_risks:
+      - Probe interval and visual hold logic can create uneven active ratios.
+    optimization_notes:
+      - Track combat-active count separately from alive count in captures.
+
+  - name: BuildCombatActiveInstanceList
+    pass_id: crowd.combat.build_active_list
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Compact combat-active instances into an indirect workset.
+    data_parallel_unit: one_thread_per_alive_instance
+    input_scale:
+      primary_count: alive_count
+      expected_range: 10000-1000000
+    memory_access:
+      _CombatActiveStateBuffer: { access: read, pattern: indirect_per_instance }
+      _CombatActiveInstanceCounterBuffer: { access: read_write, pattern: single_counter_atomic }
+      _CombatActiveInstanceIndexBuffer: { access: write, pattern: atomic_append }
+    known_risks:
+      - Atomic append cost rises when many agents have combat visual interest.
+    optimization_notes:
+      - Keep combat-active workset small enough to justify target search passes.
+
+  - name: CompactCombatActiveInstanceList
+    pass_id: crowd.combat.compact_active_list
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Merge target-priority combat-active entries from the suffix into the dense active prefix.
+      - Publish the final combined combat-active count for indirect dispatch args.
+    data_parallel_unit: one_thread_per_target_priority_combat_active_instance
+    input_scale:
+      primary_count: target_priority_combat_active_count
+      expected_range: 0-alive_count
+    memory_access:
+      _CombatActiveInstanceCounterBuffer: { access: read_write, pattern: two_counter_merge }
+      _CombatActiveInstanceIndexBuffer: { access: read_write, pattern: suffix_to_prefix_copy }
+    known_risks:
+      - Cost is proportional to agents with locked or visible combat targets.
+    optimization_notes:
+      - Compare counter[1] against total combat-active count before optimizing this copy.
+
+  - name: BuildCombatActiveDispatchArgs
+    pass_id: crowd.combat.build_active_dispatch_args
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Convert combat-active count to indirect dispatch dimensions.
+    data_parallel_unit: one_thread_per_dispatch_args
+    input_scale:
+      primary_count: combat_active_count
+      expected_range: 0-1000000
+    memory_access:
+      _CombatActiveInstanceCounterBuffer: { access: read, pattern: single_counter }
+      _CombatActiveInstanceDispatchArgsBuffer: { access: write, pattern: three_uint_args }
+    known_risks:
+      - Downstream combat passes still dispatch one group when count is zero.
+    optimization_notes:
+      - Use this pass timing mainly as synchronization/context evidence.
+
+  - name: ClearCombatSquadCandidateCounters
+    pass_id: crowd.combat.clear_candidate_counters
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Reset per-squad combat candidate counters.
+    data_parallel_unit: one_thread_per_squad
+    input_scale:
+      primary_count: squad_state_count
+      expected_range: 0-10000
+    memory_access:
+      _CombatSquadCandidateCounterBuffer: { access: write, pattern: linear_squad_counter_clear }
+    known_risks:
+      - Usually cheap; unexpected cost indicates too many runtime squads or poor scheduling.
+    optimization_notes:
+      - Keep candidate buffer capacity visible in context when analyzing combat spikes.
+
+  - name: BuildCombatCandidateClusters
+    pass_id: crowd.combat.build_candidate_clusters
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+    responsibility:
+      - Scan CPU-built runtime squad broadphase cell-tile work items from a compact indirect dispatch.
+      - Append hostile candidates into a bounded squad candidate list with target index, faction, target top local position and scale prepacked for acquisition scoring.
+    data_parallel_unit: one_thread_per_grid_occupant_in_cpu_built_squad_cell_tile_work_item
+    input_scale:
+      primary_count: sum(per_squad_candidate_cluster_tile_count)
+      expected_range: scene_dependent
+    memory_access:
+      _CombatCandidateClusterWorkItemBuffer: { access: read, pattern: compact_squad_tile_workset }
+      _SquadStateBuffer: { access: read, pattern: sequential_squad }
+      _GridCounterBuffer: { access: read, pattern: random_grid_cell }
+      _GridOccupantBuffer: { access: read, pattern: random_grid_cell_range }
+      _CombatSquadCandidateCounterBuffer: { access: read_write, pattern: per_squad_atomic }
+      _CombatSquadCandidateBuffer: { access: write, pattern: bounded_per_squad_append }
+    known_risks:
+      - Work item upload now scales with the actual sum of per-squad tile counts instead of the largest squad rectangle broadcast to every squad.
+      - Dense combat clusters still pay nested grid scans and bounded candidate record writes.
+      - Candidate capacity overflow can hide combat targets.
+    optimization_notes:
+      - This is the compact workset/indirect variant; RenderDoc group count should track the actual per-squad tile sum.
+
+  - name: ClearVisibleRuntimeSquadBounds
+    pass_id: crowd.render.clear_runtime_squad_bounds
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCulling.hlsl
+    responsibility:
+      - Reset per-squad runtime AABB accumulators to empty sentinels.
+      - Clear the runtime squad visibility mask before coarse culling.
+    data_parallel_unit: one_thread_per_squad
+    input_scale:
+      primary_count: squad_state_count
+      expected_range: 0-10000
+    memory_access:
+      _RuntimeSquadBoundsBuffer: { access: write, pattern: linear_squad_clear }
+      _VisibleRuntimeSquadMaskBuffer: { access: write, pattern: linear_squad_mask_clear }
+    known_risks:
+      - Usually cheap; noticeable cost means runtime squad count is much higher than expected.
+    optimization_notes:
+      - Keep this pass adjacent to the squad bounds build/cull pair for clearer capture attribution.
+
+  - name: BuildVisibleRuntimeSquadBounds
+    pass_id: crowd.render.build_runtime_squad_bounds
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCulling.hlsl
+    responsibility:
+      - Rebuild each alive instance's render AABB on the GPU.
+      - Atomically accumulate per-squad min/max bounds from the alive workset.
+    data_parallel_unit: one_thread_per_alive_instance
+    input_scale:
+      primary_count: alive_count
+      expected_range: 10000-1000000
+    memory_access:
+      _AliveInstanceIndexBuffer: { access: read, pattern: indirect_sequential }
+      _SimulationStateBuffer: { access: read, pattern: indirect_per_instance }
+      _AgentSquadDataBuffer: { access: read, pattern: indirect_per_instance }
+      _RuntimeSquadBoundsBuffer: { access: read_write, pattern: per_squad_atomic_minmax }
+    known_risks:
+      - Dense formations can contend on the same squad min/max atomics.
+      - Unassigned instances skip this pass and rely on the later conservative fallback path.
+    optimization_notes:
+      - Compare squad population histogram before changing the bounds build strategy.
+
+  - name: CullVisibleRuntimeSquads
+    pass_id: crowd.render.cull_runtime_squads
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCulling.hlsl
+    responsibility:
+      - Test GPU-built runtime squad AABBs against the camera frustum.
+      - Produce the coarse runtime squad visibility mask consumed by final instance culling.
+    data_parallel_unit: one_thread_per_squad
+    input_scale:
+      primary_count: squad_state_count
+      expected_range: 0-10000
+    memory_access:
+      _RuntimeSquadBoundsBuffer: { access: read, pattern: sequential_squad_bounds }
+      _VisibleRuntimeSquadMaskBuffer: { access: write, pattern: sequential_squad_mask_write }
+    known_risks:
+      - If squad AABBs become too conservative, this pass may not reduce enough instance work.
+    optimization_notes:
+      - Compare coarse visible squad ratio against final visible instance ratio in the same capture.
+
+  - name: BuildVisibleRuntimeInstanceList
+    pass_id: crowd.render.instance_culling
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCulling.hlsl
+    responsibility:
+      - Filter alive runtime instances through the runtime squad visibility mask and per-instance frustum checks.
+      - Partition visible instance indices into LOD0, LOD1 and LOD2 draw lists by camera distance.
+    data_parallel_unit: one_thread_per_alive_instance
+    input_scale:
+      primary_count: alive_count
+      expected_range: 10000-1000000
+    memory_access:
+      _AliveInstanceIndexBuffer: { access: read, pattern: indirect_sequential }
+      _SimulationStateBuffer: { access: read, pattern: indirect_per_instance }
+      _AgentSquadDataBuffer: { access: read, pattern: indirect_per_instance }
+      _VisibleRuntimeSquadMaskBuffer: { access: read, pattern: squad_mask_lookup }
+      _VisibleInstanceCounterBuffer: { access: read_write, pattern: single_counter_atomic }
+      _VisibleInstanceIndices: { access: write, pattern: atomic_append }
+      _VisibleLod1InstanceCounterBuffer: { access: read_write, pattern: single_counter_atomic }
+      _VisibleLod1InstanceIndices: { access: write, pattern: atomic_append }
+      _VisibleLod2InstanceCounterBuffer: { access: read_write, pattern: single_counter_atomic }
+      _VisibleLod2InstanceIndices: { access: write, pattern: atomic_append }
+    known_risks:
+      - Atomic append pressure rises when most instances are visible.
+      - Random squad mask lookups add indirection if coarse culling rejects very few squads.
+      - Distance-tier partition adds extra camera-distance threshold branches per visible instance.
+    optimization_notes:
+      - Compare coarse visible squad ratio against final visible instance ratio and per-tier occupancy before adding another hierarchy level.
+
+  - name: BuildVisibleIndirectArgs
+    pass_id: crowd.render.build_indirect_args
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCulling.hlsl
+    responsibility:
+      - Build indexed indirect draw arguments for the current visible crowd LOD tier.
+      - Re-run once per active render LOD tier and submesh.
+    data_parallel_unit: one_thread_per_draw_args
+    input_scale:
+      primary_count: visible_instance_count
+      expected_range: 0-1000000
+    memory_access:
+      _VisibleInstanceCounterBuffer: { access: read, pattern: single_counter }
+      _VisibleRenderArgsBuffer: { access: write, pattern: single_draw_args }
+    known_risks:
+      - Mostly synchronization evidence rather than a likely standalone bottleneck.
+    optimization_notes:
+      - Keep mesh index parameters and the active render LOD tier identity in capture context when draw args look wrong.
+
+  - name: PredictInstances
+    pass_id: crowd.sim.predict_instances
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+    responsibility:
+      - Integrate velocity and predicted position.
+      - Apply interaction bubbles, local avoidance, command movement and formation projection.
+      - Resolve environment constraints before crowd collision.
+    data_parallel_unit: one_thread_per_alive_instance
+    input_scale:
+      primary_count: alive_count
+      expected_range: 10000-1000000
+    memory_access:
+      _InteractionSphereBuffer: { access: read, pattern: small_uniform_loop }
+      _SimulationStateBuffer: { access: read_write, pattern: indirect_per_instance }
+      _SpawnData: { access: read, pattern: indirect_per_instance }
+    known_risks:
+      - Multiple movement modes and interaction loops can diverge.
+      - AoS-style state writes can become bandwidth heavy at high instance counts.
+    optimization_notes:
+      - Inspect interaction sphere count and active movement mode distribution before refactoring.
+
+  - name: BuildGridClearDispatchArgs
+    pass_id: crowd.query_grid.build_clear_dispatch_args
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+    responsibility:
+      - Build indirect dispatch arguments for sparse grid clear.
+    data_parallel_unit: one_thread_per_dispatch_args
+    input_scale:
+      primary_count: touched_cell_count
+      expected_range: 0-grid_cell_count
+    memory_access:
+      _GridPrevTouchedCounterBuffer: { access: read, pattern: single_counter }
+      _GridClearDispatchArgsBuffer: { access: write, pattern: three_uint_args }
+    known_risks:
+      - Group count is clamped to at least one; clear kernel must guard empty lists.
+    optimization_notes:
+      - Track touched cell count to explain grid clear cost.
+
+  - name: ClearGrid
+    pass_id: crowd.query_grid.clear_touched_cells
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+    responsibility:
+      - Clear only previously touched spatial grid cells.
+      - Reset current touched-cell counter for the next build.
+    data_parallel_unit: one_thread_per_previous_touched_cell
+    input_scale:
+      primary_count: previous_touched_cell_count
+      expected_range: 0-grid_cell_count
+    memory_access:
+      _GridPrevTouchedCellBuffer: { access: read, pattern: sparse_cell_list }
+      _GridCounterBuffer: { access: write, pattern: random_sparse_cell_write }
+      _GridCurrTouchedCounterBuffer: { access: write, pattern: single_counter_reset }
+    known_risks:
+      - Sparse clear is efficient when touched cells are few but random writes can be cache-unfriendly.
+    optimization_notes:
+      - Compare touched cell count with full grid cell count in captures.
+
+  - name: BuildGrid
+    pass_id: crowd.query_grid.build
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+    responsibility:
+      - Hash source instances into the spatial query grid.
+      - Track touched cells for sparse clearing.
+      - Append bounded occupants per cell.
+    data_parallel_unit: one_thread_per_grid_source_instance
+    input_scale:
+      primary_count: alive_or_physics_active_count
+      expected_range: 10000-1000000
+    memory_access:
+      _GridCounterBuffer: { access: read_write, pattern: random_cell_atomic }
+      _GridOccupantBuffer: { access: write, pattern: random_cell_scatter }
+      _GridCurrTouchedCellBuffer: { access: write, pattern: touched_cell_atomic_append }
+    known_risks:
+      - Dense cells create atomic contention and overflow.
+      - Touched cell tracking adds an extra atomic on first occupant per cell.
+    optimization_notes:
+      - Grid resolution, max occupancy and crowd density must be analyzed together.
+
+  - name: BuildSpatialElements
+    pass_id: crowd.scene_query.build_spatial_elements
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+    responsibility:
+      - Convert per-instance simulation and spawn data into queryable spatial elements.
+      - Clear spatial elements for dead instances.
+    data_parallel_unit: one_thread_per_instance
+    input_scale:
+      primary_count: instance_count
+      expected_range: 10000-1000000
+    memory_access:
+      _SpawnData: { access: read, pattern: sequential_instance }
+      _SimulationStateBuffer: { access: read, pattern: sequential_instance }
+      _SpatialElementBuffer: { access: write, pattern: sequential_instance }
+    known_risks:
+      - Full instance scan can become bandwidth visible when only a small active subset needs queries.
+    optimization_notes:
+      - Consider dirty/active element updates only after query correctness is stable.
+
+  - name: SolveCrowdCollisions
+    pass_id: crowd.sim.solve_crowd
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+    responsibility:
+      - Resolve environment constraints and local crowd collision response.
+      - Search nearby grid occupants for pair corrections.
+      - Write final simulation state and correction magnitude.
+    data_parallel_unit: one_thread_per_physics_active_instance
+    input_scale:
+      primary_count: physics_active_count
+      expected_range: 10000-1000000
+    memory_access:
+      _PhysicsActiveInstanceIndexBuffer: { access: read, pattern: indirect_sequential }
+      _GridCounterBuffer: { access: read, pattern: random_grid_cell }
+      _GridOccupantBuffer: { access: read, pattern: random_grid_cell_range }
+      _SimulationStateBuffer: { access: read_write, pattern: indirect_per_instance }
+    known_risks:
+      - Neighbor loops can diverge heavily when cell occupancy varies.
+      - Random grid reads can become memory-bandwidth bound.
+      - Large state structs amplify bandwidth even when only hot fields are needed.
+    optimization_notes:
+      - Track occupancy histogram before changing algorithm shape.
+      - Consider SoA split for hot simulation fields if bandwidth dominates.
+
+  - name: ResolveTargetAcquisition
+    pass_id: crowd.combat.resolve_target_acquisition
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+    responsibility:
+      - Validate current combat targets with cheap FOV/distance checks only.
+      - Emit fixed current-target recheck candidates for a separate parallel LOS pass.
+      - Keep fallback grid-cell Top-K scoring for agents without a squad path.
+      - Stage squad-path acquisition state while Top-K scoring is delegated to EvaluateSquadAcquisitionCandidates.
+      - Maintain acquisition timers, locks and debug reject counts.
+    data_parallel_unit: one_thread_per_combat_active_instance
+    input_scale:
+      primary_count: combat_active_count
+      expected_range: 0-1000000
+    memory_access:
+      _GridCounterBuffer: { access: read, pattern: fallback_random_grid_cell }
+      _GridOccupantBuffer: { access: read, pattern: fallback_random_grid_cell_range }
+      _TargetAcquisitionStateBuffer: { access: read_write, pattern: indirect_per_instance_with_los_recheck_timer_w }
+      _TargetAcquisitionCandidateBuffer: { access: write, pattern: fixed_current_recheck_plus_top_k_per_instance }
+    known_risks:
+      - Worst-case fallback grid search can be much more expensive than squad candidates.
+      - Current-target validation still reads the current target state when a target exists.
+      - If a squad candidate counter overflows capacity, only the written capacity-limited prefix is consumed by the follow-up squad evaluation pass.
+    optimization_notes:
+      - Separate "used squad candidates" from "fallback grid search" when analyzing spikes.
+      - Existing targets reuse the previous LOS result until timers.w emits a slot-0 LOS recheck.
+      - Current-target and new-candidate LOS are deferred to ResolveTargetAcquisitionLineOfSight.
+
+  - name: BuildSquadAcquisitionDispatchArgs
+    pass_id: crowd.combat.build_squad_acquisition_dispatch_args
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+    responsibility:
+      - Convert combat-active count into one indirect dispatch group per active agent.
+    data_parallel_unit: one_thread_builds_args
+    input_scale:
+      primary_count: 1
+      expected_range: 1
+    memory_access:
+      _CombatActiveInstanceCounterBuffer: { access: read, pattern: single_counter }
+      _SquadAcquisitionDispatchArgsBuffer: { access: write, pattern: single_args_buffer }
+    known_risks:
+      - Must stay in sync with EvaluateSquadAcquisitionCandidates dispatch shape.
+    optimization_notes:
+      - Keep this as a tiny direct dispatch before the indirect squad candidate pass.
+
+  - name: EvaluateSquadAcquisitionCandidates
+    pass_id: crowd.combat.evaluate_squad_acquisition_candidates
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+    responsibility:
+      - Use one group per combat-active agent and stride 64 threads across squad candidates.
+      - Score prepacked candidate position and faction data without loading candidate simulation state.
+      - Reduce group-local Top-K candidates in shared memory and write slots 1..Top-K for LOS.
+    data_parallel_unit: one_group_per_combat_active_instance_one_thread_per_candidate_stride
+    input_scale:
+      primary_count: combat_active_count
+      expected_range: 0-1000000
+    memory_access:
+      _CombatActiveInstanceIndexBuffer: { access: read, pattern: indirect_combat_active }
+      _CombatActiveInstanceCounterBuffer: { access: read, pattern: single_counter }
+      _CombatSquadCandidateCounterBuffer: { access: read, pattern: per_squad_counter }
+      _CombatSquadCandidateBuffer: { access: read, pattern: bounded_per_squad_coalesced_records }
+      _TargetAcquisitionStateBuffer: { access: read, pattern: indirect_per_instance_bonus_state }
+      _TargetAcquisitionCandidateBuffer: { access: write, pattern: top_k_slots_per_instance }
+    known_risks:
+      - Groups with very different candidate counts can diverge by loop stride count.
+      - Candidate list overflow consumes only the capacity-limited prefix.
+    optimization_notes:
+      - Candidate target simulation loads are intentionally paid once in BuildCombatCandidateClusters.
+      - Shared memory reduction scans 64 x Top-K thread-local records per agent.
+      - D3D11 sync validation requires a fixed uniform pre-barrier loop; squad acquisition scans up to 512 candidate slots per squad.
+
+  - name: BuildTargetAcquisitionLosDispatchArgs
+    pass_id: crowd.combat.build_target_acquisition_los_dispatch_args
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+    responsibility:
+      - Convert combat-active count into indirect dispatch groups for current-target plus Top-K LOS queries.
+    data_parallel_unit: one_thread_builds_args
+    input_scale:
+      primary_count: 1
+      expected_range: 1
+    memory_access:
+      _CombatActiveInstanceCounterBuffer: { access: read, pattern: single_counter }
+      _TargetAcquisitionLosDispatchArgsBuffer: { access: write, pattern: single_args_buffer }
+    known_risks:
+      - Must stay in sync with CrowdVatTargetAcquisitionCandidateSlots and thread group size.
+    optimization_notes:
+      - Keep this as a tiny direct dispatch before the indirect LOS pass.
+
+  - name: ResolveTargetAcquisitionLineOfSight
+    pass_id: crowd.combat.resolve_target_acquisition_los
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+    responsibility:
+      - Run one distance-only Environment SDF LOS ray per current-target recheck or Top-K candidate.
+      - Store LOS flags and occlusion reject reasons back into candidate records.
+    data_parallel_unit: one_thread_per_current_or_top_k_candidate_ray
+    input_scale:
+      primary_count: combat_active_count * 4
+      expected_range: 0-4000000
+    memory_access:
+      _CombatActiveInstanceIndexBuffer: { access: read, pattern: indirect_sequential }
+      _TargetAcquisitionCandidateBuffer: { access: read_write, pattern: fixed_current_recheck_plus_top_k_per_instance }
+      _EnvironmentDistanceFieldTexture: { access: read, pattern: distance_only_sdf_ray_march_for_los }
+    known_risks:
+      - SDF ray march is still serial within each ray and can diverge by travel distance.
+      - Texture cache locality depends on squad/grid ordering of combat-active instances.
+    optimization_notes:
+      - Candidate slot cap limits expensive LOS rays to current target plus 3 candidates per combat-active agent.
+      - Combat SDF LOS clips rays against baked field bounds and samples distance only.
+
+  - name: FinalizeTargetAcquisition
+    pass_id: crowd.combat.finalize_target_acquisition
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+    responsibility:
+      - Merge current-target recheck and Top-K LOS results into target acquisition state.
+      - Apply target locks, lost-sight grace and debug reject counters.
+    data_parallel_unit: one_thread_per_combat_active_instance
+    input_scale:
+      primary_count: combat_active_count
+      expected_range: 0-1000000
+    memory_access:
+      _TargetAcquisitionCandidateBuffer: { access: read, pattern: fixed_current_recheck_plus_top_k_per_instance }
+      _TargetAcquisitionStateBuffer: { access: read_write, pattern: indirect_per_instance }
+    known_risks:
+      - If all Top-K candidates are occluded, lower-scored visible candidates are skipped until next search interval.
+    optimization_notes:
+      - Increase Top-K only after profiling; every increment adds one LOS ray per combat-active agent.
+
+  - name: ResolveInstanceCombat
+    pass_id: crowd.combat.resolve_instance
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+    responsibility:
+      - Resolve cooldown, health feedback and combat visual persistence for every combat-active instance.
+      - Reuse finalized target acquisition state for no-target and non-firing fast paths.
+      - Apply combat damage, scene SDF checks and hit resolution only for actual firing attempts.
+    data_parallel_unit: one_thread_per_combat_active_instance
+    input_scale:
+      primary_count: combat_active_count
+      expected_range: 0-1000000
+    memory_access:
+      _TargetAcquisitionStateBuffer: { access: read, pattern: indirect_per_instance }
+      _CombatStateBuffer: { access: read_write, pattern: indirect_per_instance }
+      _DeathStateBuffer: { access: read_write, pattern: self_and_target_random_access }
+    known_risks:
+      - Target writes can be random and may need atomics or conflict-safe encoding.
+      - Branching differs greatly between cooldown, no target, shot and dead states.
+    optimization_notes:
+      - Keep the fast path limited to cooldown/visual maintenance so only firing threads pay target revalidation, SDF tracing and hit resolve cost.
+      - Validate damage/death race behavior before optimizing write patterns.
+
+  - name: ClearSpatialQueryResults
+    pass_id: crowd.scene_query.clear_results
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSpatialQuery.hlsl
+    responsibility:
+      - Reset query result headers.
+      - Clear bounded hit slots up to each query's max hit capacity.
+    data_parallel_unit: one_thread_per_query
+    input_scale:
+      primary_count: spatial_query_count
+      expected_range: 0-10000
+    memory_access:
+      _SpatialQueryBuffer: { access: read, pattern: sequential_query }
+      _SpatialQueryResultBuffer: { access: write, pattern: sequential_query }
+      _SpatialQueryHitBuffer: { access: write, pattern: bounded_range_per_query }
+    known_risks:
+      - Clear cost scales with query maxHits, not just query count.
+    optimization_notes:
+      - Track maxHits distribution when this pass appears hot.
+
+  - name: ResolveSpatialQueries
+    pass_id: crowd.scene_query.resolve
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSpatialQuery.hlsl
+    responsibility:
+      - Traverse grid cells touched by each query.
+      - Filter candidates by alive state, target mask, faction and shape.
+      - Write bounded hit results and overflow flags.
+    data_parallel_unit: one_thread_per_query
+    input_scale:
+      primary_count: spatial_query_count
+      expected_range: 0-10000
+    memory_access:
+      _SpatialQueryBuffer: { access: read, pattern: sequential_query }
+      _GridCounterBuffer: { access: read, pattern: random_grid_cell }
+      _GridOccupantBuffer: { access: read, pattern: random_grid_cell_range }
+      _SpatialQueryResultBuffer: { access: write, pattern: sequential_query }
+      _SpatialQueryHitBuffer: { access: write, pattern: bounded_range_per_query }
+    known_risks:
+      - Nested loops make worst-case cost sensitive to query radius and cell occupancy.
+      - Large max hit capacity increases write bandwidth.
+    optimization_notes:
+      - Analyze query radius distribution together with GPU timing.
+
+  - name: FinalizeInstances
+    pass_id: crowd.animation.finalize_instances
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectFinalize.hlsl
+    responsibility:
+      - Build render transforms from final simulation state.
+      - Resolve combat-facing yaw and death visibility.
+      - Write VAT current/next frame data and combat visual flash.
+    data_parallel_unit: one_thread_per_alive_instance
+    input_scale:
+      primary_count: alive_count
+      expected_range: 10000-1000000
+    memory_access:
+      _InstanceTransforms: { access: write, pattern: indirect_per_instance }
+      _InstanceFrameData: { access: write, pattern: indirect_per_instance }
+      _InstanceFrameBlendData: { access: write, pattern: indirect_per_instance }
+      _AnimationClipMetadataBuffer: { access: read, pattern: random_clip_id }
+    known_risks:
+      - Animation metadata lookup can become random if clip ids are scattered.
+      - Writes several output buffers per visible/alive instance.
+    optimization_notes:
+      - Consider sorting or batching by animation clip only if frame data bandwidth dominates.
+
+  - name: CaptureAiDebugGpuStage
+    pass_id: crowd.debug.capture_gpu_stage
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectAiDebug.hlsl
+    responsibility:
+      - Gather detailed state for selected debug targets.
+      - Write one GPU debug stage record per target slot.
+    data_parallel_unit: one_thread_per_debug_target
+    input_scale:
+      primary_count: ai_debug_target_count
+      expected_range: 0-4096
+    memory_access:
+      _AiDebugTargetIndexBuffer: { access: read, pattern: sequential_target_slots }
+      _SimulationStateBuffer: { access: read, pattern: sparse_instance_gather }
+      _AiDebugStageRecordBuffer: { access: write, pattern: sequential_debug_records }
+    known_risks:
+      - Debug-only sparse gathers can look expensive if target count is too high.
+    optimization_notes:
+      - Keep this pass filtered out of normal performance conclusions unless debugging is active.
+
+  - name: DiscoverAiDebugGpuCandidates
+    pass_id: crowd.debug.discover_gpu_candidates
+    source: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectAiDebug.hlsl
+    responsibility:
+      - Scan live instances for AI debug filters.
+      - Append matching candidate records with reason masks.
+    data_parallel_unit: one_thread_per_instance
+    input_scale:
+      primary_count: instance_count
+      expected_range: 10000-1000000
+    memory_access:
+      _SimulationStateBuffer: { access: read, pattern: sequential_instance }
+      _CombatStateBuffer: { access: read, pattern: sequential_instance }
+      _AiDebugCandidateCounterBuffer: { access: read_write, pattern: single_counter_atomic }
+      _AiDebugCandidateRecordBuffer: { access: write, pattern: atomic_append }
+    known_risks:
+      - Full instance scan and atomic append are debug-only and can distort captures.
+    optimization_notes:
+      - Treat this pass as instrumentation overhead unless the task is AI debug analysis.

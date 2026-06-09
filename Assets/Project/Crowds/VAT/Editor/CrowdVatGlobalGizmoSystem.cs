@@ -12,7 +12,6 @@ public static class CrowdVatGlobalGizmoSystem
     private static readonly Color CampBColor = new Color(0.18f, 0.66f, 0.95f, 0.95f);
     private static readonly Color LinkColor = new Color(1.0f, 0.92f, 0.24f, 0.92f);
     private static readonly Color GridColor = new Color(0.26f, 1.0f, 0.62f, 0.9f);
-    private static readonly Color ActiveBubbleColor = new Color(0.18f, 0.92f, 1.0f, 0.9f);
     private static readonly Color QuerySphereColor = new Color(1.0f, 0.7f, 0.18f, 0.95f);
     private static readonly Color QueryCapsuleColor = new Color(1.0f, 0.28f, 0.8f, 0.95f);
     private static readonly Color EnvironmentTerrainColor = new Color(0.18f, 0.86f, 1.0f, 0.95f);
@@ -156,12 +155,6 @@ public static class CrowdVatGlobalGizmoSystem
     {
         get => EditorPrefs.GetBool(PrefKeyPrefix + "ShowGridCellBoxes", true);
         set => EditorPrefs.SetBool(PrefKeyPrefix + "ShowGridCellBoxes", value);
-    }
-
-    private static bool ShowActiveBubble
-    {
-        get => EditorPrefs.GetBool(PrefKeyPrefix + "ShowActiveBubble", false);
-        set => EditorPrefs.SetBool(PrefKeyPrefix + "ShowActiveBubble", value);
     }
 
     private static bool ShowSpatialQueries
@@ -375,7 +368,6 @@ public static class CrowdVatGlobalGizmoSystem
             EditorGUI.BeginDisabledGroup(!ShowGridBounds);
             settingsChanged |= DrawToggleLeft("显示空间网格 Cell 盒", ShowGridCellBoxes, value => ShowGridCellBoxes = value);
             EditorGUI.EndDisabledGroup();
-            settingsChanged |= DrawToggleLeft("\u663E\u793A Active Bubble", ShowActiveBubble, value => ShowActiveBubble = value);
             settingsChanged |= DrawToggleLeft("\u663E\u793A\u7A7A\u95F4\u67E5\u8BE2\u4F53", ShowSpatialQueries, value => ShowSpatialQueries = value);
             settingsChanged |= DrawToggleLeft("显示环境距离场", ShowEnvironmentDistanceField, value => ShowEnvironmentDistanceField = value);
             EditorGUI.BeginDisabledGroup(!ShowEnvironmentDistanceField);
@@ -444,7 +436,6 @@ public static class CrowdVatGlobalGizmoSystem
                     ShowFactionAreas = true;
                     ShowGridBounds = false;
                     ShowGridCellBoxes = true;
-                    ShowActiveBubble = false;
                     ShowSpatialQueries = false;
                     ShowEnvironmentDistanceField = false;
                     ShowEnvironmentDistanceGradient = true;
@@ -512,7 +503,6 @@ public static class CrowdVatGlobalGizmoSystem
         ShowFactionAreas = enabled;
         ShowGridBounds = enabled;
         ShowGridCellBoxes = enabled;
-        ShowActiveBubble = enabled;
         ShowSpatialQueries = enabled;
         ShowEnvironmentDistanceField = enabled;
         ShowEnvironmentDistanceGradient = enabled;
@@ -644,21 +634,6 @@ public static class CrowdVatGlobalGizmoSystem
                 areaHeightOffset * 0.55f,
                 ShowGridCellBoxes,
                 ShowLabels ? $"{renderer.name} \u7A7A\u95F4\u7F51\u683C\n{gridDimensions.x} x {gridDimensions.y}  cell XZ={gridCellSize:F2}" : null);
-        }
-
-        if (ShowActiveBubble && renderer.TryGetDebugActiveBubble(out Vector3 activeBubbleWorldCenter, out float activeBubbleRadius, out float retentionRadius))
-        {
-            Handles.color = ActiveBubbleColor;
-            DrawWireSphere(activeBubbleWorldCenter, activeBubbleRadius);
-            Handles.color = new Color(ActiveBubbleColor.r, ActiveBubbleColor.g, ActiveBubbleColor.b, 0.45f);
-            DrawWireSphere(activeBubbleWorldCenter, retentionRadius);
-
-            if (ShowLabels)
-            {
-                Handles.Label(
-                    activeBubbleWorldCenter + Vector3.up * Mathf.Max(0.6f, retentionRadius * 0.3f),
-                    $"Active Bubble\nR={activeBubbleRadius:F1} / {retentionRadius:F1}");
-            }
         }
 
         if (ShowEnvironmentDistanceField)

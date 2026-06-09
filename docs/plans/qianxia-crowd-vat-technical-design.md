@@ -4,9 +4,19 @@
 
 - 版本：v0.5
 - 日期：2026-04-16
-- 状态：第四版已实现
+- 状态：已偏离实现（保留为 runtime squad / scene query 扩展前的 crowd VAT 历史基线）
+- 同步级别：归档
 - 作者：Codex
 - 适用项目：Unity 6 `6000.0.46f1`、URP
+- 当前实现锚点：
+  - `Assets/Project/Crowds/VAT/Runtime/CrowdVatIndirectRenderer.cs`
+  - `Assets/Project/Crowds/VAT/Runtime/CrowdVatSquadController.cs`
+  - `Assets/Project/Crowds/VAT/Runtime/CrowdVatSceneQueryFieldAsset.cs`
+- 最后实现核对：2026-05-06
+- 替代关系：
+  - 替代：
+  - 被替代：
+    - `docs/plans/qianxia-crowd-current-implementation-baseline.md`
 
 ## 1. 当前目标
 
