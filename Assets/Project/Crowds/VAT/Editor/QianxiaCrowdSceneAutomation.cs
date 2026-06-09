@@ -9,9 +9,13 @@ public static class QianxiaCrowdSceneAutomation
     private const string ScenePath = "Assets/Scenes/SampleScene.unity";
     private const string CrowdObjectName = "QianxiaCrowdIndirect";
     private const string CharacterPrefabPath = "Assets/Project/Characters/Qianxia/Generated/QianxiaThirdPerson.prefab";
-    private const string VatPrefabPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod2Vat.prefab";
+    private const string WalkClipName = "Qianxia_Walk_Slow";
+    private const string VatPrefabPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod0Vat.prefab";
+    private const string SecondaryLodVatPrefabPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod1Vat.prefab";
+    private const string TertiaryLodVatPrefabPath = "Assets/Project/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod2Vat.prefab";
     private const string ComputeShaderPath = "Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute";
     private const string ShaderPath = "Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectLit.shader";
+    private const string TertiaryLodShaderPath = "Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimple.shader";
 
     [MenuItem("Tools/Qianxia/Setup Crowd In Sample Scene")]
     public static void SetupSampleSceneMenu()
@@ -27,8 +31,11 @@ public static class QianxiaCrowdSceneAutomation
 
         GameObject characterPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CharacterPrefabPath);
         GameObject vatPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(VatPrefabPath);
+        GameObject secondaryLodVatPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SecondaryLodVatPrefabPath);
+        GameObject tertiaryLodVatPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(TertiaryLodVatPrefabPath);
         ComputeShader crowdCompute = AssetDatabase.LoadAssetAtPath<ComputeShader>(ComputeShaderPath);
         Shader crowdShader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderPath);
+        Shader tertiaryLodShader = AssetDatabase.LoadAssetAtPath<Shader>(TertiaryLodShaderPath);
 
         if (characterPrefab == null)
             throw new InvalidOperationException($"未找到角色 prefab: {CharacterPrefabPath}");
@@ -42,9 +49,18 @@ public static class QianxiaCrowdSceneAutomation
         if (crowdShader == null)
             throw new InvalidOperationException($"未找到 Shader: {ShaderPath}");
 
+        if (tertiaryLodShader == null)
+            throw new InvalidOperationException($"未找到第三档 LOD Shader: {TertiaryLodShaderPath}");
+
+        if (secondaryLodVatPrefab == null)
+            throw new InvalidOperationException($"未找到 crowd LOD1 VAT prefab: {SecondaryLodVatPrefabPath}");
+
+        if (tertiaryLodVatPrefab == null)
+            throw new InvalidOperationException($"未找到 crowd LOD2 VAT prefab: {TertiaryLodVatPrefabPath}");
+
         var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
         GameObject qianxiaCharacter = EnsureQianxiaCharacter(characterPrefab);
-        GameObject crowdObject = EnsureCrowdObject(vatPrefab, crowdCompute, crowdShader, qianxiaCharacter);
+        GameObject crowdObject = EnsureCrowdObject(vatPrefab, secondaryLodVatPrefab, tertiaryLodVatPrefab, crowdCompute, crowdShader, tertiaryLodShader, qianxiaCharacter);
         EnsureRuntimeSquadControllers(crowdObject, qianxiaCharacter);
 
         EditorUtility.SetDirty(qianxiaCharacter);
@@ -72,8 +88,11 @@ public static class QianxiaCrowdSceneAutomation
 
     private static GameObject EnsureCrowdObject(
         GameObject vatPrefab,
+        GameObject secondaryLodVatPrefab,
+        GameObject tertiaryLodVatPrefab,
         ComputeShader crowdCompute,
         Shader crowdShader,
+        Shader tertiaryLodShader,
         GameObject qianxiaCharacter)
     {
         GameObject crowdObject = GameObject.Find(CrowdObjectName);
@@ -89,9 +108,9 @@ public static class QianxiaCrowdSceneAutomation
         if (renderer == null)
             renderer = crowdObject.AddComponent<CrowdVatIndirectRenderer>();
 
-        CrowdVatPlayer templatePlayer = ResolveTemplatePlayer(vatPrefab);
-        if (templatePlayer == null)
-            throw new InvalidOperationException("VAT prefab 上未找到 CrowdVatPlayer。");
+        CrowdVatPlayer templatePlayer = ResolveRequiredTemplatePlayer(vatPrefab, VatPrefabPath);
+        CrowdVatPlayer secondaryLodTemplatePlayer = ResolveRequiredTemplatePlayer(secondaryLodVatPrefab, SecondaryLodVatPrefabPath);
+        CrowdVatPlayer tertiaryLodTemplatePlayer = ResolveRequiredTemplatePlayer(tertiaryLodVatPrefab, TertiaryLodVatPrefabPath);
 
         SerializedObject serializedObject = new SerializedObject(renderer);
         CharacterController characterController = qianxiaCharacter != null ? qianxiaCharacter.GetComponent<CharacterController>() : null;
@@ -101,11 +120,13 @@ public static class QianxiaCrowdSceneAutomation
             : new Vector2(10.0f, 6.0f);
 
         SetObjectReference(serializedObject, "_templatePrefab", templatePlayer);
+        SetObjectReference(serializedObject, "_secondaryLodTemplatePrefab", secondaryLodTemplatePlayer);
+        SetObjectReference(serializedObject, "_tertiaryLodTemplatePrefab", tertiaryLodTemplatePlayer);
         SetObjectReference(serializedObject, "_updateCompute", crowdCompute);
         SetObjectReference(serializedObject, "_indirectShader", crowdShader);
+        SetObjectReference(serializedObject, "_tertiaryLodIndirectShader", tertiaryLodShader);
         SetObjectReference(serializedObject, "_characterController", characterController);
-        SetObjectReference(serializedObject, "_activeBubbleTarget", qianxiaCharacter != null ? qianxiaCharacter.transform : null);
-        SetString(serializedObject, "_clipName", string.Empty);
+        SetString(serializedObject, "_clipName", WalkClipName);
         SetInt(serializedObject, "_instanceCount", 1024);
         SetBool(serializedObject, "_distributeAcrossWholeTerrain", true);
         SetVector2(serializedObject, "_areaSize", crowdAreaSize);
@@ -116,7 +137,7 @@ public static class QianxiaCrowdSceneAutomation
         SetBool(serializedObject, "_enableTerrainCollision", true);
         SetBool(serializedObject, "_autoResolveTerrain", true);
         SetObjectReference(serializedObject, "_terrain", terrain);
-        SetFloat(serializedObject, "_terrainHeightOffset", 0.02f);
+        SetFloat(serializedObject, "_terrainHeightOffset", 0.0f);
         SetFloat(serializedObject, "_baseScale", 1.6f);
         SetVector2(serializedObject, "_scaleMultiplierRange", new Vector2(0.95f, 1.05f));
         SetBool(serializedObject, "_playOnEnable", true);
@@ -134,17 +155,15 @@ public static class QianxiaCrowdSceneAutomation
         SetFloat(serializedObject, "_maxPushPerStep", 0.22f);
         SetFloat(serializedObject, "_maxDisplacementFromSpawn", 1.4f);
         SetFloat(serializedObject, "_inactiveReturnStrength", 0.24f);
-        SetBool(serializedObject, "_enableActiveBubble", true);
         SetBool(serializedObject, "_autoResolveCharacterController", true);
-        SetFloat(serializedObject, "_activeBubbleRadius", 13.0f);
-        SetFloat(serializedObject, "_activeBubbleRetentionRadius", 17.0f);
         SetBool(serializedObject, "_useCharacterAsInteractionSphere", false);
         SetFloat(serializedObject, "_characterInteractionRadiusMultiplier", 2.4f);
         SetFloat(serializedObject, "_characterInteractionStrength", 0.16f);
         SetEnum(serializedObject, "_shadowCastingMode", (int)ShadowCastingMode.Off);
         SetBool(serializedObject, "_receiveShadows", false);
         SetFloat(serializedObject, "_boundsPadding", 4.0f);
-        SetFloat(serializedObject, "_renderChunkWorldSize", 5.0f);
+        SetFloat(serializedObject, "_secondaryLodStartDistance", 12.0f);
+        SetFloat(serializedObject, "_tertiaryLodStartDistance", 24.0f);
         serializedObject.ApplyModifiedPropertiesWithoutUndo();
 
         renderer.RebuildCrowdLayout();
@@ -170,7 +189,20 @@ public static class QianxiaCrowdSceneAutomation
         squadSerializedObject.ApplyModifiedPropertiesWithoutUndo();
 
         if (!squadController.HasAnchorTransforms())
+        {
             squadController.CreateDefaultTacticalSquads();
+        }
+
+        CrowdVatCodexAgentController codexAgent = crowdObject.GetComponent<CrowdVatCodexAgentController>();
+        if (codexAgent == null)
+            codexAgent = crowdObject.AddComponent<CrowdVatCodexAgentController>();
+
+        SerializedObject codexSerializedObject = new SerializedObject(codexAgent);
+        SetObjectReference(codexSerializedObject, "_squadController", squadController);
+        SetEnum(codexSerializedObject, "_controlledFaction", (int)CrowdVatFactionMask.CampB);
+        SetEnum(codexSerializedObject, "_opponentFaction", (int)CrowdVatFactionMask.CampA);
+        SetEnum(codexSerializedObject, "_plannerMode", (int)CrowdVatCodexAgentPlannerMode.CodexCliWithLocalFallback);
+        codexSerializedObject.ApplyModifiedPropertiesWithoutUndo();
 
         if (qianxiaCharacter == null)
             return;
@@ -186,12 +218,23 @@ public static class QianxiaCrowdSceneAutomation
         SerializedObject commandSerializedObject = new SerializedObject(commandController);
         SetObjectReference(commandSerializedObject, "_squadController", squadController);
         SetObjectReference(commandSerializedObject, "_targetCamera", mainCamera);
+        SetEnum(commandSerializedObject, "_selectableFactions", (int)CrowdVatFactionMask.CampA);
+        SetBool(commandSerializedObject, "_autoSelectFirstSquadOnStart", true);
         commandSerializedObject.ApplyModifiedPropertiesWithoutUndo();
     }
 
     private static CrowdVatPlayer ResolveTemplatePlayer(GameObject vatPrefab)
     {
         return vatPrefab != null ? vatPrefab.GetComponentInChildren<CrowdVatPlayer>(true) : null;
+    }
+
+    private static CrowdVatPlayer ResolveRequiredTemplatePlayer(GameObject vatPrefab, string assetPath)
+    {
+        CrowdVatPlayer player = ResolveTemplatePlayer(vatPrefab);
+        if (player == null)
+            throw new InvalidOperationException($"VAT prefab 缺少 CrowdVatPlayer: {assetPath}");
+
+        return player;
     }
 
     private static Vector3 ResolveCrowdPosition(Transform characterTransform, Vector3 crowdForward)

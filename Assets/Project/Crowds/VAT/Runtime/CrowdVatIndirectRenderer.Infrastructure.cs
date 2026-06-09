@@ -12,25 +12,42 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _agentDataLayoutDirty = true;
         _buildAliveInstanceListKernel = -1;
         _buildAliveDispatchArgsKernel = -1;
-        _buildActiveInstanceListKernel = -1;
-        _buildActiveDispatchArgsKernel = -1;
+        _clearWakeGridKernel = -1;
+        _buildWakeGridKernel = -1;
+        _evaluatePhysicsActiveKernel = -1;
+        _buildPhysicsActiveInstanceListKernel = -1;
+        _buildPhysicsActiveDispatchArgsKernel = -1;
+        _evaluateCombatActiveKernel = -1;
+        _buildCombatActiveInstanceListKernel = -1;
+        _compactCombatActiveInstanceListKernel = -1;
+        _buildCombatActiveDispatchArgsKernel = -1;
+        _clearCombatSquadCandidateCountersKernel = -1;
+        _clearVisibleRuntimeSquadBoundsKernel = -1;
+        _buildVisibleRuntimeSquadBoundsKernel = -1;
+        _cullVisibleRuntimeSquadsKernel = -1;
         _buildVisibleRuntimeInstanceListKernel = -1;
-        _buildVisibleChunkInstanceListKernel = -1;
         _buildVisibleIndirectArgsKernel = -1;
         _predictKernel = -1;
+        _buildGridClearDispatchArgsKernel = -1;
         _clearGridKernel = -1;
         _buildGridKernel = -1;
         _buildSpatialElementsKernel = -1;
         _solveCrowdKernel = -1;
+        _buildCombatCandidateClustersKernel = -1;
         _resolveTargetAcquisitionKernel = -1;
+        _buildTargetAcquisitionLosDispatchArgsKernel = -1;
+        _resolveTargetAcquisitionLineOfSightKernel = -1;
+        _buildSquadAcquisitionDispatchArgsKernel = -1;
+        _evaluateSquadAcquisitionCandidatesKernel = -1;
+        _finalizeTargetAcquisitionKernel = -1;
         _resolveInstanceCombatKernel = -1;
         _clearSpatialQueriesKernel = -1;
         _resolveSpatialQueriesKernel = -1;
         _finalizeKernel = -1;
         _captureAiDebugGpuStageKernel = -1;
         _lastCombatStateReadbackFrame = -1;
+        _lastPhysicsActiveStateReadbackFrame = -1;
         InvalidateSquadAliveCountReadback();
-        _runtimeSquadVisibilityDirty = true;
         _usesGpuVisibleInstanceCompactionThisFrame = false;
         _visibleUnassignedInstancesThisFrame = false;
     }
@@ -50,16 +67,40 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         ReleaseBuffer(ref _simulationVelocityBufferB);
         _simulationVelocityReadBuffer = null;
         _simulationVelocityWriteBuffer = null;
-        ReleaseBuffer(ref _activeStateBuffer);
         ReleaseBuffer(ref _deathStateBuffer);
         ReleaseBuffer(ref _aliveInstanceIndexBuffer);
         ReleaseBuffer(ref _aliveInstanceCounterBuffer);
         ReleaseBuffer(ref _aliveInstanceDispatchArgsBuffer);
-        ReleaseBuffer(ref _activeInstanceIndexBuffer);
-        ReleaseBuffer(ref _activeInstanceCounterBuffer);
-        ReleaseBuffer(ref _activeInstanceDispatchArgsBuffer);
+        ReleaseBuffer(ref _physicsActiveStateBuffer);
+        ReleaseBuffer(ref _physicsActivationMetaBuffer);
+        ReleaseBuffer(ref _physicsActiveInstanceIndexBuffer);
+        ReleaseBuffer(ref _physicsActiveInstanceCounterBuffer);
+        ReleaseBuffer(ref _physicsActiveInstanceDispatchArgsBuffer);
+        ReleaseBuffer(ref _combatActiveStateBuffer);
+        ReleaseBuffer(ref _combatActivationMetaBuffer);
+        ReleaseBuffer(ref _combatActiveInstanceIndexBuffer);
+        ReleaseBuffer(ref _combatActiveInstanceCounterBuffer);
+        ReleaseBuffer(ref _combatActiveInstanceDispatchArgsBuffer);
+        ReleaseBuffer(ref _targetAcquisitionCandidateBuffer);
+        ReleaseBuffer(ref _targetAcquisitionLosDispatchArgsBuffer);
+        ReleaseBuffer(ref _squadAcquisitionDispatchArgsBuffer);
+        ReleaseBuffer(ref _combatSquadCandidateBuffer);
+        ReleaseBuffer(ref _combatSquadCandidateCounterBuffer);
+        ReleaseBuffer(ref _combatCandidateClusterWorkItemBuffer);
+        ReleaseBuffer(ref _combatCandidateClusterDispatchArgsBuffer);
+        ReleaseBuffer(ref _wakeGridCounterBuffer);
+        ReleaseBuffer(ref _wakeGridOccupantBuffer);
         ReleaseBuffer(ref _gridCounterBuffer);
         ReleaseBuffer(ref _gridOccupantBuffer);
+        ReleaseBuffer(ref _gridTouchedCellBufferA);
+        ReleaseBuffer(ref _gridTouchedCellBufferB);
+        _gridPrevTouchedCellBuffer = null;
+        _gridCurrTouchedCellBuffer = null;
+        ReleaseBuffer(ref _gridTouchedCounterBufferA);
+        ReleaseBuffer(ref _gridTouchedCounterBufferB);
+        _gridPrevTouchedCounterBuffer = null;
+        _gridCurrTouchedCounterBuffer = null;
+        ReleaseBuffer(ref _gridClearDispatchArgsBuffer);
         ReleaseBuffer(ref _spatialCapsuleStartRadiusBuffer);
         ReleaseBuffer(ref _spatialCapsuleEndHeightBuffer);
         ReleaseBuffer(ref _spatialOwnerIndexBuffer);
@@ -85,10 +126,12 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         ReleaseBuffer(ref _instanceFrameBlendDataBuffer);
         ReleaseBuffer(ref _visibleInstanceIndexBuffer);
         ReleaseBuffer(ref _visibleInstanceCounterBuffer);
+        ReleaseBuffer(ref _visibleLod1InstanceIndexBuffer);
+        ReleaseBuffer(ref _visibleLod1InstanceCounterBuffer);
+        ReleaseBuffer(ref _visibleLod2InstanceIndexBuffer);
+        ReleaseBuffer(ref _visibleLod2InstanceCounterBuffer);
         ReleaseBuffer(ref _visibleRuntimeSquadMaskBuffer);
-        ReleaseBuffer(ref _instanceRenderChunkBuffer);
-        ReleaseBuffer(ref _visibleRenderChunkMaskBuffer);
-        ReleaseBuffer(ref _combatTracerArgsBuffer);
+        ReleaseBuffer(ref _runtimeSquadBoundsBuffer);
         EndAiDebugGpuStageCapture();
 
         if (_indirectArgsBuffers != null)
@@ -97,19 +140,41 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
                 ReleaseBuffer(ref _indirectArgsBuffers[bufferIndex]);
         }
 
+        if (_visibleLod1IndirectArgsBuffers != null)
+        {
+            for (int bufferIndex = 0; bufferIndex < _visibleLod1IndirectArgsBuffers.Length; bufferIndex++)
+                ReleaseBuffer(ref _visibleLod1IndirectArgsBuffers[bufferIndex]);
+        }
+
+        if (_visibleLod2IndirectArgsBuffers != null)
+        {
+            for (int bufferIndex = 0; bufferIndex < _visibleLod2IndirectArgsBuffers.Length; bufferIndex++)
+                ReleaseBuffer(ref _visibleLod2IndirectArgsBuffers[bufferIndex]);
+        }
+
         _indirectArgsBuffers = Array.Empty<GraphicsBuffer>();
+        _visibleLod1IndirectArgsBuffers = Array.Empty<GraphicsBuffer>();
+        _visibleLod2IndirectArgsBuffers = Array.Empty<GraphicsBuffer>();
+        ReleaseCombatTracerDrawResources();
         _indirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+        _visibleLod1IndirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+        _visibleLod2IndirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+        _activeVisibleLodRenderResources = Array.Empty<RuntimeRenderResource>();
+        _activeVisibleLodArgsBuffers = Array.Empty<GraphicsBuffer[]>();
+        _combatCandidateClusterWorkItemUploadCache = Array.Empty<CombatCandidateClusterWorkItemData>();
         _visibleInstanceIndexCache = Array.Empty<uint>();
+        _visibleLod1InstanceIndexCache = Array.Empty<uint>();
+        _visibleLod2InstanceIndexCache = Array.Empty<uint>();
         _visibleRuntimeSquadMaskUploadCache = Array.Empty<uint>();
-        _visibleRenderChunkMaskUploadCache = Array.Empty<uint>();
         _allInstanceIndicesCache = Array.Empty<uint>();
         _animationClipGpuCache = Array.Empty<AnimationClipGpuData>();
         _instanceAnimationStateCpuCache = Array.Empty<InstanceAnimationStateCpuData>();
         _instanceAnimationStateGpuCache = Array.Empty<InstanceAnimationStateGpuData>();
         _combatStateReadbackCache = Array.Empty<InstanceCombatStateData>();
+        _physicsActiveStateReadbackCache = Array.Empty<uint>();
+        _lastPhysicsActiveStateReadbackFrame = -1;
         _runtimeSquadAliveCountReadbackCache = Array.Empty<uint>();
-        _renderChunks = Array.Empty<RenderChunk>();
-        _runtimeSquadRenderChunks = Array.Empty<RuntimeSquadRenderChunk>();
+        _spawnDataCache = Array.Empty<InstanceSpawnData>();
         _squadStateUploadCache = Array.Empty<RuntimeSquadStateGpuData>();
         _agentSquadUploadCache = Array.Empty<RuntimeAgentSquadDataGpuData>();
         _formationSlotUploadCache = Array.Empty<RuntimeFormationSlotGpuData>();
@@ -117,26 +182,22 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _agentPhysicsExtUploadCache = Array.Empty<CrowdVatAgentPhysicsExt>();
         _runtimeAgentSquadDataDirty = true;
         _runtimeFormationSlotsDirty = true;
-        _runtimeSquadVisibilityDirty = true;
         _runtimeSquadAliveCountDirty = true;
         _agentDataLayoutDirty = true;
+        _hasUnassignedRuntimeInstances = false;
         InvalidateSquadAliveCountReadback();
-        if (_hasRuntimeRenderResource && _runtimeRenderResource.runtimeMaterials != null)
-        {
-            for (int materialIndex = 0; materialIndex < _runtimeRenderResource.runtimeMaterials.Length; materialIndex++)
-                DestroyRuntimeMaterial(_runtimeRenderResource.runtimeMaterials[materialIndex]);
-        }
-
-        if (_combatTracerMaterial != null)
-        {
-            DestroyRuntimeMaterial(_combatTracerMaterial);
-            _combatTracerMaterial = null;
-        }
+        DestroyRuntimeMaterials(_runtimeRenderResource);
+        DestroyRuntimeMaterials(_secondaryRuntimeRenderResource);
+        DestroyRuntimeMaterials(_tertiaryRuntimeRenderResource);
 
         DestroyRuntimeMesh(ref _combatTracerMesh);
 
         _runtimeRenderResource = default;
+        _secondaryRuntimeRenderResource = default;
+        _tertiaryRuntimeRenderResource = default;
         _hasRuntimeRenderResource = false;
+        _hasSecondaryRuntimeRenderResource = false;
+        _hasTertiaryRuntimeRenderResource = false;
         if (_fallbackStaticSdfTexture != null)
         {
             if (Application.isPlaying)
@@ -155,6 +216,10 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _lastCombatStateReadbackFrame = -1;
         _usesGpuVisibleInstanceCompactionThisFrame = false;
         _visibleUnassignedInstancesThisFrame = false;
+        _hasUnassignedRuntimeInstances = false;
+        _activeVisibleLodTierCountThisFrame = 0;
+        _visibleLod1StartDistanceThisFrame = float.MaxValue;
+        _visibleLod2StartDistanceThisFrame = float.MaxValue;
         _resourcesDirty = true;
     }
 
@@ -176,6 +241,25 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         buffer = null;
     }
 
+    private void ReleaseCombatTracerDrawResources()
+    {
+        if (_combatTracerArgsBuffers != null)
+        {
+            for (int bufferIndex = 0; bufferIndex < _combatTracerArgsBuffers.Length; bufferIndex++)
+                ReleaseBuffer(ref _combatTracerArgsBuffers[bufferIndex]);
+        }
+
+        if (_combatTracerMaterials != null)
+        {
+            for (int materialIndex = 0; materialIndex < _combatTracerMaterials.Length; materialIndex++)
+                DestroyRuntimeMaterial(_combatTracerMaterials[materialIndex]);
+        }
+
+        _combatTracerArgsBuffers = Array.Empty<GraphicsBuffer>();
+        _combatTracerMaterials = Array.Empty<Material>();
+        _combatTracerArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+    }
+
     private static void DestroyRuntimeMaterial(Material material)
     {
         if (material == null)
@@ -185,6 +269,15 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             Destroy(material);
         else
             DestroyImmediate(material);
+    }
+
+    private void DestroyRuntimeMaterials(RuntimeRenderResource resource)
+    {
+        if (resource.runtimeMaterials == null)
+            return;
+
+        for (int materialIndex = 0; materialIndex < resource.runtimeMaterials.Length; materialIndex++)
+            DestroyRuntimeMaterial(resource.runtimeMaterials[materialIndex]);
     }
 
     private static void DestroyRuntimeMesh(ref Mesh mesh)
@@ -281,60 +374,86 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         if (destinationMaterial == null)
             return;
 
-        destinationMaterial.SetColor("_BaseColor", Color.white);
-        destinationMaterial.SetColor("_SpecColor", Color.white);
-        destinationMaterial.SetFloat("_AlphaClip", 0.0f);
-        destinationMaterial.SetFloat("_Cutoff", 0.5f);
-        destinationMaterial.SetFloat("_BumpScale", 1.0f);
-        destinationMaterial.SetFloat("_Smoothness", 1.0f);
-        destinationMaterial.SetFloat("_SpecularStrength", 0.12f);
-        destinationMaterial.SetFloat("_UseNormalMap", 0.0f);
-        destinationMaterial.SetFloat("_UseSpecGlossMap", 0.0f);
+        SetColorIfPresent(destinationMaterial, "_BaseColor", Color.white);
+        SetColorIfPresent(destinationMaterial, "_SpecColor", Color.white);
+        SetFloatIfPresent(destinationMaterial, "_AlphaClip", 0.0f);
+        SetFloatIfPresent(destinationMaterial, "_Cutoff", 0.5f);
+        SetFloatIfPresent(destinationMaterial, "_BumpScale", 1.0f);
+        SetFloatIfPresent(destinationMaterial, "_Smoothness", 1.0f);
+        SetFloatIfPresent(destinationMaterial, "_SpecularStrength", 0.12f);
+        SetFloatIfPresent(destinationMaterial, "_UseNormalMap", 0.0f);
+        SetFloatIfPresent(destinationMaterial, "_UseSpecGlossMap", 0.0f);
 
         if (sourceMaterial == null)
             return;
 
         if (TryGetTexture(sourceMaterial, out Texture texture, out Vector2 scale, out Vector2 offset))
         {
-            destinationMaterial.SetTexture("_BaseMap", texture);
-            destinationMaterial.SetTextureScale("_BaseMap", scale);
-            destinationMaterial.SetTextureOffset("_BaseMap", offset);
+            SetTextureIfPresent(destinationMaterial, "_BaseMap", texture);
+            SetTextureTransformIfPresent(destinationMaterial, "_BaseMap", scale, offset);
         }
 
         if (TryGetColor(sourceMaterial, out Color baseColor))
-            destinationMaterial.SetColor("_BaseColor", baseColor);
+            SetColorIfPresent(destinationMaterial, "_BaseColor", baseColor);
 
         if (sourceMaterial.HasProperty("_Cutoff"))
-            destinationMaterial.SetFloat("_Cutoff", sourceMaterial.GetFloat("_Cutoff"));
+            SetFloatIfPresent(destinationMaterial, "_Cutoff", sourceMaterial.GetFloat("_Cutoff"));
 
         if (sourceMaterial.HasProperty("_BumpMap"))
         {
             Texture normalTexture = sourceMaterial.GetTexture("_BumpMap");
-            destinationMaterial.SetTexture("_BumpMap", normalTexture);
-            destinationMaterial.SetFloat("_UseNormalMap", normalTexture != null ? 1.0f : 0.0f);
+            SetTextureIfPresent(destinationMaterial, "_BumpMap", normalTexture);
+            SetFloatIfPresent(destinationMaterial, "_UseNormalMap", normalTexture != null ? 1.0f : 0.0f);
         }
 
         if (sourceMaterial.HasProperty("_BumpScale"))
-            destinationMaterial.SetFloat("_BumpScale", sourceMaterial.GetFloat("_BumpScale"));
+            SetFloatIfPresent(destinationMaterial, "_BumpScale", sourceMaterial.GetFloat("_BumpScale"));
 
         if (sourceMaterial.HasProperty("_SpecGlossMap"))
         {
             Texture specGlossTexture = sourceMaterial.GetTexture("_SpecGlossMap");
-            destinationMaterial.SetTexture("_SpecGlossMap", specGlossTexture);
-            destinationMaterial.SetFloat("_UseSpecGlossMap", specGlossTexture != null ? 1.0f : 0.0f);
+            SetTextureIfPresent(destinationMaterial, "_SpecGlossMap", specGlossTexture);
+            SetFloatIfPresent(destinationMaterial, "_UseSpecGlossMap", specGlossTexture != null ? 1.0f : 0.0f);
         }
 
         if (sourceMaterial.HasProperty("_SpecColor"))
-            destinationMaterial.SetColor("_SpecColor", sourceMaterial.GetColor("_SpecColor"));
+            SetColorIfPresent(destinationMaterial, "_SpecColor", sourceMaterial.GetColor("_SpecColor"));
 
         if (sourceMaterial.HasProperty("_Smoothness"))
-            destinationMaterial.SetFloat("_Smoothness", sourceMaterial.GetFloat("_Smoothness"));
+            SetFloatIfPresent(destinationMaterial, "_Smoothness", sourceMaterial.GetFloat("_Smoothness"));
 
         if (sourceMaterial.HasProperty("_SpecularStrength"))
-            destinationMaterial.SetFloat("_SpecularStrength", sourceMaterial.GetFloat("_SpecularStrength"));
+            SetFloatIfPresent(destinationMaterial, "_SpecularStrength", sourceMaterial.GetFloat("_SpecularStrength"));
 
         bool alphaClip = sourceMaterial.HasProperty("_AlphaClip") && sourceMaterial.GetFloat("_AlphaClip") > 0.5f;
-        destinationMaterial.SetFloat("_AlphaClip", alphaClip ? 1.0f : 0.0f);
+        SetFloatIfPresent(destinationMaterial, "_AlphaClip", alphaClip ? 1.0f : 0.0f);
+    }
+
+    private static void SetFloatIfPresent(Material material, string propertyName, float value)
+    {
+        if (material.HasProperty(propertyName))
+            material.SetFloat(propertyName, value);
+    }
+
+    private static void SetColorIfPresent(Material material, string propertyName, Color value)
+    {
+        if (material.HasProperty(propertyName))
+            material.SetColor(propertyName, value);
+    }
+
+    private static void SetTextureIfPresent(Material material, string propertyName, Texture texture)
+    {
+        if (material.HasProperty(propertyName))
+            material.SetTexture(propertyName, texture);
+    }
+
+    private static void SetTextureTransformIfPresent(Material material, string propertyName, Vector2 scale, Vector2 offset)
+    {
+        if (!material.HasProperty(propertyName))
+            return;
+
+        material.SetTextureScale(propertyName, scale);
+        material.SetTextureOffset(propertyName, offset);
     }
 
     private static bool TryGetTexture(Material material, out Texture texture, out Vector2 scale, out Vector2 offset)
@@ -678,6 +797,29 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         return true;
     }
 
+    private bool TryReadPhysicsActiveStateBuffer()
+    {
+        if (_physicsActiveStateBuffer == null || _instanceCount <= 0)
+            return false;
+
+        EnsurePhysicsActiveStateReadbackCache();
+        bool shouldRefresh = !Application.isPlaying || _lastPhysicsActiveStateReadbackFrame != Time.frameCount;
+        if (!shouldRefresh)
+            return true;
+
+        _physicsActiveStateBuffer.GetData(_physicsActiveStateReadbackCache, 0, 0, _instanceCount);
+        _lastPhysicsActiveStateReadbackFrame = Application.isPlaying ? Time.frameCount : -1;
+        return true;
+    }
+
+    private bool IsPhysicsActiveFromReadback(int instanceIndex)
+    {
+        return _physicsActiveStateReadbackCache != null &&
+            instanceIndex >= 0 &&
+            instanceIndex < _physicsActiveStateReadbackCache.Length &&
+            _physicsActiveStateReadbackCache[instanceIndex] != 0u;
+    }
+
     private CrowdVatInstanceCombatState ConvertCombatStateData(int instanceIndex, InstanceCombatStateData data)
     {
         uint flags = data.flags;
@@ -701,7 +843,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         return new CrowdVatInstanceCombatState
         {
             instanceIndex = instanceIndex,
-            active = (flags & InstanceCombatFlagActive) != 0u,
+            active = IsPhysicsActiveFromReadback(instanceIndex),
             dead = (flags & InstanceCombatFlagDead) != 0u,
             hasTarget = hasTarget,
             hasLineOfSight = (flags & InstanceCombatFlagHasLineOfSight) != 0u,
@@ -725,6 +867,13 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         int requiredLength = Mathf.Max(1, _instanceCount);
         if (_combatStateReadbackCache == null || _combatStateReadbackCache.Length != requiredLength)
             _combatStateReadbackCache = new InstanceCombatStateData[requiredLength];
+    }
+
+    private void EnsurePhysicsActiveStateReadbackCache()
+    {
+        int requiredLength = Mathf.Max(1, _instanceCount);
+        if (_physicsActiveStateReadbackCache == null || _physicsActiveStateReadbackCache.Length != requiredLength)
+            _physicsActiveStateReadbackCache = new uint[requiredLength];
     }
 
     private void EnsureSpatialQueryReadbackCaches()

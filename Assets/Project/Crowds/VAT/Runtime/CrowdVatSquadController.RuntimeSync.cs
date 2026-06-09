@@ -225,6 +225,85 @@ public sealed partial class CrowdVatSquadController : MonoBehaviour
                 };
             }
         }
+
+        EnsureCombatSquadCoverage();
+    }
+
+    private void EnsureCombatSquadCoverage()
+    {
+        if (_renderer == null || !_renderer.GpuInstanceCombatEnabled || _activeSquadSourceIndices.Count == 0)
+            return;
+
+        SquaredDistance[] nearest = BuildNearestSquadMapByInstanceIndex(_agentAssignmentCache.Length);
+        for (int instanceIndex = 0; instanceIndex < _agentAssignmentCache.Length; instanceIndex++)
+        {
+            if ((_agentAssignmentCache[instanceIndex].flags & CrowdVatSquadMemberFlags.Unassigned) == 0)
+                continue;
+
+            int nearestSquadIndex = nearest[instanceIndex].squadRuntimeIndex;
+            if (nearestSquadIndex < 0)
+                continue;
+
+            SquadAuthoring squad = _squads[_activeSquadSourceIndices[nearestSquadIndex]];
+            CrowdVatSquadMemberFlags memberFlags = squad.memberFlags &
+                ~CrowdVatSquadMemberFlags.Unassigned &
+                ~CrowdVatSquadMemberFlags.PreferAssignedSlot &
+                ~CrowdVatSquadMemberFlags.UseSlotOffsetOverride;
+
+            _agentAssignmentCache[instanceIndex] = new CrowdVatAgentSquadAssignment
+            {
+                squadId = (uint)nearestSquadIndex,
+                slotIndex = uint.MaxValue,
+                roleMask = squad.memberRoleMask,
+                flags = memberFlags,
+                slotOffsetOverride = Vector2.zero,
+                weight = Mathf.Max(0.0f, squad.memberWeight)
+            };
+        }
+    }
+
+    private struct SquaredDistance
+    {
+        public int squadRuntimeIndex;
+        public int distance;
+    }
+
+    private SquaredDistance[] BuildNearestSquadMapByInstanceIndex(int instanceCount)
+    {
+        if (_activeSquadSourceIndices.Count <= 0)
+            return Array.Empty<SquaredDistance>();
+
+        int[] squadRangeEnds = new int[_activeSquadSourceIndices.Count];
+        for (int squadRuntimeIndex = 0; squadRuntimeIndex < _activeSquadSourceIndices.Count; squadRuntimeIndex++)
+        {
+            SquadAuthoring squad = _squads[_activeSquadSourceIndices[squadRuntimeIndex]];
+            if (TryGetActiveMemberRange(squad, instanceCount, out int start, out int count))
+                squadRangeEnds[squadRuntimeIndex] = start + count;
+            else
+                squadRangeEnds[squadRuntimeIndex] = int.MaxValue;
+        }
+
+        SquaredDistance[] result = new SquaredDistance[instanceCount];
+        for (int instanceIndex = 0; instanceIndex < instanceCount; instanceIndex++)
+        {
+            int bestSquad = -1;
+            int bestDistance = int.MaxValue;
+            for (int squadRuntimeIndex = 0; squadRuntimeIndex < _activeSquadSourceIndices.Count; squadRuntimeIndex++)
+            {
+                int rangeEnd = squadRangeEnds[squadRuntimeIndex];
+                int distance = instanceIndex < rangeEnd
+                    ? rangeEnd - instanceIndex
+                    : instanceIndex - rangeEnd + 1;
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestSquad = squadRuntimeIndex;
+                }
+            }
+            result[instanceIndex] = new SquaredDistance { squadRuntimeIndex = bestSquad, distance = bestDistance };
+        }
+
+        return result;
     }
 
     private void BuildSquadStates()

@@ -106,6 +106,7 @@ float _LocalWindStrength;
 float _LocalWindRotateAmount;
 float _Lod0EndDistance;
 float _Lod1EndDistance;
+float _LodTransitionWidth;
 float _Time;
 
 float Rand(float3 value)
@@ -153,27 +154,55 @@ uint DistanceCull(float distanceToCamera, float hash)
     return hash > 1.0 - keptAmount ? 1u : 0u;
 }
 
-void AppendBladeToLod(uint bladeIndex, float rotAngle, float windForce, float distanceToCamera)
+VisibleGrassInstance MakeVisibleGrassInstance(uint bladeIndex, float rotAngle, float windForce, float signedLodFade)
 {
     VisibleGrassInstance instance;
     instance.bladeIndex = bladeIndex;
     instance.rotAngle = rotAngle;
     instance.windForce = windForce;
-    instance.padding = 0.0;
+    instance.padding = signedLodFade;
+    return instance;
+}
 
+void AppendBladeToLod0(uint bladeIndex, float rotAngle, float windForce, float signedLodFade)
+{
+    if (abs(signedLodFade) <= 0.001)
+        return;
+
+    _GrassBladesLod0.Append(MakeVisibleGrassInstance(bladeIndex, rotAngle, windForce, signedLodFade));
+}
+
+void AppendBladeToLod1(uint bladeIndex, float rotAngle, float windForce, float signedLodFade)
+{
+    if (abs(signedLodFade) <= 0.001)
+        return;
+
+    _GrassBladesLod1.Append(MakeVisibleGrassInstance(bladeIndex, rotAngle, windForce, signedLodFade));
+}
+
+void AppendBladeToLod2(uint bladeIndex, float rotAngle, float windForce, float signedLodFade)
+{
+    if (abs(signedLodFade) <= 0.001)
+        return;
+
+    _GrassBladesLod2.Append(MakeVisibleGrassInstance(bladeIndex, rotAngle, windForce, signedLodFade));
+}
+
+void AppendBladeToLod(uint bladeIndex, float rotAngle, float windForce, float distanceToCamera)
+{
     if (distanceToCamera <= _Lod0EndDistance)
     {
-        _GrassBladesLod0.Append(instance);
+        AppendBladeToLod0(bladeIndex, rotAngle, windForce, 1.0);
         return;
     }
 
     if (distanceToCamera <= _Lod1EndDistance)
     {
-        _GrassBladesLod1.Append(instance);
+        AppendBladeToLod1(bladeIndex, rotAngle, windForce, 1.0);
         return;
     }
 
-    _GrassBladesLod2.Append(instance);
+    AppendBladeToLod2(bladeIndex, rotAngle, windForce, 1.0);
 }
 
 float AabbSqrDistanceToPoint(float3 minWS, float3 maxWS, float3 pointWS)

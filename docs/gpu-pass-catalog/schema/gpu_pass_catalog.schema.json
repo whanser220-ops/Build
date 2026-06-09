@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "qianxia.gpu_pass_catalog.schema",
+  "title": "Qianxia GPU Pass Catalog",
+  "type": "object",
+  "required": ["schema_version", "passes"],
+  "properties": {
+    "schema_version": {
+      "type": ["integer", "string"]
+    },
+    "catalog_id": {
+      "type": "string"
+    },
+    "marker_format": {
+      "type": "string"
+    },
+    "passes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pass_id", "display_name", "type"],
+        "properties": {
+          "pass_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(\\.[a-z0-9_]+)+$"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "type": {
+            "enum": ["compute", "raster_draw", "indirect_draw"]
+          },
+          "shader": {
+            "type": "string"
+          },
+          "kernel": {
+            "type": "string"
+          },
+          "shader_pass": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "aliases": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "inputs": {
+            "$ref": "#/$defs/resources"
+          },
+          "outputs": {
+            "$ref": "#/$defs/resources"
+          },
+          "dispatch": {
+            "type": "object"
+          },
+          "raster_draw": {
+            "type": "object"
+          },
+          "indirect_draw": {
+            "type": "object"
+          },
+          "pipeline": {
+            "type": "object"
+          },
+          "performance_hints": {
+            "type": "object"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "file": { "type": "string" },
+              "function": { "type": "string" },
+              "line": { "type": "integer" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "access"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "access": {
+            "enum": ["read", "write", "read_write", "append", "consume", "unknown"]
+          },
+          "meaning": { "type": "string" },
+          "scale": { "type": "string" }
+        }
+      }
+    }
+  }
+}

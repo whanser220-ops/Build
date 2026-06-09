@@ -12,21 +12,44 @@ public sealed class CrowdVatAnimationAsset : ScriptableObject
         [SerializeField] private int _frameCount;
         [SerializeField] private float _lengthSeconds;
         [SerializeField] private bool _loop;
+        [SerializeField] private bool _hasBounds;
+        [SerializeField] private Bounds _bounds;
 
         public string Name => _name;
         public int StartFrame => _startFrame;
         public int FrameCount => _frameCount;
         public float LengthSeconds => _lengthSeconds;
         public bool Loop => _loop;
+        public bool HasBounds => _hasBounds && _bounds.size.sqrMagnitude > 1e-8f;
+        public Bounds Bounds => _bounds;
 
 #if UNITY_EDITOR
         public ClipInfo(string name, int startFrame, int frameCount, float lengthSeconds, bool loop)
+            : this(name, startFrame, frameCount, lengthSeconds, loop, default, false)
+        {
+        }
+
+        public ClipInfo(string name, int startFrame, int frameCount, float lengthSeconds, bool loop, Bounds bounds)
+            : this(name, startFrame, frameCount, lengthSeconds, loop, bounds, true)
+        {
+        }
+
+        private ClipInfo(
+            string name,
+            int startFrame,
+            int frameCount,
+            float lengthSeconds,
+            bool loop,
+            Bounds bounds,
+            bool hasBounds)
         {
             _name = name;
             _startFrame = startFrame;
             _frameCount = frameCount;
             _lengthSeconds = lengthSeconds;
             _loop = loop;
+            _bounds = bounds;
+            _hasBounds = hasBounds && bounds.size.sqrMagnitude > 1e-8f;
         }
 #endif
     }

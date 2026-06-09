@@ -56,12 +56,16 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private static readonly int SimulationScaleWriteBufferId = Shader.PropertyToID("_SimulationScaleWriteBuffer");
     private static readonly int SimulationVelocityReadBufferId = Shader.PropertyToID("_SimulationVelocityReadBuffer");
     private static readonly int SimulationVelocityWriteBufferId = Shader.PropertyToID("_SimulationVelocityWriteBuffer");
-    private static readonly int ActiveStateBufferId = Shader.PropertyToID("_ActiveStateBuffer");
     private static readonly int DeathStateBufferId = Shader.PropertyToID("_DeathStateBuffer");
     private static readonly int InteractionSphereBufferId = Shader.PropertyToID("_InteractionSphereBuffer");
     private static readonly int InteractionSphereCountId = Shader.PropertyToID("_InteractionSphereCount");
     private static readonly int GridCounterBufferId = Shader.PropertyToID("_GridCounterBuffer");
     private static readonly int GridOccupantBufferId = Shader.PropertyToID("_GridOccupantBuffer");
+    private static readonly int GridPrevTouchedCellBufferId = Shader.PropertyToID("_GridPrevTouchedCellBuffer");
+    private static readonly int GridPrevTouchedCounterBufferId = Shader.PropertyToID("_GridPrevTouchedCounterBuffer");
+    private static readonly int GridCurrTouchedCellBufferId = Shader.PropertyToID("_GridCurrTouchedCellBuffer");
+    private static readonly int GridCurrTouchedCounterBufferId = Shader.PropertyToID("_GridCurrTouchedCounterBuffer");
+    private static readonly int GridClearDispatchArgsBufferId = Shader.PropertyToID("_GridClearDispatchArgsBuffer");
     private static readonly int SpatialCapsuleStartRadiusBufferId = Shader.PropertyToID("_SpatialCapsuleStartRadiusBuffer");
     private static readonly int SpatialCapsuleEndHeightBufferId = Shader.PropertyToID("_SpatialCapsuleEndHeightBuffer");
     private static readonly int SpatialOwnerIndexBufferId = Shader.PropertyToID("_SpatialOwnerIndexBuffer");
@@ -76,10 +80,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private static readonly int GridBuildModeId = Shader.PropertyToID("_GridBuildMode");
     private static readonly int DeltaTimeId = Shader.PropertyToID("_DeltaTime");
     private static readonly int EnableApproximateCollisionId = Shader.PropertyToID("_EnableApproximateCollision");
-    private static readonly int UseActiveBubbleId = Shader.PropertyToID("_UseActiveBubble");
-    private static readonly int ActiveBubbleCenterId = Shader.PropertyToID("_ActiveBubbleCenter");
-    private static readonly int ActiveBubbleRadiusId = Shader.PropertyToID("_ActiveBubbleRadius");
-    private static readonly int ActiveBubbleRetentionRadiusId = Shader.PropertyToID("_ActiveBubbleRetentionRadius");
     private static readonly int GridDimId = Shader.PropertyToID("_GridDim");
     private static readonly int GridCellCountId = Shader.PropertyToID("_GridCellCount");
     private static readonly int CellSizeId = Shader.PropertyToID("_CellSize");
@@ -145,6 +145,19 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private static readonly int FormationSlotCountId = Shader.PropertyToID("_FormationSlotCount");
     private static readonly int CombatStateBufferId = Shader.PropertyToID("_CombatStateBuffer");
     private static readonly int TargetAcquisitionStateBufferId = Shader.PropertyToID("_TargetAcquisitionStateBuffer");
+    private static readonly int TargetAcquisitionCandidateBufferId = Shader.PropertyToID("_TargetAcquisitionCandidateBuffer");
+    private static readonly int TargetAcquisitionLosDispatchArgsBufferId = Shader.PropertyToID("_TargetAcquisitionLosDispatchArgsBuffer");
+    private static readonly int SquadAcquisitionDispatchArgsBufferId = Shader.PropertyToID("_SquadAcquisitionDispatchArgsBuffer");
+    private static readonly int CombatActiveStateBufferId = Shader.PropertyToID("_CombatActiveStateBuffer");
+    private static readonly int CombatActivationMetaBufferId = Shader.PropertyToID("_CombatActivationMetaBuffer");
+    private static readonly int CombatActiveInstanceIndexBufferId = Shader.PropertyToID("_CombatActiveInstanceIndexBuffer");
+    private static readonly int CombatActiveInstanceCounterBufferId = Shader.PropertyToID("_CombatActiveInstanceCounterBuffer");
+    private static readonly int CombatActiveInstanceIndexReadBufferId = Shader.PropertyToID("_CombatActiveInstanceIndexReadBuffer");
+    private static readonly int CombatActiveInstanceCounterReadBufferId = Shader.PropertyToID("_CombatActiveInstanceCounterReadBuffer");
+    private static readonly int CombatActiveInstanceDispatchArgsBufferId = Shader.PropertyToID("_CombatActiveInstanceDispatchArgsBuffer");
+    private static readonly int CombatSquadCandidateBufferId = Shader.PropertyToID("_CombatSquadCandidateBuffer");
+    private static readonly int CombatSquadCandidateCounterBufferId = Shader.PropertyToID("_CombatSquadCandidateCounterBuffer");
+    private static readonly int CombatCandidateClusterWorkItemBufferId = Shader.PropertyToID("_CombatCandidateClusterWorkItemBuffer");
     private static readonly int AiDebugTargetIndexBufferId = Shader.PropertyToID("_AiDebugTargetIndexBuffer");
     private static readonly int AiDebugStageRecordBufferId = Shader.PropertyToID("_AiDebugStageRecordBuffer");
     private static readonly int AiDebugTargetCountId = Shader.PropertyToID("_AiDebugTargetCount");
@@ -166,15 +179,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private static readonly int AiDebugDiscoveryWorldToClipRow2Id = Shader.PropertyToID("_AiDebugDiscoveryWorldToClipRow2");
     private static readonly int AiDebugDiscoveryWorldToClipRow3Id = Shader.PropertyToID("_AiDebugDiscoveryWorldToClipRow3");
     private static readonly int AiDebugDiscoverySquadId = Shader.PropertyToID("_AiDebugDiscoverySquadId");
-    private static readonly int AiDebugDiscoveryHighSpeedThresholdId = Shader.PropertyToID("_AiDebugDiscoveryHighSpeedThreshold");
-    private static readonly int AiDebugDiscoveryInactiveMovingSpeedThresholdId = Shader.PropertyToID("_AiDebugDiscoveryInactiveMovingSpeedThreshold");
-    private static readonly int AiDebugDiscoverySpeedSpikeThresholdId = Shader.PropertyToID("_AiDebugDiscoverySpeedSpikeThreshold");
-    private static readonly int AiDebugDiscoveryPositionJumpThresholdId = Shader.PropertyToID("_AiDebugDiscoveryPositionJumpThreshold");
-    private static readonly int AiDebugDiscoveryStuckSpeedThresholdId = Shader.PropertyToID("_AiDebugDiscoveryStuckSpeedThreshold");
-    private static readonly int AiDebugDiscoveryStuckMoveThresholdId = Shader.PropertyToID("_AiDebugDiscoveryStuckMoveThreshold");
-    private static readonly int AiDebugDiscoveryStuckIntentSpeedThresholdId = Shader.PropertyToID("_AiDebugDiscoveryStuckIntentSpeedThreshold");
-    private static readonly int AiDebugDiscoveryStuckFrameThresholdId = Shader.PropertyToID("_AiDebugDiscoveryStuckFrameThreshold");
-    private static readonly int AiDebugDiscoveryHistoryBufferId = Shader.PropertyToID("_AiDebugDiscoveryHistoryBuffer");
     private static readonly int EnableGpuInstanceCombatId = Shader.PropertyToID("_EnableGpuInstanceCombat");
     private static readonly int CombatRangeId = Shader.PropertyToID("_CombatRange");
     private static readonly int CombatShotsPerSecondId = Shader.PropertyToID("_CombatShotsPerSecond");
@@ -185,6 +189,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private static readonly int EnableCombatTerrainOcclusionId = Shader.PropertyToID("_EnableCombatTerrainOcclusion");
     private static readonly int CombatTerrainOcclusionSampleSpacingId = Shader.PropertyToID("_CombatTerrainOcclusionSampleSpacing");
     private static readonly int CombatTerrainOcclusionClearanceId = Shader.PropertyToID("_CombatTerrainOcclusionClearance");
+    private static readonly int CombatEnvironmentOcclusionMaxStepsId = Shader.PropertyToID("_CombatEnvironmentOcclusionMaxSteps");
     private static readonly int CombatOriginHeightId = Shader.PropertyToID("_CombatOriginHeight");
     private static readonly int CombatTargetHeightId = Shader.PropertyToID("_CombatTargetHeight");
     private static readonly int CombatMuzzleFlashDecayId = Shader.PropertyToID("_CombatMuzzleFlashDecay");
@@ -196,36 +201,61 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private static readonly int CombatNoTargetRetryDelayId = Shader.PropertyToID("_CombatNoTargetRetryDelay");
     private static readonly int TargetAcquisitionSearchIntervalMinId = Shader.PropertyToID("_TargetAcquisitionSearchIntervalMin");
     private static readonly int TargetAcquisitionSearchIntervalMaxId = Shader.PropertyToID("_TargetAcquisitionSearchIntervalMax");
-    private static readonly int TargetAcquisitionFarDistanceId = Shader.PropertyToID("_TargetAcquisitionFarDistance");
-    private static readonly int TargetAcquisitionFarIntervalMultiplierId = Shader.PropertyToID("_TargetAcquisitionFarIntervalMultiplier");
     private static readonly int TargetAcquisitionFovCosineId = Shader.PropertyToID("_TargetAcquisitionFovCosine");
     private static readonly int TargetAcquisitionMaxCandidateChecksId = Shader.PropertyToID("_TargetAcquisitionMaxCandidateChecks");
     private static readonly int TargetAcquisitionCurrentTargetBonusId = Shader.PropertyToID("_TargetAcquisitionCurrentTargetBonus");
     private static readonly int TargetAcquisitionLastAttackerBonusId = Shader.PropertyToID("_TargetAcquisitionLastAttackerBonus");
     private static readonly int TargetAcquisitionLockDurationId = Shader.PropertyToID("_TargetAcquisitionLockDuration");
     private static readonly int TargetAcquisitionLostSightGraceId = Shader.PropertyToID("_TargetAcquisitionLostSightGrace");
+    private static readonly int TargetAcquisitionLineOfSightRecheckIntervalId = Shader.PropertyToID("_TargetAcquisitionLineOfSightRecheckInterval");
     private static readonly int TargetAcquisitionDistanceScoreWeightId = Shader.PropertyToID("_TargetAcquisitionDistanceScoreWeight");
     private static readonly int TargetAcquisitionViewScoreWeightId = Shader.PropertyToID("_TargetAcquisitionViewScoreWeight");
+    private static readonly int CombatCandidateCapacityPerSquadId = Shader.PropertyToID("_CombatCandidateCapacityPerSquad");
+    private static readonly int CombatActiveHoldTimeId = Shader.PropertyToID("_CombatActiveHoldTime");
+    private static readonly int CombatActiveProbeIntervalFramesId = Shader.PropertyToID("_CombatActiveProbeIntervalFrames");
+    private static readonly int SimulationFrameIndexId = Shader.PropertyToID("_SimulationFrameIndex");
     private static readonly int AliveInstanceIndexBufferId = Shader.PropertyToID("_AliveInstanceIndexBuffer");
     private static readonly int AliveInstanceCounterBufferId = Shader.PropertyToID("_AliveInstanceCounterBuffer");
     private static readonly int AliveInstanceDispatchArgsBufferId = Shader.PropertyToID("_AliveInstanceDispatchArgsBuffer");
     private static readonly int AliveInstanceIndexReadBufferId = Shader.PropertyToID("_AliveInstanceIndexReadBuffer");
     private static readonly int AliveInstanceCounterReadBufferId = Shader.PropertyToID("_AliveInstanceCounterReadBuffer");
-    private static readonly int ActiveInstanceIndexBufferId = Shader.PropertyToID("_ActiveInstanceIndexBuffer");
-    private static readonly int ActiveInstanceCounterBufferId = Shader.PropertyToID("_ActiveInstanceCounterBuffer");
-    private static readonly int ActiveInstanceDispatchArgsBufferId = Shader.PropertyToID("_ActiveInstanceDispatchArgsBuffer");
+    private static readonly int PhysicsActiveStateBufferId = Shader.PropertyToID("_PhysicsActiveStateBuffer");
+    private static readonly int PhysicsActivationMetaBufferId = Shader.PropertyToID("_PhysicsActivationMetaBuffer");
+    private static readonly int PhysicsActiveInstanceIndexBufferId = Shader.PropertyToID("_PhysicsActiveInstanceIndexBuffer");
+    private static readonly int PhysicsActiveInstanceCounterBufferId = Shader.PropertyToID("_PhysicsActiveInstanceCounterBuffer");
+    private static readonly int PhysicsActiveInstanceIndexReadBufferId = Shader.PropertyToID("_PhysicsActiveInstanceIndexReadBuffer");
+    private static readonly int PhysicsActiveInstanceCounterReadBufferId = Shader.PropertyToID("_PhysicsActiveInstanceCounterReadBuffer");
+    private static readonly int PhysicsActiveInstanceDispatchArgsBufferId = Shader.PropertyToID("_PhysicsActiveInstanceDispatchArgsBuffer");
+    private static readonly int WakeGridCounterBufferId = Shader.PropertyToID("_WakeGridCounterBuffer");
+    private static readonly int WakeGridOccupantBufferId = Shader.PropertyToID("_WakeGridOccupantBuffer");
+    private static readonly int WakeGridDimId = Shader.PropertyToID("_WakeGridDim");
+    private static readonly int WakeGridCellCountId = Shader.PropertyToID("_WakeGridCellCount");
+    private static readonly int WakeGridCellSizeId = Shader.PropertyToID("_WakeGridCellSize");
+    private static readonly int WakeInvGridCellSizeId = Shader.PropertyToID("_WakeInvGridCellSize");
+    private static readonly int PhysicsActivationPassId = Shader.PropertyToID("_PhysicsActivationPass");
+    private static readonly int PhysicsWakeSpeedId = Shader.PropertyToID("_PhysicsWakeSpeed");
+    private static readonly int PhysicsSleepSpeedId = Shader.PropertyToID("_PhysicsSleepSpeed");
+    private static readonly int PhysicsWakeAnchorErrorId = Shader.PropertyToID("_PhysicsWakeAnchorError");
+    private static readonly int PhysicsSleepAnchorErrorId = Shader.PropertyToID("_PhysicsSleepAnchorError");
+    private static readonly int PhysicsWakeNeighborRadiusId = Shader.PropertyToID("_PhysicsWakeNeighborRadius");
+    private static readonly int PhysicsActiveHoldTimeId = Shader.PropertyToID("_PhysicsActiveHoldTime");
+    private static readonly int PhysicsSleepDelayId = Shader.PropertyToID("_PhysicsSleepDelay");
     private static readonly int VisibleRuntimeSquadMaskBufferId = Shader.PropertyToID("_VisibleRuntimeSquadMaskBuffer");
+    private static readonly int RuntimeSquadBoundsBufferId = Shader.PropertyToID("_RuntimeSquadBoundsBuffer");
     private static readonly int VisibleRuntimeSquadCountId = Shader.PropertyToID("_VisibleRuntimeSquadCount");
     private static readonly int VisibleUnassignedInstancesId = Shader.PropertyToID("_VisibleUnassignedInstances");
     private static readonly int VisibleInstanceCounterBufferId = Shader.PropertyToID("_VisibleInstanceCounterBuffer");
+    private static readonly int VisibleLod1InstanceIndicesId = Shader.PropertyToID("_VisibleLod1InstanceIndices");
+    private static readonly int VisibleLod1InstanceCounterBufferId = Shader.PropertyToID("_VisibleLod1InstanceCounterBuffer");
+    private static readonly int VisibleLod2InstanceIndicesId = Shader.PropertyToID("_VisibleLod2InstanceIndices");
+    private static readonly int VisibleLod2InstanceCounterBufferId = Shader.PropertyToID("_VisibleLod2InstanceCounterBuffer");
     private static readonly int VisibleRenderArgsBufferId = Shader.PropertyToID("_VisibleRenderArgsBuffer");
     private static readonly int VisibleRenderArgsIndexCountId = Shader.PropertyToID("_VisibleRenderArgsIndexCount");
     private static readonly int VisibleRenderArgsStartIndexId = Shader.PropertyToID("_VisibleRenderArgsStartIndex");
     private static readonly int VisibleRenderArgsBaseVertexId = Shader.PropertyToID("_VisibleRenderArgsBaseVertex");
-    private static readonly int InstanceRenderChunkBufferId = Shader.PropertyToID("_InstanceRenderChunkBuffer");
-    private static readonly int VisibleRenderChunkMaskBufferId = Shader.PropertyToID("_VisibleRenderChunkMaskBuffer");
-    private static readonly int VisibleRenderChunkCountId = Shader.PropertyToID("_VisibleRenderChunkCount");
     private static readonly int HasVisibleFrustumPlanesId = Shader.PropertyToID("_HasVisibleFrustumPlanes");
+    private static readonly int VisibleBoundsCenterId = Shader.PropertyToID("_VisibleBoundsCenter");
+    private static readonly int VisibleBoundsExtentsId = Shader.PropertyToID("_VisibleBoundsExtents");
     private static readonly int VisibleInstanceBoundsRadiusId = Shader.PropertyToID("_VisibleInstanceBoundsRadius");
     private static readonly int VisibleFrustumPlane0Id = Shader.PropertyToID("_VisibleFrustumPlane0");
     private static readonly int VisibleFrustumPlane1Id = Shader.PropertyToID("_VisibleFrustumPlane1");
@@ -233,30 +263,52 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private static readonly int VisibleFrustumPlane3Id = Shader.PropertyToID("_VisibleFrustumPlane3");
     private static readonly int VisibleFrustumPlane4Id = Shader.PropertyToID("_VisibleFrustumPlane4");
     private static readonly int VisibleFrustumPlane5Id = Shader.PropertyToID("_VisibleFrustumPlane5");
+    private static readonly int VisibleCameraPositionId = Shader.PropertyToID("_VisibleCameraPosition");
+    private static readonly int VisibleLodTierCountId = Shader.PropertyToID("_VisibleLodTierCount");
+    private static readonly int VisibleLod1StartDistanceId = Shader.PropertyToID("_VisibleLod1StartDistance");
+    private static readonly int VisibleLod2StartDistanceId = Shader.PropertyToID("_VisibleLod2StartDistance");
     private const string DefaultShaderName = "Project/Crowd/VATIndirectLit";
+    private const string DefaultTertiaryLodShaderName = "Project/Crowd/VATIndirectSimple";
     private const string DefaultCombatTracerShaderName = "Project/Crowd/VATCombatTracer";
 #if UNITY_EDITOR
-    private const string DefaultCombatFxTextureFolder = "Assets/Project/Crowds/Texture";
-    private const string DefaultCombatMuzzleFlashTexturePath = "Assets/Project/Crowds/Texture/qiangkou.png";
-    private const string DefaultCombatTracerTexturePath = "Assets/Project/Crowds/Texture/子弹曳光.png";
-    private const string DefaultCombatImpactTexturePath = "Assets/Project/Crowds/Texture/子弹命中——雾.png";
+    private const string DefaultCombatFxTextureFolder = "Assets/Project/Textures/Crowds/CombatFx";
+    private const string DefaultCombatMuzzleFlashTexturePath = "Assets/Project/Textures/Crowds/CombatFx/qiangkou.png";
+    private const string DefaultCombatTracerTexturePath = "Assets/Project/Textures/Crowds/CombatFx/子弹曳光.png";
+    private const string DefaultCombatImpactTexturePath = "Assets/Project/Textures/Crowds/CombatFx/子弹命中——雾.png";
     private const string DefaultCombatMuzzleFlashTextureSearchFilter = "qiangkou";
     private const string DefaultCombatTracerTextureSearchFilter = "子弹曳光";
     private const string DefaultCombatImpactTextureSearchFilter = "子弹命中";
 #endif
     private const string BuildAliveInstanceListKernelName = "BuildAliveInstanceList";
     private const string BuildAliveDispatchArgsKernelName = "BuildAliveDispatchArgs";
-    private const string BuildActiveInstanceListKernelName = "BuildActiveInstanceList";
-    private const string BuildActiveDispatchArgsKernelName = "BuildActiveDispatchArgs";
+    private const string ClearWakeGridKernelName = "ClearWakeGrid";
+    private const string BuildWakeGridKernelName = "BuildWakeGrid";
+    private const string EvaluatePhysicsActiveKernelName = "EvaluatePhysicsActive";
+    private const string BuildPhysicsActiveInstanceListKernelName = "BuildPhysicsActiveInstanceList";
+    private const string BuildPhysicsActiveDispatchArgsKernelName = "BuildPhysicsActiveDispatchArgs";
+    private const string EvaluateCombatActiveKernelName = "EvaluateCombatActive";
+    private const string BuildCombatActiveInstanceListKernelName = "BuildCombatActiveInstanceList";
+    private const string CompactCombatActiveInstanceListKernelName = "CompactCombatActiveInstanceList";
+    private const string BuildCombatActiveDispatchArgsKernelName = "BuildCombatActiveDispatchArgs";
+    private const string ClearCombatSquadCandidateCountersKernelName = "ClearCombatSquadCandidateCounters";
+    private const string ClearVisibleRuntimeSquadBoundsKernelName = "ClearVisibleRuntimeSquadBounds";
+    private const string BuildVisibleRuntimeSquadBoundsKernelName = "BuildVisibleRuntimeSquadBounds";
+    private const string CullVisibleRuntimeSquadsKernelName = "CullVisibleRuntimeSquads";
     private const string BuildVisibleRuntimeInstanceListKernelName = "BuildVisibleRuntimeInstanceList";
-    private const string BuildVisibleChunkInstanceListKernelName = "BuildVisibleChunkInstanceList";
     private const string BuildVisibleIndirectArgsKernelName = "BuildVisibleIndirectArgs";
     private const string PredictKernelName = "PredictInstances";
+    private const string BuildGridClearDispatchArgsKernelName = "BuildGridClearDispatchArgs";
     private const string ClearGridKernelName = "ClearGrid";
     private const string BuildGridKernelName = "BuildGrid";
     private const string BuildSpatialElementsKernelName = "BuildSpatialElements";
     private const string SolveCrowdKernelName = "SolveCrowdCollisions";
+    private const string BuildCombatCandidateClustersKernelName = "BuildCombatCandidateClusters";
     private const string ResolveTargetAcquisitionKernelName = "ResolveTargetAcquisition";
+    private const string BuildTargetAcquisitionLosDispatchArgsKernelName = "BuildTargetAcquisitionLosDispatchArgs";
+    private const string ResolveTargetAcquisitionLineOfSightKernelName = "ResolveTargetAcquisitionLineOfSight";
+    private const string BuildSquadAcquisitionDispatchArgsKernelName = "BuildSquadAcquisitionDispatchArgs";
+    private const string EvaluateSquadAcquisitionCandidatesKernelName = "EvaluateSquadAcquisitionCandidates";
+    private const string FinalizeTargetAcquisitionKernelName = "FinalizeTargetAcquisition";
     private const string ResolveInstanceCombatKernelName = "ResolveInstanceCombat";
     private const string ClearSpatialQueriesKernelName = "ClearSpatialQueryResults";
     private const string ResolveSpatialQueriesKernelName = "ResolveSpatialQueries";
@@ -264,8 +316,12 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private const string CaptureAiDebugGpuStageKernelName = "CaptureAiDebugGpuStage";
     private const string DiscoverAiDebugGpuCandidatesKernelName = "DiscoverAiDebugGpuCandidates";
     private const int ThreadGroupSize = 64;
+    private const int TargetAcquisitionTopK = 3;
+    private const int TargetAcquisitionCandidateSlots = TargetAcquisitionTopK + 1;
+    private const int CombatCandidateClusterCellsPerTile = 8;
+    private const int CombatCandidateCapacityPerSquadMax = 512;
     private const int SpatialQueryThreadGroupSize = 8;
-    private const int GridBuildModeActiveOnly = 0;
+    private const int GridBuildModePhysicsActiveOnly = 0;
     private const int GridBuildModeAllQueryables = 1;
     private const int DebugCharacterInteractionQueryId = -10001;
     private const int DebugCustomInteractionQueryIdBase = -11000;
@@ -273,14 +329,13 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private const int InvalidClipIndex = -1;
     private const float DefaultInstanceAnimationTransitionDuration = 0.2f;
     private static readonly uint[] AliveInstanceCounterResetData = { 0u };
+    private static readonly uint[] CombatActiveInstanceCounterResetData = { 0u, 0u };
     private static readonly uint[] AliveInstanceDispatchArgsResetData = { 1u, 1u, 1u };
-    private static readonly uint[] ActiveInstanceCounterResetData = { 0u };
-    private static readonly uint[] ActiveInstanceDispatchArgsResetData = { 1u, 1u, 1u };
+    private static readonly uint[] EmptyDispatchArgsResetData = { 0u, 1u, 1u };
     private static readonly uint[] VisibleInstanceCounterResetData = { 0u };
     private const uint InstanceCombatFlagHasTarget = 1u << 0;
     private const uint InstanceCombatFlagHasLineOfSight = 1u << 1;
     private const uint InstanceCombatFlagFiredThisFrame = 1u << 2;
-    private const uint InstanceCombatFlagActive = 1u << 3;
     private const uint InstanceCombatFlagDead = 1u << 4;
     [Serializable]
     [StructLayout(LayoutKind.Sequential)]
@@ -367,23 +422,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         public float nextClipTime;
         public float transitionElapsed;
         public float transitionDuration;
-    }
-
-    private struct RenderChunk
-    {
-        public uint[] instanceIndices;
-        public Bounds localBounds;
-    }
-
-    private struct RuntimeSquadRenderChunk
-    {
-        public uint[] instanceIndices;
-        public Bounds staticLocalBounds;
-        public Vector2 minSlotOffset;
-        public Vector2 maxSlotOffset;
-        public int squadIndex;
-        public bool usesRuntimeBounds;
-        public bool hasSlotExtents;
     }
 
     private struct SpawnAreaContext
@@ -477,6 +515,19 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct RuntimeSquadBoundsGpuData
+    {
+        public uint minX;
+        public uint minY;
+        public uint minZ;
+        public uint maxX;
+        public uint maxY;
+        public uint maxZ;
+        public uint validCount;
+        public uint padding0;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     private struct InstanceCombatStateData
     {
         public Vector4 localOriginAndDistance;
@@ -487,6 +538,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         public int targetIndex;
         public uint flags;
         public uint debugShotInfoPacked;
+        public Vector4 debugShotTraceMeta;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -502,15 +554,58 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         public int debugVisibleSampleIndex;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct TargetAcquisitionCandidateData
+    {
+        public Vector4 targetLocalAndScore;
+        public float targetDistance;
+        public int targetIndex;
+        public uint rejectReason;
+        public uint flags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct CombatSquadCandidateData
+    {
+        public uint instanceIndex;
+        public uint faction;
+        public Vector4 targetLocalAndScale;
+        public float distanceToSourceBounds;
+        public uint padding;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct CombatCandidateClusterWorkItemData
+    {
+        public uint sourceSquadIndex;
+        public uint tileBegin;
+        public uint cellWidth;
+        public uint cellCount;
+        public int minCoordX;
+        public int minCoordY;
+        public uint padding0;
+        public uint padding1;
+    }
+
     [Header("资源引用")]
     [Tooltip("推荐直接拖入已生成的 Qianxia crowd VAT prefab 根节点，用来复用动画资产、材质来源和渲染根节点偏移。")]
     [SerializeField] private CrowdVatPlayer _templatePrefab;
     [Tooltip("也可以直接指定动画资产；如果同时指定了模板 prefab，会优先使用模板上的资源。")]
     [SerializeField] private CrowdVatAnimationAsset _animationAsset;
+    [Tooltip("第二档距离 LOD 使用的 VAT prefab。未指定时不启用第二档。")]
+    [SerializeField] private CrowdVatPlayer _secondaryLodTemplatePrefab;
+    [Tooltip("也可以直接指定第二档动画资产；如果同时指定了模板 prefab，会优先使用模板上的资源。")]
+    [SerializeField] private CrowdVatAnimationAsset _secondaryLodAnimationAsset;
+    [Tooltip("第三档距离 LOD 使用的 VAT prefab。未指定时不启用第三档。")]
+    [SerializeField] private CrowdVatPlayer _tertiaryLodTemplatePrefab;
+    [Tooltip("也可以直接指定第三档动画资产；如果同时指定了模板 prefab，会优先使用模板上的资源。")]
+    [SerializeField] private CrowdVatAnimationAsset _tertiaryLodAnimationAsset;
     [Tooltip("负责写入实例矩阵、动画帧和近场求解状态的 Compute Shader。")]
     [SerializeField] private ComputeShader _updateCompute;
     [Tooltip("Indirect 版本的人群 Shader。留空时会尝试按默认名字查找。")]
     [SerializeField] private Shader _indirectShader;
+    [Tooltip("第三档距离 LOD 专用的人群 Shader。留空时默认查找 VATIndirectSimple；未找到时回退到主 indirect shader。")]
+    [SerializeField] private Shader _tertiaryLodIndirectShader;
     [Tooltip("可选的 indirect 材质模板；留空时运行时会复制一份默认材质。")]
     [SerializeField] private Material _indirectMaterialTemplate;
     [Tooltip("默认播放的 clip 名称。留空时回退到动画资产里的第一个 clip。")]
@@ -550,7 +645,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     [Tooltip("参考 Terrain。人物运行时高度校正以 baked/environment SDF 或 static SDF 为准。")]
     [SerializeField] private Terrain _terrain;
     [Tooltip("Terrain 参考高度偏移，仅用于兼容路径与诊断；SDF 主链不依赖它。")]
-    [SerializeField] private float _terrainHeightOffset = 0.02f;
+    [SerializeField] private float _terrainHeightOffset = 0.0f;
     [Tooltip("启用后，额外使用 3D static SDF 体积参与 capsule PBD 碰撞投影。")]
     [SerializeField] private bool _enableStaticSdfCollision;
     [Tooltip("静态场景的 3D SDF 贴图。当前按轴对齐世界体积采样。")]
@@ -689,30 +784,17 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     [Tooltip("静态模式下实例允许偏离出生点的最大距离。运行时小队移动不再使用编队槽位或保持距离投影。")]
     [SerializeField] [Min(0.01f)] private float _maxDisplacementFromSpawn = 1.25f;
     [InspectorName("非活跃回锚强度")]
-    [Tooltip("实例不在 active bubble 或交互范围内时，回到静态出生锚点的强度。显式小队移动会绕过 inactive 分支。")]
+    [Tooltip("实例处于 physics inactive 且没有显式小队移动时，回到静态出生锚点的强度。")]
     [SerializeField] [Range(0.0f, 1.0f)] private float _inactiveReturnStrength = 0.22f;
-    [Header("Active Bubble / 外部驱散")]
-    [InspectorName("启用 Active Bubble")]
-    [Tooltip("启用近场模拟范围控制。它只用于运动优化和近场交互，不再决定人和人自碰撞是否计算。")]
-    [SerializeField] private bool _enableActiveBubble = true;
     [InspectorName("自动查找玩家控制器")]
-    [Tooltip("自动查找场景中的 CharacterController，用于玩家交互球和调试引用；不会自动作为 active bubble 目标。")]
+    [Tooltip("自动查找场景中的 CharacterController，用于玩家交互球和调试引用。")]
     [SerializeField] private bool _autoResolveCharacterController = true;
     [InspectorName("玩家控制器")]
-    [Tooltip("可选的玩家 CharacterController。主要用于玩家近场驱散球，不作为人和人自碰撞触发条件。")]
+    [Tooltip("可选的玩家 CharacterController。主要用于玩家近场驱散球。")]
     [SerializeField] private CharacterController _characterController;
-    [InspectorName("Active Bubble 目标")]
-    [Tooltip("可选 active bubble 目标。留空时不会自动使用玩家角色；人和人自碰撞始终按全存活实例计算。")]
-    [SerializeField] private Transform _activeBubbleTarget;
     [InspectorName("优先玩家名称")]
     [Tooltip("自动查找玩家控制器时优先匹配的对象名称。找不到时再回退到场景中的 CharacterController。")]
     [SerializeField] private string _preferredCharacterName = "QianxiaThirdPerson";
-    [InspectorName("Active Bubble 半径")]
-    [Tooltip("active bubble 的主半径。进入该范围的实例会执行近场预测和交互运动。")]
-    [SerializeField] [Min(0.1f)] private float _activeBubbleRadius = 14.0f;
-    [InspectorName("Active Bubble 保持半径")]
-    [Tooltip("已经活跃的实例离开主半径后，在该保持半径内仍会继续模拟，避免边界频繁开关。")]
-    [SerializeField] [Min(0.1f)] private float _activeBubbleRetentionRadius = 18.0f;
     [InspectorName("玩家参与驱散")]
     [Tooltip("启用后，会把玩家 CharacterController 转成一个 interaction sphere，用于近场推开人群；关闭时玩家不参与人群碰撞/驱散。")]
     [SerializeField] private bool _useCharacterAsInteractionSphere = false;
@@ -726,9 +808,31 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     [Tooltip("可选的近场驱散源。第一版先用球体近似，只影响人群的 XZ 平面位置。")]
     [SerializeField] private InteractionSphere[] _interactionSpheres = Array.Empty<InteractionSphere>();
 
+    [Header("Physics Active")]
+    [Tooltip("物理 active 唤醒速度阈值。用于控制 physicsActive 进入近场碰撞/局部避让。")]
+    [SerializeField] [Min(0.0f)] private float _physicsWakeSpeed = 0.22f;
+    [Tooltip("物理 active 休眠速度阈值。低于该值并满足其他稳定条件后才允许回睡。")]
+    [SerializeField] [Min(0.0f)] private float _physicsSleepSpeed = 0.08f;
+    [Tooltip("偏离静态锚点或 runtime 编队槽位超过该距离时进入 physics active。")]
+    [SerializeField] [Min(0.0f)] private float _physicsWakeAnchorError = 0.35f;
+    [Tooltip("偏离锚点低于该距离才允许累计休眠时间。")]
+    [SerializeField] [Min(0.0f)] private float _physicsSleepAnchorError = 0.16f;
+    [Tooltip("局部传播唤醒半径。运行时会与 collisionRadius * 3 和 1.1 取最大值。")]
+    [SerializeField] [Min(0.0f)] private float _physicsWakeNeighborRadius = 1.1f;
+    [Tooltip("实例被命令、速度、偏移或碰撞修正唤醒后的最短保活时间。")]
+    [SerializeField] [Min(0.0f)] private float _physicsActiveHoldTime = 0.20f;
+    [Tooltip("稳定条件持续超过该时间后，physics active 才会回到 inactive。")]
+    [SerializeField] [Min(0.0f)] private float _physicsSleepDelay = 0.18f;
+    [Tooltip("WakeGrid 单元尺寸。运行时会与 queryCellSize 和 collisionRadius * 4 取最大值。")]
+    [SerializeField] [Min(0.0f)] private float _physicsWakeGridCellSize = 0.0f;
+
     [Header("GPU Combat / 开枪")]
     [Tooltip("启用后，每个 GPU 实例都会独立索敌并维护自己的开火状态。")]
     [SerializeField] private bool _enableGpuInstanceCombat = true;
+    [Tooltip("CombatActive 保活时间。已有目标、枪口火光或受击反馈会在这段时间内持续进入战斗工作集。")]
+    [SerializeField] [Min(0.0f)] private float _combatActiveHoldTime = 0.35f;
+    [Tooltip("无目标单位低频进入 CombatActive 做索敌探测的帧间隔。1 表示每帧全量探测，数值越大越省但初始发现目标越慢。")]
+    [SerializeField] [Min(1)] private int _combatActiveProbeIntervalFrames = 8;
     [Tooltip("每个实例搜索敌对目标的最大距离。")]
     [SerializeField] [Min(0.1f)] private float _combatRange = 36.0f;
     [Tooltip("每个实例每秒最多开火多少次。0 表示只索敌不触发开火闪光。")]
@@ -749,6 +853,8 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     #pragma warning restore 0414
     [Tooltip("Combat baked Environment SDF 遮挡的距离阈值。枪线距离环境表面低于该值时，视为被遮挡。")]
     [SerializeField] [Min(0.0f)] private float _combatTerrainOcclusionClearance = 0.25f;
+    [Tooltip("Combat Environment SDF 遮挡射线最多 march 多少步。降低可显著压低索敌/弹道遮挡成本，但过低会漏掉细薄遮挡。")]
+    [SerializeField] [Range(1, 96)] private int _combatEnvironmentOcclusionMaxSteps = 48;
     [Tooltip("枪线起点相对角色脚底抬升的高度。")]
     [SerializeField] [Min(0.0f)] private float _combatOriginHeight = 1.35f;
     [Tooltip("没有 VAT 渲染资源时的瞄准高度回退值。有 VAT 模型时，目标采样点使用 VAT MeshBounds 的本地顶部高度。")]
@@ -769,14 +875,12 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     [SerializeField] [Min(0.02f)] private float _targetAcquisitionSearchIntervalMin = 0.2f;
     [Tooltip("近处 AI 完整搜索目标的最长间隔。每个实例会用稳定随机数落在最短/最长之间，避免同帧扎堆。")]
     [SerializeField] [Min(0.02f)] private float _targetAcquisitionSearchIntervalMax = 0.5f;
-    [Tooltip("距离 active bubble 超过该范围后，目标搜索间隔会逐渐放大，用于远处 AI 降频。没有 active bubble 时保持近处间隔。")]
-    [SerializeField] [Min(0.1f)] private float _targetAcquisitionFarDistance = 42.0f;
-    [Tooltip("远处 AI 搜索间隔倍率。3 表示 0.2~0.5 秒会放大到约 0.6~1.5 秒。")]
-    [SerializeField] [Min(1.0f)] private float _targetAcquisitionFarIntervalMultiplier = 3.0f;
     [Tooltip("目标必须落在该水平视野角内才会被选中。")]
     [SerializeField] [Range(1.0f, 360.0f)] private float _targetAcquisitionFovDegrees = 140.0f;
     [Tooltip("单次完整索敌最多检查多少个 grid 候选。数值越大越稳，但密集人群下 GPU 成本越高。")]
     [SerializeField] [Min(1)] private int _targetAcquisitionMaxCandidateChecks = 48;
+    [Tooltip("每个 squad broadphase 候选池容量。该池是保守超集，最终目标仍由每个 agent 按视野、距离、遮挡和评分决定。")]
+    [SerializeField] [Range(1, CombatCandidateCapacityPerSquadMax)] private int _combatCandidateCapacityPerSquad = 512;
     [Tooltip("当前目标参与评分时的额外加分，用于减少来回切目标。")]
     [SerializeField] [Min(0.0f)] private float _targetAcquisitionCurrentTargetBonus = 0.35f;
     [Tooltip("最近攻击者参与评分时的额外加分；当前版本先保留字段，后续接入伤害事件后生效。")]
@@ -785,6 +889,8 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     [SerializeField] [Min(0.0f)] private float _targetAcquisitionLockDuration = 1.25f;
     [Tooltip("当前目标短暂被挡住后保留多久。宽限期内不开火，但不会立刻抖动切目标。")]
     [SerializeField] [Min(0.0f)] private float _targetAcquisitionLostSightGrace = 0.25f;
+    [Tooltip("已有目标的 Environment SDF 视线复查间隔。目标锁定期间不会每帧做重型 SDF ray march，0 表示每帧复查。")]
+    [SerializeField] [Min(0.0f)] private float _targetAcquisitionLineOfSightRecheckInterval = 0.12f;
     [Tooltip("目标评分里的距离权重。")]
     [SerializeField] [Min(0.0f)] private float _targetAcquisitionDistanceScoreWeight = 0.55f;
     [Tooltip("目标评分里的视角权重，目标越靠近正前方得分越高。")]
@@ -796,11 +902,11 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     [SerializeField] private Shader _combatTracerShader;
     [Tooltip("可选的 tracer 材质模板；留空时会在运行时创建默认材质。")]
     [SerializeField] private Material _combatTracerMaterialTemplate;
-    [Tooltip("枪口火光序列帧贴图，默认使用 Assets/Project/Crowds/Texture/qiangkou.png。")]
+    [Tooltip("枪口火光序列帧贴图，默认使用 Assets/Project/Textures/Crowds/CombatFx/qiangkou.png。")]
     [SerializeField] private Texture2D _combatMuzzleFlashTexture;
-    [Tooltip("子弹曳光贴图，默认使用 Assets/Project/Crowds/Texture/子弹曳光.png。")]
+    [Tooltip("子弹曳光贴图，默认使用 Assets/Project/Textures/Crowds/CombatFx/子弹曳光.png。")]
     [SerializeField] private Texture2D _combatTracerTexture;
-    [Tooltip("命中火花序列帧贴图，默认使用 Assets/Project/Crowds/Texture/子弹命中——雾.png。")]
+    [Tooltip("命中火花序列帧贴图，默认使用 Assets/Project/Textures/Crowds/CombatFx/子弹命中——雾.png。")]
     [SerializeField] private Texture2D _combatImpactTexture;
     [Tooltip("弹道宽度，单位为世界空间米。")]
     [SerializeField] [Min(0.001f)] private float _combatTracerWidth = 0.09f;
@@ -857,9 +963,12 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     [InspectorName("启用视锥剔除")]
     [Tooltip("启用后，CPU/GPU 会按相机视锥裁剪可见人群实例。关闭后更保守但成本更高。")]
     [SerializeField] private bool _enableFrustumCulling = true;
-    [InspectorName("渲染分块尺寸")]
-    [Tooltip("可见性分块的世界空间尺寸。更小剔除更精细但 chunk 数更多；更大则相反。")]
-    [SerializeField] [Min(0.5f)] private float _renderChunkWorldSize = 8.0f;
+    [InspectorName("第二档起始距离")]
+    [Tooltip("距离相机超过该距离后，转入第二档 crowd LOD。0 表示不启用第二档。")]
+    [SerializeField] [Min(0.0f)] private float _secondaryLodStartDistance = 12.0f;
+    [InspectorName("第三档起始距离")]
+    [Tooltip("距离相机超过该距离后，转入第三档 crowd LOD。0 表示不启用第三档。")]
+    [SerializeField] [Min(0.0f)] private float _tertiaryLodStartDistance = 24.0f;
 
     private ComputeBuffer _spawnDataBuffer;
     private ComputeBuffer _simulationPositionYawBufferA;
@@ -874,16 +983,28 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private ComputeBuffer _simulationVelocityBufferB;
     private ComputeBuffer _simulationVelocityReadBuffer;
     private ComputeBuffer _simulationVelocityWriteBuffer;
-    private ComputeBuffer _activeStateBuffer;
     private ComputeBuffer _deathStateBuffer;
     private ComputeBuffer _aliveInstanceIndexBuffer;
     private ComputeBuffer _aliveInstanceCounterBuffer;
     private ComputeBuffer _aliveInstanceDispatchArgsBuffer;
-    private ComputeBuffer _activeInstanceIndexBuffer;
-    private ComputeBuffer _activeInstanceCounterBuffer;
-    private ComputeBuffer _activeInstanceDispatchArgsBuffer;
+    private ComputeBuffer _physicsActiveStateBuffer;
+    private ComputeBuffer _physicsActivationMetaBuffer;
+    private ComputeBuffer _physicsActiveInstanceIndexBuffer;
+    private ComputeBuffer _physicsActiveInstanceCounterBuffer;
+    private ComputeBuffer _physicsActiveInstanceDispatchArgsBuffer;
+    private ComputeBuffer _wakeGridCounterBuffer;
+    private ComputeBuffer _wakeGridOccupantBuffer;
     private ComputeBuffer _gridCounterBuffer;
     private ComputeBuffer _gridOccupantBuffer;
+    private ComputeBuffer _gridTouchedCellBufferA;
+    private ComputeBuffer _gridTouchedCellBufferB;
+    private ComputeBuffer _gridPrevTouchedCellBuffer;
+    private ComputeBuffer _gridCurrTouchedCellBuffer;
+    private ComputeBuffer _gridTouchedCounterBufferA;
+    private ComputeBuffer _gridTouchedCounterBufferB;
+    private ComputeBuffer _gridPrevTouchedCounterBuffer;
+    private ComputeBuffer _gridCurrTouchedCounterBuffer;
+    private ComputeBuffer _gridClearDispatchArgsBuffer;
     private ComputeBuffer _spatialCapsuleStartRadiusBuffer;
     private ComputeBuffer _spatialCapsuleEndHeightBuffer;
     private ComputeBuffer _spatialOwnerIndexBuffer;
@@ -896,6 +1017,18 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private ComputeBuffer _interactionSphereBuffer;
     private ComputeBuffer _combatStateBuffer;
     private ComputeBuffer _targetAcquisitionStateBuffer;
+    private ComputeBuffer _targetAcquisitionCandidateBuffer;
+    private ComputeBuffer _targetAcquisitionLosDispatchArgsBuffer;
+    private ComputeBuffer _squadAcquisitionDispatchArgsBuffer;
+    private ComputeBuffer _combatActiveStateBuffer;
+    private ComputeBuffer _combatActivationMetaBuffer;
+    private ComputeBuffer _combatActiveInstanceIndexBuffer;
+    private ComputeBuffer _combatActiveInstanceCounterBuffer;
+    private ComputeBuffer _combatActiveInstanceDispatchArgsBuffer;
+    private ComputeBuffer _combatSquadCandidateBuffer;
+    private ComputeBuffer _combatSquadCandidateCounterBuffer;
+    private ComputeBuffer _combatCandidateClusterWorkItemBuffer;
+    private ComputeBuffer _combatCandidateClusterDispatchArgsBuffer;
     private ComputeBuffer _squadStateBuffer;
     private ComputeBuffer _squadAliveCountBuffer;
     private ComputeBuffer _agentSquadDataBuffer;
@@ -909,18 +1042,31 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private ComputeBuffer _instanceFrameBlendDataBuffer;
     private ComputeBuffer _visibleInstanceIndexBuffer;
     private ComputeBuffer _visibleInstanceCounterBuffer;
+    private ComputeBuffer _visibleLod1InstanceIndexBuffer;
+    private ComputeBuffer _visibleLod1InstanceCounterBuffer;
+    private ComputeBuffer _visibleLod2InstanceIndexBuffer;
+    private ComputeBuffer _visibleLod2InstanceCounterBuffer;
     private ComputeBuffer _visibleRuntimeSquadMaskBuffer;
-    private ComputeBuffer _instanceRenderChunkBuffer;
-    private ComputeBuffer _visibleRenderChunkMaskBuffer;
+    private ComputeBuffer _runtimeSquadBoundsBuffer;
     private GraphicsBuffer[] _indirectArgsBuffers = Array.Empty<GraphicsBuffer>();
-    private GraphicsBuffer _combatTracerArgsBuffer;
+    private GraphicsBuffer[] _visibleLod1IndirectArgsBuffers = Array.Empty<GraphicsBuffer>();
+    private GraphicsBuffer[] _visibleLod2IndirectArgsBuffers = Array.Empty<GraphicsBuffer>();
+    private GraphicsBuffer[] _combatTracerArgsBuffers = Array.Empty<GraphicsBuffer>();
     private RuntimeRenderResource _runtimeRenderResource;
+    private RuntimeRenderResource _secondaryRuntimeRenderResource;
+    private RuntimeRenderResource _tertiaryRuntimeRenderResource;
     private bool _hasRuntimeRenderResource;
+    private bool _hasSecondaryRuntimeRenderResource;
+    private bool _hasTertiaryRuntimeRenderResource;
+    private RuntimeRenderResource[] _activeVisibleLodRenderResources = Array.Empty<RuntimeRenderResource>();
+    private GraphicsBuffer[][] _activeVisibleLodArgsBuffers = Array.Empty<GraphicsBuffer[]>();
     private Mesh _combatTracerMesh;
-    private Material _combatTracerMaterial;
+    private Material[] _combatTracerMaterials = Array.Empty<Material>();
     private Bounds _localCrowdBounds = new Bounds(Vector3.zero, Vector3.one);
-    private RenderChunk[] _renderChunks = Array.Empty<RenderChunk>();
     private GraphicsBuffer.IndirectDrawIndexedArgs[] _indirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+    private GraphicsBuffer.IndirectDrawIndexedArgs[] _visibleLod1IndirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+    private GraphicsBuffer.IndirectDrawIndexedArgs[] _visibleLod2IndirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+    private GraphicsBuffer.IndirectDrawIndexedArgs[] _combatTracerArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
     private AnimationClipGpuData[] _animationClipGpuCache = Array.Empty<AnimationClipGpuData>();
     private InstanceAnimationStateCpuData[] _instanceAnimationStateCpuCache = Array.Empty<InstanceAnimationStateCpuData>();
     private InstanceAnimationStateGpuData[] _instanceAnimationStateGpuCache = Array.Empty<InstanceAnimationStateGpuData>();
@@ -944,10 +1090,13 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private RuntimeFormationSlotGpuData[] _formationSlotUploadCache = Array.Empty<RuntimeFormationSlotGpuData>();
     private CrowdVatAgentCore[] _agentCoreUploadCache = Array.Empty<CrowdVatAgentCore>();
     private CrowdVatAgentPhysicsExt[] _agentPhysicsExtUploadCache = Array.Empty<CrowdVatAgentPhysicsExt>();
-    private RuntimeSquadRenderChunk[] _runtimeSquadRenderChunks = Array.Empty<RuntimeSquadRenderChunk>();
+    private InstanceSpawnData[] _spawnDataCache = Array.Empty<InstanceSpawnData>();
     private uint[] _visibleInstanceIndexCache = Array.Empty<uint>();
+    private uint[] _visibleLod1InstanceIndexCache = Array.Empty<uint>();
+    private uint[] _visibleLod2InstanceIndexCache = Array.Empty<uint>();
     private uint[] _visibleRuntimeSquadMaskUploadCache = Array.Empty<uint>();
-    private uint[] _visibleRenderChunkMaskUploadCache = Array.Empty<uint>();
+    private CombatCandidateClusterWorkItemData[] _combatCandidateClusterWorkItemUploadCache = Array.Empty<CombatCandidateClusterWorkItemData>();
+    private readonly uint[] _combatCandidateClusterDispatchArgsUploadCache = { 0u, 1u, 1u };
     private uint[] _allInstanceIndicesCache = Array.Empty<uint>();
     private Texture _resolvedTerrainHeightmap;
     private Texture3D _resolvedStaticSdfTexture;
@@ -956,7 +1105,8 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private Vector2 _gridMinXZ;
     private Vector2 _gridMaxXZ;
     private Vector2Int _gridDimensions;
-    private Transform _resolvedActiveBubbleTarget;
+    private Vector2Int _wakeGridDimensions;
+    private float _resolvedWakeGridCellSize = 1.4f;
     private bool _hasClip;
     private bool _isPlaying;
     private bool _resourcesDirty = true;
@@ -970,20 +1120,43 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private Bounds _visibleWorldBounds;
     private bool _hasVisibleBounds;
     private int _visibleInstanceCount;
+    private int _visibleLod1InstanceCount;
+    private int _visibleLod2InstanceCount;
+    private int _activeVisibleLodTierCountThisFrame;
+    private float _visibleLod1StartDistanceThisFrame = float.MaxValue;
+    private float _visibleLod2StartDistanceThisFrame = float.MaxValue;
+    private Vector3 _visibleCameraPositionThisFrame;
     private readonly Plane[] _frustumPlanes = new Plane[6];
     private int _buildAliveInstanceListKernel = -1;
     private int _buildAliveDispatchArgsKernel = -1;
-    private int _buildActiveInstanceListKernel = -1;
-    private int _buildActiveDispatchArgsKernel = -1;
+    private int _clearWakeGridKernel = -1;
+    private int _buildWakeGridKernel = -1;
+    private int _evaluatePhysicsActiveKernel = -1;
+    private int _buildPhysicsActiveInstanceListKernel = -1;
+    private int _buildPhysicsActiveDispatchArgsKernel = -1;
+    private int _evaluateCombatActiveKernel = -1;
+    private int _buildCombatActiveInstanceListKernel = -1;
+    private int _compactCombatActiveInstanceListKernel = -1;
+    private int _buildCombatActiveDispatchArgsKernel = -1;
+    private int _clearCombatSquadCandidateCountersKernel = -1;
+    private int _clearVisibleRuntimeSquadBoundsKernel = -1;
+    private int _buildVisibleRuntimeSquadBoundsKernel = -1;
+    private int _cullVisibleRuntimeSquadsKernel = -1;
     private int _buildVisibleRuntimeInstanceListKernel = -1;
-    private int _buildVisibleChunkInstanceListKernel = -1;
     private int _buildVisibleIndirectArgsKernel = -1;
     private int _predictKernel = -1;
+    private int _buildGridClearDispatchArgsKernel = -1;
     private int _clearGridKernel = -1;
     private int _buildGridKernel = -1;
     private int _buildSpatialElementsKernel = -1;
     private int _solveCrowdKernel = -1;
+    private int _buildCombatCandidateClustersKernel = -1;
     private int _resolveTargetAcquisitionKernel = -1;
+    private int _buildTargetAcquisitionLosDispatchArgsKernel = -1;
+    private int _resolveTargetAcquisitionLineOfSightKernel = -1;
+    private int _buildSquadAcquisitionDispatchArgsKernel = -1;
+    private int _evaluateSquadAcquisitionCandidatesKernel = -1;
+    private int _finalizeTargetAcquisitionKernel = -1;
     private int _resolveInstanceCombatKernel = -1;
     private int _clearSpatialQueriesKernel = -1;
     private int _resolveSpatialQueriesKernel = -1;
@@ -995,14 +1168,17 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private int _activeAgentSquadDataCount;
     private int _activeFormationSlotCount;
     private int _lastCombatStateReadbackFrame = -1;
+    private int _lastPhysicsActiveStateReadbackFrame = -1;
     private int _lastSquadAliveCountReadbackFrame = -1;
+    private int _wakeGridCellCount;
     private bool _hasPendingSquadAliveCountReadback;
     private int _squadAliveCountReadbackVersion;
     private bool _runtimeSquadAliveCountDirty = true;
     private bool _runtimeAgentSquadDataDirty = true;
     private bool _runtimeFormationSlotsDirty = true;
-    private bool _runtimeSquadVisibilityDirty = true;
     private bool _agentDataLayoutDirty = true;
+    private bool _hasUnassignedRuntimeInstances;
+    private uint[] _physicsActiveStateReadbackCache;
     private bool _usesGpuVisibleInstanceCompactionThisFrame;
     private bool _visibleUnassignedInstancesThisFrame;
 }

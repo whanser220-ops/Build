@@ -313,19 +313,14 @@ public static class CrowdVatBaker
             for (int clipIndex = 0; clipIndex < bakeInfos.Count; clipIndex++)
             {
                 ClipBakeInfo bakeInfo = bakeInfos[clipIndex];
-                clipInfos[clipIndex] = new CrowdVatAnimationAsset.ClipInfo(
-                    bakeInfo.ClipName,
-                    frameCursor,
-                    bakeInfo.FrameCount,
-                    bakeInfo.Clip.length,
-                    bakeInfo.Loop);
-
                 if (!poseCopyPairsByMotionRoot.TryGetValue(bakeInfo.MotionRoot, out PoseCopyPair[] poseCopyPairs))
                 {
                     poseCopyPairs = BuildPoseCopyPairs(bakeInfo.MotionRoot, sampleRoot, sampleRenderer);
                     poseCopyPairsByMotionRoot.Add(bakeInfo.MotionRoot, poseCopyPairs);
                 }
 
+                bool hasClipBounds = false;
+                Bounds clipBounds = default;
                 for (int localFrameIndex = 0; localFrameIndex < bakeInfo.FrameCount; localFrameIndex++)
                 {
                     float sampleTime = CalculateSampleTime(bakeInfo, localFrameIndex);
@@ -346,6 +341,17 @@ public static class CrowdVatBaker
 
                     sampleRenderer.BakeMesh(bakedBoundsMesh);
                     Bounds frameBounds = bakedBoundsMesh.bounds;
+                    if (!hasClipBounds)
+                    {
+                        clipBounds = frameBounds;
+                        hasClipBounds = true;
+                    }
+                    else
+                    {
+                        clipBounds.Encapsulate(frameBounds.min);
+                        clipBounds.Encapsulate(frameBounds.max);
+                    }
+
                     if (!hasBounds)
                     {
                         bakedBounds = frameBounds;
@@ -357,6 +363,21 @@ public static class CrowdVatBaker
                         bakedBounds.Encapsulate(frameBounds.max);
                     }
                 }
+
+                clipInfos[clipIndex] = hasClipBounds
+                    ? new CrowdVatAnimationAsset.ClipInfo(
+                        bakeInfo.ClipName,
+                        frameCursor,
+                        bakeInfo.FrameCount,
+                        bakeInfo.Clip.length,
+                        bakeInfo.Loop,
+                        clipBounds)
+                    : new CrowdVatAnimationAsset.ClipInfo(
+                        bakeInfo.ClipName,
+                        frameCursor,
+                        bakeInfo.FrameCount,
+                        bakeInfo.Clip.length,
+                        bakeInfo.Loop);
 
                 frameCursor += bakeInfo.FrameCount;
             }

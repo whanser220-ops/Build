@@ -21,7 +21,7 @@ public sealed partial class CrowdVatSquadController : MonoBehaviour
     {
         squadIndex = -1;
         ResolveRendererReference();
-        int instanceCount = _renderer != null ? _renderer.InstanceCount : 0;
+        int instanceCount = _renderer != null ? _renderer.InstanceCount : int.MaxValue;
 
         if (_squads == null)
             return false;
@@ -88,6 +88,64 @@ public sealed partial class CrowdVatSquadController : MonoBehaviour
             return false;
 
         return TryBuildSquadSelectionState(squadIndex, squad, memberCount, out squadCenter, out selectionRadius);
+    }
+
+    public bool TryGetSquadCommand(int squadIndex, out CrowdVatSquadCommandType commandType)
+    {
+        commandType = CrowdVatSquadCommandType.None;
+        if (!TryGetSquadForRuntimeAccess(squadIndex, out SquadAuthoring squad, out _, out _))
+            return false;
+
+        commandType = squad.commandType;
+        return true;
+    }
+
+    public bool TryGetClosestSquad(
+        CrowdVatFactionMask factionMask,
+        Vector3 worldPoint,
+        out int squadIndex,
+        out Vector3 worldCenter,
+        out float horizontalDistance)
+    {
+        squadIndex = -1;
+        worldCenter = Vector3.zero;
+        horizontalDistance = 0.0f;
+        ResolveRendererReference();
+        int instanceCount = _renderer != null ? _renderer.InstanceCount : 0;
+        if (_squads == null)
+            return false;
+
+        CrowdVatFactionMask allowedMask = factionMask == CrowdVatFactionMask.None ? CrowdVatFactionMask.All : factionMask;
+        float bestDistanceSqr = float.PositiveInfinity;
+        for (int index = 0; index < _squads.Length; index++)
+        {
+            SquadAuthoring squad = _squads[index];
+            if (!TryGetActiveMemberRange(squad, instanceCount, out _, out _) ||
+                !IsSourceSquadSelectable(index))
+            {
+                continue;
+            }
+
+            if ((squad.factionMask & allowedMask) == CrowdVatFactionMask.None)
+                continue;
+
+            Vector3 candidateCenter = squad.centerTransform != null ? squad.centerTransform.position : transform.position;
+            Vector3 delta = candidateCenter - worldPoint;
+            delta.y = 0.0f;
+            float distanceSqr = delta.sqrMagnitude;
+            if (distanceSqr >= bestDistanceSqr)
+                continue;
+
+            bestDistanceSqr = distanceSqr;
+            squadIndex = index;
+            worldCenter = candidateCenter;
+        }
+
+        if (squadIndex < 0)
+            return false;
+
+        horizontalDistance = Mathf.Sqrt(bestDistanceSqr);
+        return true;
     }
 
     public bool TryRaycastSquad(Ray ray, float maxDistance, CrowdVatFactionMask factionMask, out int squadIndex, out float hitDistance)

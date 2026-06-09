@@ -75,7 +75,6 @@ public class CrowdVatIndirectTerrainCollisionTests
         SetField(renderer, "_collisionRadius", DefaultCollisionRadius);
         SetField(renderer, "_collisionHeight", DefaultCollisionHeight);
         SetField(renderer, "_capsulePbdSampleCount", TerrainCapsuleSampleCount);
-        SetField(renderer, "_enableActiveBubble", false);
         SetField(renderer, "_shadowCastingMode", UnityEngine.Rendering.ShadowCastingMode.Off);
         SetField(renderer, "_receiveShadows", false);
 
@@ -182,7 +181,6 @@ public class CrowdVatIndirectTerrainCollisionTests
         SetField(renderer, "_solverIterations", 4);
         SetField(renderer, "_capsulePbdSampleCount", 4);
         SetField(renderer, "_maxPushPerStep", 0.2f);
-        SetField(renderer, "_enableActiveBubble", false);
         SetField(renderer, "_shadowCastingMode", UnityEngine.Rendering.ShadowCastingMode.Off);
         SetField(renderer, "_receiveShadows", false);
 
@@ -314,33 +312,31 @@ public class CrowdVatIndirectTerrainCollisionTests
 
     private static InstanceSimulationInfo[] ReadSimulationStates(Component renderer, System.Type rendererType, int instanceCount)
     {
-        FieldInfo bufferField = rendererType.GetField("_simulationReadBuffer", BindingFlags.NonPublic | BindingFlags.Instance);
-        Assert.IsNotNull(bufferField, "未找到 _simulationReadBuffer 字段。");
+        FieldInfo positionYawBufferField = rendererType.GetField("_simulationPositionYawReadBuffer", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.IsNotNull(positionYawBufferField, "未找到 _simulationPositionYawReadBuffer 字段。");
 
-        ComputeBuffer buffer = bufferField.GetValue(renderer) as ComputeBuffer;
-        Assert.IsNotNull(buffer, "_simulationReadBuffer 为空。");
+        FieldInfo scaleBufferField = rendererType.GetField("_simulationScaleReadBuffer", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.IsNotNull(scaleBufferField, "未找到 _simulationScaleReadBuffer 字段。");
 
-        System.Type stateType = rendererType.GetNestedType("InstanceSimulationState", BindingFlags.NonPublic);
-        Assert.IsNotNull(stateType, "未找到 InstanceSimulationState 类型。");
+        ComputeBuffer positionYawBuffer = positionYawBufferField.GetValue(renderer) as ComputeBuffer;
+        Assert.IsNotNull(positionYawBuffer, "_simulationPositionYawReadBuffer 为空。");
 
-        System.Array data = System.Array.CreateInstance(stateType, instanceCount);
-        buffer.GetData(data);
+        ComputeBuffer scaleBuffer = scaleBufferField.GetValue(renderer) as ComputeBuffer;
+        Assert.IsNotNull(scaleBuffer, "_simulationScaleReadBuffer 为空。");
 
-        FieldInfo localPositionAndYawField = stateType.GetField("localPositionAndYaw", BindingFlags.Public | BindingFlags.Instance);
-        FieldInfo scaleAndVelocityField = stateType.GetField("scaleAndVelocity", BindingFlags.Public | BindingFlags.Instance);
-        Assert.IsNotNull(localPositionAndYawField, "未找到 localPositionAndYaw 字段。");
-        Assert.IsNotNull(scaleAndVelocityField, "未找到 scaleAndVelocity 字段。");
+        Vector4[] localPositionYawData = new Vector4[instanceCount];
+        float[] scaleData = new float[instanceCount];
+        positionYawBuffer.GetData(localPositionYawData);
+        scaleBuffer.GetData(scaleData);
 
         InstanceSimulationInfo[] states = new InstanceSimulationInfo[instanceCount];
         for (int instanceIndex = 0; instanceIndex < instanceCount; instanceIndex++)
         {
-            object rowData = data.GetValue(instanceIndex);
-            Vector4 localPositionAndYaw = (Vector4)localPositionAndYawField.GetValue(rowData);
-            Vector4 scaleAndVelocity = (Vector4)scaleAndVelocityField.GetValue(rowData);
+            Vector4 localPositionAndYaw = localPositionYawData[instanceIndex];
             states[instanceIndex] = new InstanceSimulationInfo
             {
                 localPosition = new Vector3(localPositionAndYaw.x, localPositionAndYaw.y, localPositionAndYaw.z),
-                uniformScale = scaleAndVelocity.x
+                uniformScale = scaleData[instanceIndex]
             };
         }
 

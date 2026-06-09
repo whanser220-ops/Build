@@ -17,6 +17,7 @@ Shader "Unlit/Star"
             Tags { "LightMode" = "UniversalForward" }
             
             HLSLPROGRAM
+            #pragma enable_d3d11_debug_symbols
             #pragma vertex vert
             #pragma fragment frag
             #pragma instancing_options procedural:setup

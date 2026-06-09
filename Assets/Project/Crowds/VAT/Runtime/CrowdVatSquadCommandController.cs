@@ -2,6 +2,15 @@
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 
+[System.Serializable]
+public struct CrowdVatSquadReplayCommand
+{
+    public int squadIndex;
+    public Vector3 worldPoint;
+    public CrowdVatSquadCommandType commandType;
+    public bool updateFacing;
+}
+
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(-200)]
 public sealed class CrowdVatSquadCommandController : MonoBehaviour
@@ -126,6 +135,10 @@ public sealed class CrowdVatSquadCommandController : MonoBehaviour
     private readonly WorldRingGroundCache _hoverWorldRingGroundCache = new WorldRingGroundCache();
 
     public int SelectedSquadIndex => _selectedSquadIndex;
+    public int HoveredSquadIndex => _hoveredSquadIndex;
+
+    public event System.Action<int> SelectionChanged;
+    public event System.Action<CrowdVatSquadReplayCommand> MoveCommandIssued;
 
     private void Awake()
     {
@@ -216,7 +229,7 @@ public sealed class CrowdVatSquadCommandController : MonoBehaviour
         if (_squadController != null && _squadController.IsSquadSelectable(_selectedSquadIndex))
             return;
 
-        _selectedSquadIndex = -1;
+        SetSelectedSquadInternal(-1, true);
     }
 
     private void OnGUI()
@@ -237,7 +250,7 @@ public sealed class CrowdVatSquadCommandController : MonoBehaviour
             return;
 
         if (_hoveredSquadIndex >= 0)
-            _selectedSquadIndex = _hoveredSquadIndex;
+            TrySelectSquad(_hoveredSquadIndex);
     }
 
     private void HandleMoveCommandClick()
@@ -252,11 +265,49 @@ public sealed class CrowdVatSquadCommandController : MonoBehaviour
         if (!TryRaycastCommandSurface(ray, out Vector3 hitPoint))
             return;
 
-        if (!_squadController.TryCommandMoveTo(_selectedSquadIndex, hitPoint, _clickMoveCommand, _updateFacingOnMove))
+        TryIssueMoveCommand(_selectedSquadIndex, hitPoint, _clickMoveCommand, _updateFacingOnMove);
+    }
+
+    public bool TrySelectSquad(int squadIndex)
+    {
+        if (_squadController == null || squadIndex < 0 || !_squadController.IsSquadSelectable(squadIndex))
+            return false;
+
+        SetSelectedSquadInternal(squadIndex, true);
+        return true;
+    }
+
+    public void ClearSelectedSquad()
+    {
+        SetSelectedSquadInternal(-1, true);
+    }
+
+    public bool TryIssueMoveCommand(int squadIndex, Vector3 hitPoint)
+    {
+        return TryIssueMoveCommand(squadIndex, hitPoint, _clickMoveCommand, _updateFacingOnMove);
+    }
+
+    public bool TryIssueMoveCommand(int squadIndex, Vector3 hitPoint, CrowdVatSquadCommandType commandType, bool updateFacing)
+    {
+        if (_squadController == null || squadIndex < 0)
+            return false;
+
+        if (!_squadController.TryCommandMoveTo(squadIndex, hitPoint, commandType, updateFacing))
         {
-            _selectedSquadIndex = -1;
             _hoveredSquadIndex = -1;
+            SetSelectedSquadInternal(-1, true);
+            return false;
         }
+
+        CrowdVatSquadReplayCommand command = new CrowdVatSquadReplayCommand
+        {
+            squadIndex = squadIndex,
+            worldPoint = hitPoint,
+            commandType = commandType,
+            updateFacing = updateFacing
+        };
+        MoveCommandIssued?.Invoke(command);
+        return true;
     }
 
     private void RefreshHoverState()
@@ -407,7 +458,17 @@ public sealed class CrowdVatSquadCommandController : MonoBehaviour
     private void TrySelectFirstAvailableSquad()
     {
         if (_squadController != null && _squadController.TryGetFirstActiveSquadIndex(out int squadIndex))
-            _selectedSquadIndex = squadIndex;
+            TrySelectSquad(squadIndex);
+    }
+
+    private void SetSelectedSquadInternal(int squadIndex, bool notify)
+    {
+        if (_selectedSquadIndex == squadIndex)
+            return;
+
+        _selectedSquadIndex = squadIndex;
+        if (notify)
+            SelectionChanged?.Invoke(_selectedSquadIndex);
     }
 
     private Ray BuildScreenCenterRay()

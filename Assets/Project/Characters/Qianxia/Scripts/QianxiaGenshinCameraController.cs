@@ -55,7 +55,11 @@ public class QianxiaGenshinCameraController : MonoBehaviour
     private float _targetDistance;
     private float _distanceVelocity;
     private float _lastManualLookTime = float.NegativeInfinity;
+    private bool _isMouseLookCaptured;
     private readonly RaycastHit[] _collisionHits = new RaycastHit[CollisionHitBufferSize];
+
+    public Transform FollowTarget => _followTarget;
+    public Camera ControlledCamera => _controlledCamera;
 
     private void Awake()
     {
@@ -73,10 +77,7 @@ public class QianxiaGenshinCameraController : MonoBehaviour
         _moveAction?.Enable();
 
         if (_lockCursorOnPlay)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
+            SetMouseLookCaptured(true);
     }
 
     private void OnDisable()
@@ -85,14 +86,13 @@ public class QianxiaGenshinCameraController : MonoBehaviour
         _moveAction?.Disable();
 
         if (_lockCursorOnPlay)
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+            SetMouseLookCaptured(false);
     }
 
     private void LateUpdate()
     {
+        UpdateCursorCaptureState();
+
         if (_controlledCamera == null || _followTarget == null)
             return;
 
@@ -118,6 +118,30 @@ public class QianxiaGenshinCameraController : MonoBehaviour
 
         Vector3 cameraPosition = _smoothedTarget + (orbitRotation * Vector3.back * _currentDistance);
         _controlledCamera.transform.SetPositionAndRotation(cameraPosition, orbitRotation);
+    }
+
+    private void UpdateCursorCaptureState()
+    {
+        if (!_lockCursorOnPlay)
+            return;
+
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+            SetMouseLookCaptured(false);
+            return;
+        }
+
+        if (_isMouseLookCaptured && !IsCursorLockApplied())
+        {
+            SetMouseLookCaptured(false);
+            return;
+        }
+
+        if (_isMouseLookCaptured || Mouse.current == null)
+            return;
+
+        if (Mouse.current.leftButton.wasPressedThisFrame)
+            SetMouseLookCaptured(true);
     }
 
     private void BindActions()
@@ -179,8 +203,10 @@ public class QianxiaGenshinCameraController : MonoBehaviour
 
     private void UpdateRotationTargets(float deltaTime)
     {
-        Vector2 lookInput = _lookAction != null ? _lookAction.ReadValue<Vector2>() : Vector2.zero;
         bool usingGamepad = IsUsingGamepad();
+        Vector2 lookInput = _lookAction != null ? _lookAction.ReadValue<Vector2>() : Vector2.zero;
+        if (!usingGamepad && !CanConsumeMouseCameraInput())
+            lookInput = Vector2.zero;
 
         if (lookInput.magnitude > _lookDeadZone)
         {
@@ -209,7 +235,7 @@ public class QianxiaGenshinCameraController : MonoBehaviour
 
     private void UpdateZoom()
     {
-        if (Mouse.current == null)
+        if (!CanConsumeMouseCameraInput() || Mouse.current == null)
             return;
 
         float scroll = Mouse.current.scroll.ReadValue().y;
@@ -261,6 +287,23 @@ public class QianxiaGenshinCameraController : MonoBehaviour
                && _lookAction != null
                && _lookAction.activeControl != null
                && _lookAction.activeControl.device == Gamepad.current;
+    }
+
+    private bool CanConsumeMouseCameraInput()
+    {
+        return !_lockCursorOnPlay || _isMouseLookCaptured;
+    }
+
+    private void SetMouseLookCaptured(bool isCaptured)
+    {
+        _isMouseLookCaptured = isCaptured;
+        Cursor.lockState = isCaptured ? CursorLockMode.Locked : CursorLockMode.None;
+        Cursor.visible = !isCaptured;
+    }
+
+    private static bool IsCursorLockApplied()
+    {
+        return Cursor.lockState == CursorLockMode.Locked && !Cursor.visible;
     }
 
     private float ClampPitch(float pitch)

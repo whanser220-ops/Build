@@ -14,7 +14,7 @@ public static class QianxiaCrowdTextureApplyUtility
     private const string SpecularTextureName = "Ch36_1001_Specular.png";
     private const string GlossinessTextureName = "Ch36_1001_Glossiness.png";
     private const string SpecGlossTextureName = "Ch36_1001_SpecGloss.png";
-    private const string VatMaterialPath = "Assets/Project/Characters/Qianxia/Generated/VAT/Materials/QianxiaCrowdLod2Vat_00.mat";
+    private const string VatMaterialsFolder = "Assets/Project/Characters/Qianxia/Generated/VAT/Materials";
 
     private static readonly string[] ExpectedTextureNames =
     {
@@ -56,10 +56,6 @@ public static class QianxiaCrowdTextureApplyUtility
         ConfigureTextureImporter(glossinessPath, TextureImporterType.Default, false, false);
         ConfigureTextureImporter(specGlossPath, TextureImporterType.Default, false, true);
 
-        Material vatMaterial = AssetDatabase.LoadAssetAtPath<Material>(VatMaterialPath);
-        if (vatMaterial == null)
-            throw new InvalidOperationException($"VAT material was not found at `{VatMaterialPath}`.");
-
         Texture2D diffuseTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(diffusePath);
         Texture2D normalTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath);
         Texture2D specGlossTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(specGlossPath);
@@ -67,24 +63,39 @@ public static class QianxiaCrowdTextureApplyUtility
         if (diffuseTexture == null || normalTexture == null || specGlossTexture == null)
             throw new InvalidOperationException("One or more extracted crowd textures failed to import.");
 
-        vatMaterial.SetTexture("_BaseMap", diffuseTexture);
-        vatMaterial.SetColor("_BaseColor", Color.white);
-        vatMaterial.SetTexture("_BumpMap", normalTexture);
-        vatMaterial.SetFloat("_BumpScale", 1.0f);
-        vatMaterial.SetFloat("_UseNormalMap", 1.0f);
-        vatMaterial.SetTexture("_SpecGlossMap", specGlossTexture);
-        vatMaterial.SetColor("_SpecColor", Color.white);
-        vatMaterial.SetFloat("_Smoothness", 1.0f);
-        vatMaterial.SetFloat("_SpecularStrength", 0.18f);
-        vatMaterial.SetFloat("_UseSpecGlossMap", 1.0f);
-        vatMaterial.SetFloat("_AlphaClip", 0.0f);
-        vatMaterial.SetFloat("_Cutoff", 0.5f);
-        EditorUtility.SetDirty(vatMaterial);
+        string[] materialGuids = AssetDatabase.FindAssets("t:Material", new[] { VatMaterialsFolder });
+        List<string> updatedMaterialPaths = new List<string>(materialGuids.Length);
+        for (int guidIndex = 0; guidIndex < materialGuids.Length; guidIndex++)
+        {
+            string materialPath = AssetDatabase.GUIDToAssetPath(materialGuids[guidIndex]);
+            Material vatMaterial = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if (vatMaterial == null || !vatMaterial.name.StartsWith("QianxiaCrowd", StringComparison.Ordinal))
+                continue;
+
+            vatMaterial.SetTexture("_BaseMap", diffuseTexture);
+            vatMaterial.SetColor("_BaseColor", Color.white);
+            vatMaterial.SetTexture("_BumpMap", normalTexture);
+            vatMaterial.SetFloat("_BumpScale", 1.0f);
+            vatMaterial.SetFloat("_UseNormalMap", 1.0f);
+            vatMaterial.SetTexture("_SpecGlossMap", specGlossTexture);
+            vatMaterial.SetColor("_SpecColor", Color.white);
+            vatMaterial.SetFloat("_Smoothness", 1.0f);
+            vatMaterial.SetFloat("_SpecularStrength", 0.18f);
+            vatMaterial.SetFloat("_UseSpecGlossMap", 1.0f);
+            vatMaterial.SetFloat("_AlphaClip", 0.0f);
+            vatMaterial.SetFloat("_Cutoff", 0.5f);
+            EditorUtility.SetDirty(vatMaterial);
+            updatedMaterialPaths.Add(materialPath);
+        }
+
+        if (updatedMaterialPaths.Count == 0)
+            throw new InvalidOperationException($"No crowd VAT materials were found under `{VatMaterialsFolder}`.");
+
         AssetDatabase.SaveAssets();
 
         Debug.Log(
-            "Applied walking textures to crowd VAT material.\n" +
-            $"Material: {VatMaterialPath}\n" +
+            "Applied walking textures to crowd VAT materials.\n" +
+            $"Material Count: {updatedMaterialPaths.Count}\n" +
             $"Diffuse: {diffusePath}\n" +
             $"Normal: {normalPath}\n" +
             $"SpecGloss: {specGlossPath}");

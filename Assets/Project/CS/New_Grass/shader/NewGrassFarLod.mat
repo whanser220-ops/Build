@@ -43,21 +43,21 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BladeWidth: 0.22
-    - _CurvedNormalAmount: 1.8
+    - _BladeWidth: 0.24
+    - _CurvedNormalAmount: 3.78
     - _Height: 1
-    - _PushTipForward: 0.78
+    - _PushTipForward: 0.96
     - _SinOffsetRange: 8.57
-    - _TaperAmount: 0.78
+    - _TaperAmount: 0.75
     - _Tilt: 0.98
     - _ToonBandSoftness: 0.08
     - _ToonThreshold1: 0.28
     - _ToonThreshold2: 0.56
     - _ToonWrap: 0.15
-    - _WaveAmplitude: 0.72
-    - _WaveSpeed: 0.85
-    - _p1Offset: 0.12
-    - _p2Offset: 0.12
+    - _WaveAmplitude: 1
+    - _WaveSpeed: 1
+    - _p1Offset: 0.2
+    - _p2Offset: 0.2
     m_Colors:
     - _ColorA: {r: 0.12156863, g: 0.5019608, b: 0.38039216, a: 1}
     - _ColorB: {r: 0.65882355, g: 0.92156863, b: 0.21960784, a: 1}

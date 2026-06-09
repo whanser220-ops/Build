@@ -20,6 +20,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
     private void OnEnable()
     {
+        GpuSemanticDrawRegistry.Register(this);
         SubscribeRenderCallbacks();
         SyncTemplateBindings();
         InitializeIfNeeded();
@@ -39,12 +40,14 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
     private void OnDisable()
     {
+        GpuSemanticDrawRegistry.Unregister(this);
         UnsubscribeRenderCallbacks();
         ReleaseResources();
     }
 
     private void OnDestroy()
     {
+        GpuSemanticDrawRegistry.Unregister(this);
         UnsubscribeRenderCallbacks();
         ReleaseResources();
     }
@@ -57,21 +60,17 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         if (!Application.isPlaying)
             UpdateGpuBuffers();
 
+        if (ShouldUseGpuSemanticDrawPass(camera))
+        {
+            PrepareGpuSemanticDrawState(camera);
+            return;
+        }
+
         Draw(camera);
     }
 
     private void OnDrawGizmosSelected()
     {
-        if (!_enableActiveBubble || !TryGetActiveBubbleLocalCenter(out Vector3 localCenter))
-            return;
-
-        Matrix4x4 previousMatrix = Gizmos.matrix;
-        Gizmos.matrix = transform.localToWorldMatrix;
-        Gizmos.color = new Color(0.22f, 0.85f, 1.0f, 0.55f);
-        Gizmos.DrawWireSphere(localCenter, _activeBubbleRadius);
-        Gizmos.color = new Color(0.12f, 0.55f, 1.0f, 0.35f);
-        Gizmos.DrawWireSphere(localCenter, _activeBubbleRetentionRadius);
-        Gizmos.matrix = previousMatrix;
     }
 
     private void OnValidate()
@@ -109,8 +108,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _maxDisplacementFromSpawn = Mathf.Max(0.01f, _maxDisplacementFromSpawn);
         _factionCenterGap = Mathf.Max(0.0f, _factionCenterGap);
         _inactiveReturnStrength = Mathf.Clamp01(_inactiveReturnStrength);
-        _activeBubbleRadius = Mathf.Max(0.1f, _activeBubbleRadius);
-        _activeBubbleRetentionRadius = Mathf.Max(_activeBubbleRadius, _activeBubbleRetentionRadius);
         _characterInteractionRadiusMultiplier = Mathf.Max(0.1f, _characterInteractionRadiusMultiplier);
         _characterInteractionStrength = Mathf.Max(0.0f, _characterInteractionStrength);
         _combatRange = Mathf.Max(0.1f, _combatRange);
@@ -121,6 +118,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _combatHitHeightPadding = Mathf.Max(0.0f, _combatHitHeightPadding);
         _combatTerrainOcclusionSampleSpacing = Mathf.Max(0.1f, _combatTerrainOcclusionSampleSpacing);
         _combatTerrainOcclusionClearance = Mathf.Max(0.0f, _combatTerrainOcclusionClearance);
+        _combatEnvironmentOcclusionMaxSteps = Mathf.Clamp(_combatEnvironmentOcclusionMaxSteps, 1, 96);
         _combatOriginHeight = Mathf.Max(0.0f, _combatOriginHeight);
         _combatTargetHeight = Mathf.Max(0.0f, _combatTargetHeight);
         _combatMuzzleFlashDecay = Mathf.Max(0.0f, _combatMuzzleFlashDecay);
@@ -131,14 +129,14 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _combatNoTargetRetryDelay = Mathf.Max(0.0f, _combatNoTargetRetryDelay);
         _targetAcquisitionSearchIntervalMin = Mathf.Max(0.02f, _targetAcquisitionSearchIntervalMin);
         _targetAcquisitionSearchIntervalMax = Mathf.Max(_targetAcquisitionSearchIntervalMin, _targetAcquisitionSearchIntervalMax);
-        _targetAcquisitionFarDistance = Mathf.Max(0.1f, _targetAcquisitionFarDistance);
-        _targetAcquisitionFarIntervalMultiplier = Mathf.Max(1.0f, _targetAcquisitionFarIntervalMultiplier);
         _targetAcquisitionFovDegrees = Mathf.Clamp(_targetAcquisitionFovDegrees, 1.0f, 360.0f);
         _targetAcquisitionMaxCandidateChecks = Mathf.Max(1, _targetAcquisitionMaxCandidateChecks);
+        _combatCandidateCapacityPerSquad = Mathf.Clamp(_combatCandidateCapacityPerSquad, 1, CombatCandidateCapacityPerSquadMax);
         _targetAcquisitionCurrentTargetBonus = Mathf.Max(0.0f, _targetAcquisitionCurrentTargetBonus);
         _targetAcquisitionLastAttackerBonus = Mathf.Max(0.0f, _targetAcquisitionLastAttackerBonus);
         _targetAcquisitionLockDuration = Mathf.Max(0.0f, _targetAcquisitionLockDuration);
         _targetAcquisitionLostSightGrace = Mathf.Max(0.0f, _targetAcquisitionLostSightGrace);
+        _targetAcquisitionLineOfSightRecheckInterval = Mathf.Max(0.0f, _targetAcquisitionLineOfSightRecheckInterval);
         _targetAcquisitionDistanceScoreWeight = Mathf.Max(0.0f, _targetAcquisitionDistanceScoreWeight);
         _targetAcquisitionViewScoreWeight = Mathf.Max(0.0f, _targetAcquisitionViewScoreWeight);
         _combatTracerWidth = Mathf.Max(0.001f, _combatTracerWidth);
@@ -157,10 +155,11 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 #if UNITY_EDITOR
         ResolveDefaultCombatFxTextures();
 #endif
+        _secondaryLodStartDistance = Mathf.Max(0.0f, _secondaryLodStartDistance);
+        _tertiaryLodStartDistance = Mathf.Max(_secondaryLodStartDistance, _tertiaryLodStartDistance);
         _meshRootLocalScale.x = Mathf.Max(0.001f, _meshRootLocalScale.x);
         _meshRootLocalScale.y = Mathf.Max(0.001f, _meshRootLocalScale.y);
         _meshRootLocalScale.z = Mathf.Max(0.001f, _meshRootLocalScale.z);
-        _renderChunkWorldSize = Mathf.Max(0.5f, _renderChunkWorldSize);
         SyncExplicitFactionAreasFromControlTransforms();
         SyncExplicitFactionCentersFromControlTransforms();
 
@@ -186,6 +185,16 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _collisionRadius * Mathf.Max(_baseScale, 0.01f) * Mathf.Max(Mathf.Max(_scaleMultiplierRange.x, _scaleMultiplierRange.y), 0.01f));
     public CrowdVatAnimationAsset AnimationAsset => ResolveConfiguredAnimationAsset();
     public CrowdVatSceneQueryFieldAsset SceneQueryFieldAsset => _sceneQueryFieldAsset;
+
+    public bool TryGetDebugCombatSquadCandidateRadius(float squadCohesionRadius, out float radius)
+    {
+        float sourceRadius = Mathf.Max(
+            Mathf.Max(Mathf.Max(squadCohesionRadius, _maxDisplacementFromSpawn), _collisionRadius),
+            0.0f);
+        float targetPadding = Mathf.Max(Mathf.Max(_maximumQueryAgentRadius, MaximumAgentCollisionRadius), _collisionRadius);
+        radius = sourceRadius + Mathf.Max(_combatRange, 0.0f) + targetPadding;
+        return radius > 0.0f;
+    }
 
     public Transform CampAControlTransform => _campAControlTransform;
 
@@ -224,20 +233,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         dimensions = _gridDimensions;
         cellSize = _queryCellSize;
         return _gridCellCount > 0 && dimensions.x > 0 && dimensions.y > 0 && cellSize > 0.0f;
-    }
-
-    public bool TryGetDebugActiveBubble(out Vector3 worldCenter, out float radius, out float retentionRadius)
-    {
-        worldCenter = Vector3.zero;
-        radius = 0.0f;
-        retentionRadius = 0.0f;
-        if (!_enableActiveBubble || !TryGetActiveBubbleLocalCenter(out Vector3 localCenter))
-            return false;
-
-        worldCenter = transform.TransformPoint(localCenter);
-        radius = _activeBubbleRadius;
-        retentionRadius = _activeBubbleRetentionRadius;
-        return true;
     }
 
     public bool TryGetGroundQueryFieldDescriptor(out CrowdVatGroundFieldDescriptor descriptor)
@@ -470,6 +465,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             return false;
         }
 
+        TryReadPhysicsActiveStateBuffer();
         state = ConvertCombatStateData(instanceIndex, _combatStateReadbackCache[instanceIndex]);
         return true;
     }
@@ -483,6 +479,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         if (!TryReadCombatStateBuffer())
             return 0;
 
+        TryReadPhysicsActiveStateBuffer();
         int count = Mathf.Min(_instanceCount, _combatStateReadbackCache.Length);
         for (int instanceIndex = 0; instanceIndex < count; instanceIndex++)
             states.Add(ConvertCombatStateData(instanceIndex, _combatStateReadbackCache[instanceIndex]));
@@ -957,7 +954,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
                 _runtimeSquadAliveCountDirty = true;
                 SyncRuntimeSquadAliveCountCpuMirror();
                 InvalidateSquadAliveCountReadback();
-                _runtimeSquadVisibilityDirty = true;
             }
 
             _agentDataLayoutDirty = true;
@@ -977,7 +973,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             _runtimeSquadAliveCountDirty = true;
             SyncRuntimeSquadAliveCountCpuMirror();
             InvalidateSquadAliveCountReadback();
-            _runtimeSquadVisibilityDirty = true;
         }
 
         _agentDataLayoutDirty = true;
@@ -991,22 +986,37 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             _runtimeAgentSquadData = Array.Empty<CrowdVatAgentSquadAssignment>();
             _activeAgentSquadDataCount = 0;
             _runtimeAgentSquadDataDirty = true;
-            _runtimeSquadVisibilityDirty = true;
             _agentDataLayoutDirty = true;
             SyncGpuBridgeRuntimeSnapshot();
             return;
         }
 
-        int count = Mathf.Min(agentSquadData.Length, _instanceCount);
-        if (_runtimeAgentSquadData == null || _runtimeAgentSquadData.Length != count)
-            _runtimeAgentSquadData = new CrowdVatAgentSquadAssignment[count];
+        int sourceCount = Mathf.Min(agentSquadData.Length, _instanceCount);
+        int requiredCount = _enableGpuInstanceCombat ? _instanceCount : sourceCount;
+        if (_runtimeAgentSquadData == null || _runtimeAgentSquadData.Length != requiredCount)
+            _runtimeAgentSquadData = new CrowdVatAgentSquadAssignment[requiredCount];
 
-        Array.Copy(agentSquadData, _runtimeAgentSquadData, count);
-        _activeAgentSquadDataCount = count;
+        Array.Copy(agentSquadData, _runtimeAgentSquadData, sourceCount);
+        for (int i = sourceCount; i < requiredCount; i++)
+            _runtimeAgentSquadData[i] = CreateUnassignedAssignment();
+
+        _activeAgentSquadDataCount = requiredCount;
         _runtimeAgentSquadDataDirty = true;
-        _runtimeSquadVisibilityDirty = true;
         _agentDataLayoutDirty = true;
         SyncGpuBridgeRuntimeSnapshot();
+    }
+
+    private static CrowdVatAgentSquadAssignment CreateUnassignedAssignment()
+    {
+        return new CrowdVatAgentSquadAssignment
+        {
+            squadId = 0u,
+            slotIndex = 0u,
+            roleMask = CrowdVatSquadRoleMask.None,
+            flags = CrowdVatSquadMemberFlags.Unassigned,
+            slotOffsetOverride = Vector2.zero,
+            weight = 0.0f
+        };
     }
 
     public void SetSquadAliveCounts(int[] squadAliveCounts)
@@ -1041,7 +1051,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             _runtimeFormationSlots = Array.Empty<CrowdVatFormationSlot>();
             _activeFormationSlotCount = 0;
             _runtimeFormationSlotsDirty = true;
-            _runtimeSquadVisibilityDirty = true;
             _agentDataLayoutDirty = true;
             SyncGpuBridgeRuntimeSnapshot();
             return;
@@ -1054,7 +1063,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         Array.Copy(formationSlots, _runtimeFormationSlots, count);
         _activeFormationSlotCount = count;
         _runtimeFormationSlotsDirty = true;
-        _runtimeSquadVisibilityDirty = true;
         _agentDataLayoutDirty = true;
         SyncGpuBridgeRuntimeSnapshot();
     }
@@ -1071,8 +1079,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _runtimeSquadAliveCountDirty = true;
         _runtimeAgentSquadDataDirty = true;
         _runtimeFormationSlotsDirty = true;
-        _runtimeSquadRenderChunks = Array.Empty<RuntimeSquadRenderChunk>();
-        _runtimeSquadVisibilityDirty = true;
         InvalidateSquadAliveCountReadback();
         _agentDataLayoutDirty = true;
         SyncGpuBridgeRuntimeSnapshot();
@@ -1307,6 +1313,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         if (!TryReadCombatStateBuffer())
             return 0;
 
+        TryReadPhysicsActiveStateBuffer();
         frameInfo = new CrowdVatObservationFrameInfo
         {
             frameCount = Application.isPlaying ? Time.frameCount : -1,
@@ -1335,7 +1342,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             observations.Add(new CrowdVatCombatObservation
             {
                 runtimeInstanceIndex = instanceIndex,
-                active = (flags & InstanceCombatFlagActive) != 0u,
+                physicsActive = IsPhysicsActiveFromReadback(instanceIndex),
                 dead = (flags & InstanceCombatFlagDead) != 0u,
                 hasTarget = hasTarget,
                 runtimeTargetInstanceIndex = hasTarget ? data.targetIndex : -1,

@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public sealed partial class CrowdVatIndirectRenderer
 {
@@ -11,13 +14,11 @@ public sealed partial class CrowdVatIndirectRenderer
     private const int AiDebugMaxGpuStageTargets = 128;
     private const int AiDebugMaxGpuStagesPerFrame = 64;
     private const int AiDebugGpuStageThreadGroupSize = 64;
-    private const int AiDebugMaxGpuDiscoveryCandidates = 128;
-    private const float AiDebugDiscoveryDefaultHighSpeedThreshold = 6.0f;
+    private const int AiDebugMaxGpuDiscoveryCandidates = CrowdVatAiDebugDiscoverySettings.MaxCandidateCapacity;
     private const uint AiDebugDiscoveryFlagRegionSphere = 1u << 0;
     private const uint AiDebugDiscoveryFlagRegionBox = 1u << 1;
     private const uint AiDebugDiscoveryFlagScreenRect = 1u << 2;
     private const uint AiDebugDiscoveryFlagSquadFilter = 1u << 3;
-    private const uint AiDebugDiscoveryFlagRequireAnomaly = 1u << 4;
     private CrowdVatAiDebugRuntimeSampler _aiDebugRuntimeSampler;
     private readonly List<int> _aiDebugGpuStageTargetScratch = new List<int>(AiDebugMaxGpuStageTargets);
     private readonly List<int> _aiDebugGpuDiscoveredCandidateTargets = new List<int>(AiDebugMaxGpuDiscoveryCandidates);
@@ -25,25 +26,16 @@ public sealed partial class CrowdVatIndirectRenderer
     private ComputeBuffer _aiDebugStageRecordBuffer;
     private ComputeBuffer _aiDebugCandidateCounterBuffer;
     private ComputeBuffer _aiDebugCandidateRecordBuffer;
-    private ComputeBuffer _aiDebugDiscoveryHistoryBuffer;
     private uint[] _aiDebugTargetIndexUploadCache = Array.Empty<uint>();
     private uint[] _aiDebugCandidateCounterReadbackCache = Array.Empty<uint>();
     private CrowdVatAiDebugGpuStageRecord[] _aiDebugStageRecordReadbackCache = Array.Empty<CrowdVatAiDebugGpuStageRecord>();
     private CrowdVatAiDebugGpuCandidateRecord[] _aiDebugCandidateRecordReadbackCache = Array.Empty<CrowdVatAiDebugGpuCandidateRecord>();
-    private CrowdVatAiDebugGpuDiscoveryHistoryRecord[] _aiDebugDiscoveryHistoryResetCache = Array.Empty<CrowdVatAiDebugGpuDiscoveryHistoryRecord>();
     private int _aiDebugGpuStageTargetCount;
     private int _aiDebugGpuStageRecordCount;
     private int _aiDebugGpuDiscoveryCandidateCapacity = AiDebugMaxGpuDiscoveryCandidates;
     private CrowdVatAiDebugDiscoverySettings _aiDebugDiscoverySettings = CrowdVatAiDebugDiscoverySettings.CreateDefault();
     private bool _aiDebugGpuStageCaptureActive;
     private bool _aiDebugGpuDiscoveryActive;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct CrowdVatAiDebugGpuDiscoveryHistoryRecord
-    {
-        public Vector4 localPositionFrame;
-        public Vector4 velocityStuck;
-    }
 
     private static int DecodeAiDebugPackedIndex(uint packed, int shift, uint mask)
     {
@@ -277,7 +269,7 @@ public sealed partial class CrowdVatIndirectRenderer
             gridCellSize = _queryCellSize,
             maxCellOccupancy = _maxCellOccupancy,
             solverIterations = _solverIterations,
-            visibleInstanceCount = _visibleInstanceCount,
+            visibleInstanceCount = _visibleInstanceCount + _visibleLod1InstanceCount + _visibleLod2InstanceCount,
             hasVisibleBounds = _hasVisibleBounds,
             activeSpatialQueryCount = _activeSpatialQueryCount,
             maxSpatialQueries = _maxSpatialQueries,
@@ -293,8 +285,14 @@ public sealed partial class CrowdVatIndirectRenderer
             hasClip = _hasClip,
             isPlayingClip = _isPlaying,
             aliveGpuCount = ReadSingleUInt(_aliveInstanceCounterBuffer),
-            activeGpuCount = ReadSingleUInt(_activeInstanceCounterBuffer),
-            visibleGpuCount = ReadSingleUInt(_visibleInstanceCounterBuffer)
+            aliveDispatchGroupCount = ReadSingleUInt(_aliveInstanceDispatchArgsBuffer),
+            physicsActiveGpuCount = ReadSingleUInt(_physicsActiveInstanceCounterBuffer),
+            physicsActiveDispatchGroupCount = ReadSingleUInt(_physicsActiveInstanceDispatchArgsBuffer),
+            combatActiveGpuCount = ReadSingleUInt(_combatActiveInstanceCounterBuffer),
+            combatActiveDispatchGroupCount = ReadSingleUInt(_combatActiveInstanceDispatchArgsBuffer),
+            visibleGpuCount = ReadSingleUInt(_visibleInstanceCounterBuffer) +
+                ReadSingleUInt(_visibleLod1InstanceCounterBuffer) +
+                ReadSingleUInt(_visibleLod2InstanceCounterBuffer)
         };
         return _instanceCount > 0;
     }
@@ -312,8 +310,19 @@ public sealed partial class CrowdVatIndirectRenderer
         AddBufferSnapshot(snapshots, "sim.scale.write", _simulationScaleWriteBuffer);
         AddBufferSnapshot(snapshots, "sim.vel.read", _simulationVelocityReadBuffer);
         AddBufferSnapshot(snapshots, "sim.vel.write", _simulationVelocityWriteBuffer);
-        AddBufferSnapshot(snapshots, "active", _activeStateBuffer);
         AddBufferSnapshot(snapshots, "death", _deathStateBuffer);
+        AddBufferSnapshot(snapshots, "alive.index", _aliveInstanceIndexBuffer);
+        AddBufferSnapshot(snapshots, "alive.counter", _aliveInstanceCounterBuffer);
+        AddBufferSnapshot(snapshots, "alive.dispatchArgs", _aliveInstanceDispatchArgsBuffer);
+        AddBufferSnapshot(snapshots, "physicsActive.state", _physicsActiveStateBuffer);
+        AddBufferSnapshot(snapshots, "physicsActive.index", _physicsActiveInstanceIndexBuffer);
+        AddBufferSnapshot(snapshots, "physicsActive.counter", _physicsActiveInstanceCounterBuffer);
+        AddBufferSnapshot(snapshots, "physicsActive.dispatchArgs", _physicsActiveInstanceDispatchArgsBuffer);
+        AddBufferSnapshot(snapshots, "combatActive.state", _combatActiveStateBuffer);
+        AddBufferSnapshot(snapshots, "combatActive.meta", _combatActivationMetaBuffer);
+        AddBufferSnapshot(snapshots, "combatActive.index", _combatActiveInstanceIndexBuffer);
+        AddBufferSnapshot(snapshots, "combatActive.counter", _combatActiveInstanceCounterBuffer);
+        AddBufferSnapshot(snapshots, "combatActive.dispatchArgs", _combatActiveInstanceDispatchArgsBuffer);
         AddBufferSnapshot(snapshots, "grid.counter", _gridCounterBuffer);
         AddBufferSnapshot(snapshots, "grid.occupant", _gridOccupantBuffer);
         AddBufferSnapshot(snapshots, "combat.state", _combatStateBuffer);
@@ -326,7 +335,9 @@ public sealed partial class CrowdVatIndirectRenderer
         AddBufferSnapshot(snapshots, "squad.alive", _squadAliveCountBuffer);
         AddBufferSnapshot(snapshots, "agent.squad", _agentSquadDataBuffer);
         AddBufferSnapshot(snapshots, "anim.state", _instanceAnimationStateBuffer);
-        AddBufferSnapshot(snapshots, "visible.index", _visibleInstanceIndexBuffer);
+        AddBufferSnapshot(snapshots, "visible.lod0.index", _visibleInstanceIndexBuffer);
+        AddBufferSnapshot(snapshots, "visible.lod1.index", _visibleLod1InstanceIndexBuffer);
+        AddBufferSnapshot(snapshots, "visible.lod2.index", _visibleLod2InstanceIndexBuffer);
     }
 
     public bool TryGetAiDebugSquadSnapshot(int runtimeSquadIndex, out CrowdVatAiDebugSquadSnapshot snapshot)
@@ -385,15 +396,22 @@ public sealed partial class CrowdVatIndirectRenderer
         snapshot.combatTargetIndex = -1;
         snapshot.combatVisibleSampleIndex = -1;
         snapshot.combatShotHitAgentIndex = -1;
+        snapshot.combatResolvedHitAgentIndex = -1;
         snapshot.acquisitionCurrentTargetIndex = -1;
         snapshot.acquisitionLastAttackerIndex = -1;
         snapshot.gridCellKey = -1;
         snapshot.gridNeighborPreview = Array.Empty<int>();
 
-        if (TryReadBufferElement(_activeStateBuffer, runtimeInstanceIndex, out uint activeRaw))
+        if (TryReadBufferElement(_physicsActiveStateBuffer, runtimeInstanceIndex, out uint physicsActiveRaw))
         {
-            snapshot.activeRaw = activeRaw;
-            snapshot.active = activeRaw != 0u;
+            snapshot.physicsActiveRaw = physicsActiveRaw;
+            snapshot.physicsActive = physicsActiveRaw != 0u;
+        }
+
+        if (TryReadBufferElement(_combatActiveStateBuffer, runtimeInstanceIndex, out uint combatActiveRaw))
+        {
+            snapshot.combatActiveRaw = combatActiveRaw;
+            snapshot.combatActive = combatActiveRaw != 0u;
         }
 
         if (TryReadBufferElement(_deathStateBuffer, runtimeInstanceIndex, out uint deathRaw))
@@ -499,8 +517,12 @@ public sealed partial class CrowdVatIndirectRenderer
         snapshot.combatHasImpact = combatState.localImpactNormalAndHit.w > 0.001f;
         snapshot.combatVisibleSampleIndex = DecodeAiDebugVisibleSampleIndex(combatState.debugShotInfoPacked);
         snapshot.combatShotHitAgentIndex = DecodeAiDebugShotHitAgent(combatState.debugShotInfoPacked);
+        snapshot.combatResolvedHitAgentIndex = Mathf.RoundToInt(combatState.debugShotTraceMeta.x);
+        snapshot.combatShotOccupantCount = Mathf.Max(0, Mathf.RoundToInt(combatState.debugShotTraceMeta.y));
+        snapshot.combatShotDamageApplied = combatState.debugShotTraceMeta.z > 0.5f;
         snapshot.combatShotHitScene = DecodeAiDebugShotHitScene(combatState.debugShotInfoPacked);
         snapshot.combatShotBlockedBySceneBeforeAgent = DecodeAiDebugShotBlockedBySceneBeforeAgent(combatState.debugShotInfoPacked);
+        snapshot.combatShotHitAgentPreservedVisual = combatState.debugShotTraceMeta.w > 0.5f;
 
         Vector3 localOrigin = new Vector3(
             combatState.localOriginAndDistance.x,
@@ -597,7 +619,7 @@ public sealed partial class CrowdVatIndirectRenderer
 
         BindAiDebugGpuStageKernel(stageId, solverIteration, _aiDebugGpuStageRecordCount);
         int threadGroups = Mathf.CeilToInt(_aiDebugGpuStageTargetCount / (float)AiDebugGpuStageThreadGroupSize);
-        _updateCompute.Dispatch(_captureAiDebugGpuStageKernel, threadGroups, 1, 1);
+        DispatchGpuPass(_captureAiDebugGpuStageKernel, threadGroups, 1, 1);
         _aiDebugGpuStageRecordCount = nextRecordCount;
     }
 
@@ -606,7 +628,6 @@ public sealed partial class CrowdVatIndirectRenderer
         if (!_aiDebugGpuDiscoveryActive ||
             _aiDebugCandidateCounterBuffer == null ||
             _aiDebugCandidateRecordBuffer == null ||
-            _aiDebugDiscoveryHistoryBuffer == null ||
             _discoverAiDebugGpuCandidatesKernel < 0 ||
             _instanceCount <= 0)
         {
@@ -616,20 +637,20 @@ public sealed partial class CrowdVatIndirectRenderer
         _aiDebugCandidateCounterBuffer.SetData(AliveInstanceCounterResetData);
         BindAiDebugGpuDiscoveryKernel();
         int threadGroups = Mathf.CeilToInt(_instanceCount / (float)AiDebugGpuStageThreadGroupSize);
-        _updateCompute.Dispatch(_discoverAiDebugGpuCandidatesKernel, threadGroups, 1, 1);
+        DispatchGpuPass(_discoverAiDebugGpuCandidatesKernel, threadGroups, 1, 1);
     }
 
     private void BindAiDebugGpuStageKernel(CrowdVatAiDebugGpuStageId stageId, int solverIteration, int writeOffset)
     {
         BindSimulationReadBuffers(_captureAiDebugGpuStageKernel);
-        _updateCompute.SetBuffer(_captureAiDebugGpuStageKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_captureAiDebugGpuStageKernel, DeathStateBufferId, _deathStateBuffer);
-        _updateCompute.SetBuffer(_captureAiDebugGpuStageKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_captureAiDebugGpuStageKernel, GridOccupantBufferId, _gridOccupantBuffer);
-        _updateCompute.SetBuffer(_captureAiDebugGpuStageKernel, CombatStateBufferId, _combatStateBuffer);
-        _updateCompute.SetBuffer(_captureAiDebugGpuStageKernel, TargetAcquisitionStateBufferId, _targetAcquisitionStateBuffer);
-        _updateCompute.SetBuffer(_captureAiDebugGpuStageKernel, AiDebugTargetIndexBufferId, _aiDebugTargetIndexBuffer);
-        _updateCompute.SetBuffer(_captureAiDebugGpuStageKernel, AiDebugStageRecordBufferId, _aiDebugStageRecordBuffer);
+        SetGpuPassBuffer(_captureAiDebugGpuStageKernel, PhysicsActiveStateBufferId, "_PhysicsActiveStateBuffer", "physicsActiveState", _physicsActiveStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_captureAiDebugGpuStageKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_captureAiDebugGpuStageKernel, GridCounterBufferId, "_GridCounterBuffer", "gridCounter", _gridCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_captureAiDebugGpuStageKernel, GridOccupantBufferId, "_GridOccupantBuffer", "gridOccupant", _gridOccupantBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_captureAiDebugGpuStageKernel, CombatStateBufferId, "_CombatStateBuffer", "combatState", _combatStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_captureAiDebugGpuStageKernel, TargetAcquisitionStateBufferId, "_TargetAcquisitionStateBuffer", "targetAcquisitionState", _targetAcquisitionStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_captureAiDebugGpuStageKernel, AiDebugTargetIndexBufferId, "_AiDebugTargetIndexBuffer", "aiDebugTargetIndex", _aiDebugTargetIndexBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_captureAiDebugGpuStageKernel, AiDebugStageRecordBufferId, "_AiDebugStageRecordBuffer", "aiDebugStageRecord", _aiDebugStageRecordBuffer, GpuPassBindingAccess.Uav);
         _updateCompute.SetInt(AiDebugTargetCountId, _aiDebugGpuStageTargetCount);
         _updateCompute.SetInt(AiDebugStageId, (int)stageId);
         _updateCompute.SetInt(AiDebugFrameIndexId, Application.isPlaying ? Time.frameCount : 0);
@@ -640,18 +661,17 @@ public sealed partial class CrowdVatIndirectRenderer
     private void BindAiDebugGpuDiscoveryKernel()
     {
         BindSimulationReadBuffers(_discoverAiDebugGpuCandidatesKernel);
-        _updateCompute.SetBuffer(_discoverAiDebugGpuCandidatesKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_discoverAiDebugGpuCandidatesKernel, DeathStateBufferId, _deathStateBuffer);
-        _updateCompute.SetBuffer(_discoverAiDebugGpuCandidatesKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_discoverAiDebugGpuCandidatesKernel, GridOccupantBufferId, _gridOccupantBuffer);
-        _updateCompute.SetBuffer(_discoverAiDebugGpuCandidatesKernel, CombatStateBufferId, _combatStateBuffer);
-        _updateCompute.SetBuffer(_discoverAiDebugGpuCandidatesKernel, TargetAcquisitionStateBufferId, _targetAcquisitionStateBuffer);
+        SetGpuPassBuffer(_discoverAiDebugGpuCandidatesKernel, PhysicsActiveStateBufferId, "_PhysicsActiveStateBuffer", "physicsActiveState", _physicsActiveStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_discoverAiDebugGpuCandidatesKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_discoverAiDebugGpuCandidatesKernel, GridCounterBufferId, "_GridCounterBuffer", "gridCounter", _gridCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_discoverAiDebugGpuCandidatesKernel, GridOccupantBufferId, "_GridOccupantBuffer", "gridOccupant", _gridOccupantBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_discoverAiDebugGpuCandidatesKernel, CombatStateBufferId, "_CombatStateBuffer", "combatState", _combatStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_discoverAiDebugGpuCandidatesKernel, TargetAcquisitionStateBufferId, "_TargetAcquisitionStateBuffer", "targetAcquisitionState", _targetAcquisitionStateBuffer, GpuPassBindingAccess.Srv);
         if (_agentSquadDataBuffer != null)
-            _updateCompute.SetBuffer(_discoverAiDebugGpuCandidatesKernel, AgentSquadDataBufferId, _agentSquadDataBuffer);
+            SetGpuPassBuffer(_discoverAiDebugGpuCandidatesKernel, AgentSquadDataBufferId, "_AgentSquadDataBuffer", "agentSquadData", _agentSquadDataBuffer, GpuPassBindingAccess.Srv);
         _updateCompute.SetInt(AgentSquadDataCountId, _agentSquadDataBuffer != null ? _activeAgentSquadDataCount : 0);
-        _updateCompute.SetBuffer(_discoverAiDebugGpuCandidatesKernel, AiDebugCandidateCounterBufferId, _aiDebugCandidateCounterBuffer);
-        _updateCompute.SetBuffer(_discoverAiDebugGpuCandidatesKernel, AiDebugCandidateRecordBufferId, _aiDebugCandidateRecordBuffer);
-        _updateCompute.SetBuffer(_discoverAiDebugGpuCandidatesKernel, AiDebugDiscoveryHistoryBufferId, _aiDebugDiscoveryHistoryBuffer);
+        SetGpuPassBuffer(_discoverAiDebugGpuCandidatesKernel, AiDebugCandidateCounterBufferId, "_AiDebugCandidateCounterBuffer", "aiDebugCandidateCounter", _aiDebugCandidateCounterBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_discoverAiDebugGpuCandidatesKernel, AiDebugCandidateRecordBufferId, "_AiDebugCandidateRecordBuffer", "aiDebugCandidateRecord", _aiDebugCandidateRecordBuffer, GpuPassBindingAccess.Uav);
         _updateCompute.SetInt(AiDebugCandidateCapacityId, _aiDebugCandidateRecordBuffer != null ? _aiDebugCandidateRecordBuffer.count : 0);
         _updateCompute.SetInt(AiDebugDiscoveryFrameIndexId, Application.isPlaying ? Time.frameCount : 0);
         _updateCompute.SetInt(AiDebugDiscoveryFlagsId, (int)BuildAiDebugDiscoveryFlags(_aiDebugDiscoverySettings));
@@ -661,14 +681,6 @@ public sealed partial class CrowdVatIndirectRenderer
         _updateCompute.SetVector(AiDebugDiscoveryScreenRectId, BuildAiDebugDiscoveryScreenRect(_aiDebugDiscoverySettings.screenRect01));
         SetAiDebugDiscoveryWorldToClip(_aiDebugDiscoverySettings.worldToClip);
         _updateCompute.SetInt(AiDebugDiscoverySquadId, _aiDebugDiscoverySettings.squadId);
-        _updateCompute.SetFloat(AiDebugDiscoveryHighSpeedThresholdId, _aiDebugDiscoverySettings.highSpeedThreshold);
-        _updateCompute.SetFloat(AiDebugDiscoveryInactiveMovingSpeedThresholdId, _aiDebugDiscoverySettings.inactiveMovingSpeedThreshold);
-        _updateCompute.SetFloat(AiDebugDiscoverySpeedSpikeThresholdId, _aiDebugDiscoverySettings.speedSpikeThreshold);
-        _updateCompute.SetFloat(AiDebugDiscoveryPositionJumpThresholdId, _aiDebugDiscoverySettings.positionJumpThreshold);
-        _updateCompute.SetFloat(AiDebugDiscoveryStuckSpeedThresholdId, _aiDebugDiscoverySettings.stuckSpeedThreshold);
-        _updateCompute.SetFloat(AiDebugDiscoveryStuckMoveThresholdId, _aiDebugDiscoverySettings.stuckMoveThreshold);
-        _updateCompute.SetFloat(AiDebugDiscoveryStuckIntentSpeedThresholdId, _aiDebugDiscoverySettings.stuckIntentSpeedThreshold);
-        _updateCompute.SetInt(AiDebugDiscoveryStuckFrameThresholdId, _aiDebugDiscoverySettings.stuckFrameThreshold);
     }
 
     private static uint BuildAiDebugDiscoveryFlags(CrowdVatAiDebugDiscoverySettings settings)
@@ -688,9 +700,6 @@ public sealed partial class CrowdVatIndirectRenderer
                 break;
             case CrowdVatAiDebugDiscoveryMode.SquadAll:
                 flags |= AiDebugDiscoveryFlagSquadFilter;
-                break;
-            case CrowdVatAiDebugDiscoveryMode.SquadAnomaly:
-                flags |= AiDebugDiscoveryFlagSquadFilter | AiDebugDiscoveryFlagRequireAnomaly;
                 break;
         }
 
@@ -769,20 +778,6 @@ public sealed partial class CrowdVatIndirectRenderer
             ReleaseBuffer(ref _aiDebugCandidateRecordBuffer);
             _aiDebugCandidateRecordBuffer = new ComputeBuffer(safeCandidateCapacity, recordStride);
         }
-
-        int historyStride = Marshal.SizeOf<CrowdVatAiDebugGpuDiscoveryHistoryRecord>();
-        int historyCount = Mathf.Max(_instanceCount, 1);
-        if (_aiDebugDiscoveryHistoryBuffer == null ||
-            _aiDebugDiscoveryHistoryBuffer.count != historyCount ||
-            _aiDebugDiscoveryHistoryBuffer.stride != historyStride)
-        {
-            ReleaseBuffer(ref _aiDebugDiscoveryHistoryBuffer);
-            _aiDebugDiscoveryHistoryBuffer = new ComputeBuffer(historyCount, historyStride);
-            if (_aiDebugDiscoveryHistoryResetCache == null || _aiDebugDiscoveryHistoryResetCache.Length < historyCount)
-                _aiDebugDiscoveryHistoryResetCache = new CrowdVatAiDebugGpuDiscoveryHistoryRecord[historyCount];
-            Array.Clear(_aiDebugDiscoveryHistoryResetCache, 0, historyCount);
-            _aiDebugDiscoveryHistoryBuffer.SetData(_aiDebugDiscoveryHistoryResetCache, 0, 0, historyCount);
-        }
     }
 
     private void ReleaseAiDebugGpuStageBuffers()
@@ -797,11 +792,9 @@ public sealed partial class CrowdVatIndirectRenderer
     {
         ReleaseBuffer(ref _aiDebugCandidateCounterBuffer);
         ReleaseBuffer(ref _aiDebugCandidateRecordBuffer);
-        ReleaseBuffer(ref _aiDebugDiscoveryHistoryBuffer);
         _aiDebugGpuDiscoveredCandidateTargets.Clear();
         _aiDebugCandidateCounterReadbackCache = Array.Empty<uint>();
         _aiDebugCandidateRecordReadbackCache = Array.Empty<CrowdVatAiDebugGpuCandidateRecord>();
-        _aiDebugDiscoveryHistoryResetCache = Array.Empty<CrowdVatAiDebugGpuDiscoveryHistoryRecord>();
     }
 
     private void CollectAiDebugGpuStageTargets(
@@ -986,5 +979,663 @@ public sealed class CrowdVatAiDebugRuntimeSampler : MonoBehaviour
 
         _recorder.CaptureFrame();
         _renderer.BeginAiDebugGpuStageCapture(_recorder.Targets, _recorder.DiscoverySettings);
+    }
+}
+
+public enum CrowdVatAiDebugReproMode
+{
+    Idle = 0,
+    RecordingTrace = 1,
+    ReplayingTrace = 2
+}
+
+[Serializable]
+public sealed class CrowdVatAiDebugReproTrace
+{
+    public int version = 1;
+    public string sessionName = string.Empty;
+    public string scenePath = string.Empty;
+    public int initialSelectedSquadIndex = -1;
+    public float duration;
+    public List<CrowdVatAiDebugReproPoseSample> poseSamples = new List<CrowdVatAiDebugReproPoseSample>(1024);
+    public List<CrowdVatAiDebugReproCommandEvent> commandEvents = new List<CrowdVatAiDebugReproCommandEvent>(64);
+}
+
+public enum CrowdVatAiDebugReproCommandEventType
+{
+    SelectSquad = 1,
+    IssueMoveCommand = 2
+}
+
+[Serializable]
+public struct CrowdVatAiDebugReproPoseSample
+{
+    public float time;
+    public Vector3 characterPosition;
+    public Quaternion characterRotation;
+    public Vector3 cameraPosition;
+    public Quaternion cameraRotation;
+}
+
+[Serializable]
+public struct CrowdVatAiDebugReproCommandEvent
+{
+    public float time;
+    public CrowdVatAiDebugReproCommandEventType type;
+    public int squadIndex;
+    public Vector3 worldPoint;
+    public CrowdVatSquadCommandType commandType;
+    public bool updateFacing;
+}
+
+public struct CrowdVatAiDebugReplayCaptureConfig
+{
+    public bool enableAiDebugCapture;
+    public float captureLeadTimeSeconds;
+    public List<CrowdVatAiDebugTarget> targets;
+    public CrowdVatAiDebugDiscoverySettings discoverySettings;
+    public string phenomenon;
+    public string reproductionSteps;
+    public string expectedBehavior;
+    public string exportDirectory;
+}
+
+[DisallowMultipleComponent]
+[DefaultExecutionOrder(11000)]
+public sealed class CrowdVatAiDebugReproController : MonoBehaviour
+{
+    private const float ReplayTimeEpsilon = 0.0001f;
+
+    private readonly List<CrowdVatAiDebugReproPoseSample> _recordedPoseSamples = new List<CrowdVatAiDebugReproPoseSample>(2048);
+    private readonly List<CrowdVatAiDebugReproCommandEvent> _recordedCommandEvents = new List<CrowdVatAiDebugReproCommandEvent>(128);
+
+    private CrowdVatIndirectRenderer _renderer;
+    private CharacterController _characterController;
+    private Transform _characterTransform;
+    private QianxiaGenshinCharacterController _characterMovementController;
+    private QianxiaGenshinCameraController _cameraController;
+    private Camera _targetCamera;
+    private CrowdVatSquadCommandController _squadCommandController;
+    private CrowdVatAiDebugReproTrace _activeTrace;
+    private CrowdVatAiDebugReplayCaptureConfig _captureConfig;
+    private CrowdVatAiDebugRecorder _captureRecorder;
+    private CrowdVatAiDebugReproMode _mode;
+    private string _statusMessage = "空闲";
+    private string _lastTracePath = string.Empty;
+    private string _lastAiDebugExportPath = string.Empty;
+    private string _activeTracePath = string.Empty;
+    private float _recordingStartTime;
+    private float _replayStartTime;
+    private int _recordingInitialSelectedSquadIndex = -1;
+    private int _replayPoseIndex;
+    private int _replayCommandEventIndex;
+    private bool _captureStarted;
+    private bool _inputSuppressed;
+    private bool _previousCharacterControllerEnabled;
+    private bool _previousCharacterMovementEnabled;
+    private bool _previousCameraControllerEnabled;
+    private bool _previousSquadCommandControllerEnabled;
+
+    public CrowdVatAiDebugReproMode Mode => _mode;
+    public bool IsRecordingTrace => _mode == CrowdVatAiDebugReproMode.RecordingTrace;
+    public bool IsReplayingTrace => _mode == CrowdVatAiDebugReproMode.ReplayingTrace;
+    public string StatusMessage => _statusMessage;
+    public string LastTracePath => _lastTracePath;
+    public string LastAiDebugExportPath => _lastAiDebugExportPath;
+    public string ActiveTracePath => _activeTracePath;
+
+    public static CrowdVatAiDebugReproController GetOrCreate(CrowdVatIndirectRenderer renderer)
+    {
+        if (renderer == null)
+            return null;
+
+        CrowdVatAiDebugReproController controller = renderer.GetComponent<CrowdVatAiDebugReproController>();
+        if (controller == null)
+            controller = renderer.gameObject.AddComponent<CrowdVatAiDebugReproController>();
+
+        controller.hideFlags = HideFlags.HideInInspector | HideFlags.DontSaveInEditor | HideFlags.DontSaveInBuild;
+        controller.AssignRenderer(renderer);
+        return controller;
+    }
+
+    public void AssignRenderer(CrowdVatIndirectRenderer renderer)
+    {
+        _renderer = renderer;
+        ResolveBindings();
+    }
+
+    public bool StartTraceRecording()
+    {
+        if (!Application.isPlaying)
+        {
+            _statusMessage = "无法开始轨迹录制：请先进入 Play 模式。";
+            return false;
+        }
+
+        if (_mode != CrowdVatAiDebugReproMode.Idle)
+        {
+            _statusMessage = "无法开始轨迹录制：当前已有活动中的复现会话。";
+            return false;
+        }
+
+        ResolveBindings();
+        if (_characterTransform == null || _targetCamera == null)
+        {
+            _statusMessage = "无法开始轨迹录制：未找到角色 Transform 或回放相机。";
+            return false;
+        }
+
+        _recordedPoseSamples.Clear();
+        _recordedCommandEvents.Clear();
+        _activeTrace = null;
+        _activeTracePath = string.Empty;
+        _recordingStartTime = Time.realtimeSinceStartup;
+        _recordingInitialSelectedSquadIndex = _squadCommandController != null ? _squadCommandController.SelectedSquadIndex : -1;
+        _lastAiDebugExportPath = string.Empty;
+        _mode = CrowdVatAiDebugReproMode.RecordingTrace;
+
+        SubscribeCommandEvents();
+        CapturePoseSample(0.0f);
+        _statusMessage = "轨迹录制中：正在记录角色/相机轨迹和小队命令。";
+        return true;
+    }
+
+    public bool StopTraceRecordingAndSave(string directory)
+    {
+        if (_mode != CrowdVatAiDebugReproMode.RecordingTrace)
+            return false;
+
+        CapturePoseSample(GetRecordingElapsedTime());
+        UnsubscribeCommandEvents();
+
+        CrowdVatAiDebugReproTrace trace = BuildTraceFromRecordedSamples();
+        string tracePath = SaveTrace(directory, trace);
+
+        _activeTrace = trace;
+        _activeTracePath = tracePath;
+        _lastTracePath = tracePath;
+        _mode = CrowdVatAiDebugReproMode.Idle;
+        _statusMessage = "轨迹已保存：" + tracePath;
+        return true;
+    }
+
+    public void DiscardTraceRecording()
+    {
+        if (_mode != CrowdVatAiDebugReproMode.RecordingTrace)
+            return;
+
+        UnsubscribeCommandEvents();
+        _recordedPoseSamples.Clear();
+        _recordedCommandEvents.Clear();
+        _activeTrace = null;
+        _activeTracePath = string.Empty;
+        _mode = CrowdVatAiDebugReproMode.Idle;
+        _statusMessage = "已丢弃当前轨迹录制。";
+    }
+
+    public bool StartReplay(string tracePath, CrowdVatAiDebugReplayCaptureConfig captureConfig)
+    {
+        if (!Application.isPlaying)
+        {
+            _statusMessage = "无法开始轨迹回放：请先进入 Play 模式。";
+            return false;
+        }
+
+        if (_mode != CrowdVatAiDebugReproMode.Idle)
+        {
+            _statusMessage = "无法开始轨迹回放：当前已有活动中的复现会话。";
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(tracePath) || !File.Exists(tracePath))
+        {
+            _statusMessage = "无法开始轨迹回放：未找到轨迹文件。";
+            return false;
+        }
+
+        ResolveBindings();
+        if (_characterTransform == null || _targetCamera == null)
+        {
+            _statusMessage = "无法开始轨迹回放：未找到角色 Transform 或回放相机。";
+            return false;
+        }
+
+        CrowdVatAiDebugReproTrace trace = LoadTrace(tracePath);
+        if (trace == null || trace.poseSamples == null || trace.poseSamples.Count == 0)
+        {
+            _statusMessage = "无法开始轨迹回放：轨迹文件为空或格式无效。";
+            return false;
+        }
+
+        _activeTrace = trace;
+        _activeTracePath = tracePath;
+        _lastTracePath = tracePath;
+        _captureConfig = SanitizeCaptureConfig(captureConfig);
+        _lastAiDebugExportPath = string.Empty;
+        _replayPoseIndex = 0;
+        _replayCommandEventIndex = 0;
+        _captureStarted = false;
+        _replayStartTime = Time.realtimeSinceStartup;
+        _mode = CrowdVatAiDebugReproMode.ReplayingTrace;
+
+        SuppressRuntimeInput(true);
+        ApplyInitialReplayState();
+        ApplyPoseAtTime(0.0f);
+        DispatchReplayEventsUpTo(0.0f);
+
+        Scene currentScene = SceneManager.GetActiveScene();
+        if (!string.IsNullOrEmpty(trace.scenePath) && !string.Equals(trace.scenePath, currentScene.path, StringComparison.Ordinal))
+        {
+            _statusMessage = "轨迹回放中：当前场景与录制场景不同，结果可能偏离。";
+        }
+        else
+        {
+            _statusMessage = "轨迹回放中：将按录制路径自动复现。";
+        }
+
+        return true;
+    }
+
+    public void CancelActiveSession()
+    {
+        if (_mode == CrowdVatAiDebugReproMode.RecordingTrace)
+        {
+            DiscardTraceRecording();
+            return;
+        }
+
+        if (_mode == CrowdVatAiDebugReproMode.ReplayingTrace)
+            FinishReplay(false);
+    }
+
+    private void OnDisable()
+    {
+        if (_mode == CrowdVatAiDebugReproMode.RecordingTrace)
+        {
+            UnsubscribeCommandEvents();
+            _mode = CrowdVatAiDebugReproMode.Idle;
+            _statusMessage = "轨迹录制已中止。";
+        }
+
+        if (_mode == CrowdVatAiDebugReproMode.ReplayingTrace)
+            FinishReplay(false);
+    }
+
+    private void LateUpdate()
+    {
+        ResolveBindings();
+
+        if (_mode == CrowdVatAiDebugReproMode.RecordingTrace)
+        {
+            CapturePoseSample(GetRecordingElapsedTime());
+            return;
+        }
+
+        if (_mode == CrowdVatAiDebugReproMode.ReplayingTrace)
+            UpdateReplay();
+    }
+
+    private void UpdateReplay()
+    {
+        if (_activeTrace == null || _activeTrace.poseSamples == null || _activeTrace.poseSamples.Count == 0)
+        {
+            FinishReplay(false);
+            _statusMessage = "轨迹回放已中止：缺少可回放样本。";
+            return;
+        }
+
+        float elapsed = Mathf.Max(0.0f, Time.realtimeSinceStartup - _replayStartTime);
+        float clampedTime = Mathf.Min(elapsed, Mathf.Max(_activeTrace.duration, 0.0f));
+
+        ApplyPoseAtTime(clampedTime);
+        DispatchReplayEventsUpTo(clampedTime);
+        TryStartAiDebugCapture(clampedTime);
+
+        if (elapsed + ReplayTimeEpsilon < _activeTrace.duration)
+            return;
+
+        FinishReplay(true);
+    }
+
+    private void TryStartAiDebugCapture(float replayTime)
+    {
+        if (_captureStarted || !_captureConfig.enableAiDebugCapture || _renderer == null)
+            return;
+
+        float startTime = Mathf.Max(0.0f, _activeTrace.duration - Mathf.Max(0.0f, _captureConfig.captureLeadTimeSeconds));
+        if (replayTime + ReplayTimeEpsilon < startTime)
+            return;
+
+        List<CrowdVatAiDebugTarget> targets = _captureConfig.targets ?? new List<CrowdVatAiDebugTarget>();
+        if (targets.Count == 0)
+        {
+            _statusMessage = "轨迹回放中：已跳过 AI Debug 自动录制，原因是没有配置录制目标。";
+            _captureStarted = true;
+            return;
+        }
+
+        _captureRecorder = new CrowdVatAiDebugRecorder();
+        _captureRecorder.Start(
+            _renderer,
+            targets,
+            _captureConfig.phenomenon,
+            _captureConfig.reproductionSteps,
+            _captureConfig.expectedBehavior,
+            _captureConfig.discoverySettings);
+        _renderer.SetAiDebugRuntimeRecorder(_captureRecorder);
+        _captureStarted = true;
+        _statusMessage = "轨迹回放中：已自动开启 AI Debug 录制。";
+    }
+
+    private void FinishReplay(bool completed)
+    {
+        if (_captureRecorder != null)
+        {
+            if (_renderer != null)
+                _renderer.ClearAiDebugRuntimeRecorder(_captureRecorder);
+
+            _captureRecorder.Stop();
+            if (completed && _captureConfig.enableAiDebugCapture && !string.IsNullOrEmpty(_captureConfig.exportDirectory))
+                _lastAiDebugExportPath = _captureRecorder.Export(_captureConfig.exportDirectory);
+
+            _captureRecorder = null;
+        }
+
+        SuppressRuntimeInput(false);
+        _captureStarted = false;
+        _mode = CrowdVatAiDebugReproMode.Idle;
+
+        if (completed)
+        {
+            _statusMessage = string.IsNullOrEmpty(_lastAiDebugExportPath)
+                ? "轨迹回放完成。"
+                : "轨迹回放完成，AI Debug 已导出：" + _lastAiDebugExportPath;
+        }
+        else
+        {
+            _statusMessage = "轨迹回放已取消。";
+        }
+    }
+
+    private void ResolveBindings()
+    {
+        if (_renderer == null)
+            _renderer = GetComponent<CrowdVatIndirectRenderer>();
+
+        if (_characterMovementController == null)
+            _characterMovementController = FindFirstObjectByType<QianxiaGenshinCharacterController>();
+
+        if (_characterController == null && _characterMovementController != null)
+            _characterController = _characterMovementController.GetComponent<CharacterController>();
+
+        if (_characterController == null)
+            _characterController = FindFirstObjectByType<CharacterController>();
+
+        if (_characterTransform == null && _characterMovementController != null)
+            _characterTransform = _characterMovementController.transform;
+
+        if (_characterTransform == null && _characterController != null)
+            _characterTransform = _characterController.transform;
+
+        if (_cameraController == null)
+            _cameraController = FindFirstObjectByType<QianxiaGenshinCameraController>();
+
+        if (_targetCamera == null)
+            _targetCamera = Camera.main != null ? Camera.main : FindFirstObjectByType<Camera>();
+
+        if (_squadCommandController == null)
+            _squadCommandController = FindFirstObjectByType<CrowdVatSquadCommandController>();
+    }
+
+    private void SubscribeCommandEvents()
+    {
+        if (_squadCommandController == null)
+            return;
+
+        _squadCommandController.SelectionChanged -= OnSelectionChanged;
+        _squadCommandController.MoveCommandIssued -= OnMoveCommandIssued;
+        _squadCommandController.SelectionChanged += OnSelectionChanged;
+        _squadCommandController.MoveCommandIssued += OnMoveCommandIssued;
+    }
+
+    private void UnsubscribeCommandEvents()
+    {
+        if (_squadCommandController == null)
+            return;
+
+        _squadCommandController.SelectionChanged -= OnSelectionChanged;
+        _squadCommandController.MoveCommandIssued -= OnMoveCommandIssued;
+    }
+
+    private void OnSelectionChanged(int squadIndex)
+    {
+        if (_mode != CrowdVatAiDebugReproMode.RecordingTrace)
+            return;
+
+        CrowdVatAiDebugReproCommandEvent commandEvent = new CrowdVatAiDebugReproCommandEvent
+        {
+            time = GetRecordingElapsedTime(),
+            type = CrowdVatAiDebugReproCommandEventType.SelectSquad,
+            squadIndex = squadIndex,
+            commandType = CrowdVatSquadCommandType.None,
+            updateFacing = false,
+            worldPoint = Vector3.zero
+        };
+        _recordedCommandEvents.Add(commandEvent);
+    }
+
+    private void OnMoveCommandIssued(CrowdVatSquadReplayCommand command)
+    {
+        if (_mode != CrowdVatAiDebugReproMode.RecordingTrace)
+            return;
+
+        CrowdVatAiDebugReproCommandEvent commandEvent = new CrowdVatAiDebugReproCommandEvent
+        {
+            time = GetRecordingElapsedTime(),
+            type = CrowdVatAiDebugReproCommandEventType.IssueMoveCommand,
+            squadIndex = command.squadIndex,
+            worldPoint = command.worldPoint,
+            commandType = command.commandType,
+            updateFacing = command.updateFacing
+        };
+        _recordedCommandEvents.Add(commandEvent);
+    }
+
+    private float GetRecordingElapsedTime()
+    {
+        return Mathf.Max(0.0f, Time.realtimeSinceStartup - _recordingStartTime);
+    }
+
+    private void CapturePoseSample(float sampleTime)
+    {
+        if (_characterTransform == null || _targetCamera == null)
+            return;
+
+        CrowdVatAiDebugReproPoseSample sample = new CrowdVatAiDebugReproPoseSample
+        {
+            time = Mathf.Max(0.0f, sampleTime),
+            characterPosition = _characterTransform.position,
+            characterRotation = _characterTransform.rotation,
+            cameraPosition = _targetCamera.transform.position,
+            cameraRotation = _targetCamera.transform.rotation
+        };
+
+        if (_recordedPoseSamples.Count > 0)
+        {
+            CrowdVatAiDebugReproPoseSample previousSample = _recordedPoseSamples[_recordedPoseSamples.Count - 1];
+            if (sample.time <= previousSample.time + ReplayTimeEpsilon)
+                return;
+        }
+
+        _recordedPoseSamples.Add(sample);
+    }
+
+    private CrowdVatAiDebugReproTrace BuildTraceFromRecordedSamples()
+    {
+        CrowdVatAiDebugReproTrace trace = new CrowdVatAiDebugReproTrace
+        {
+            sessionName = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture),
+            scenePath = SceneManager.GetActiveScene().path,
+            initialSelectedSquadIndex = _recordingInitialSelectedSquadIndex,
+            duration = _recordedPoseSamples.Count > 0 ? _recordedPoseSamples[_recordedPoseSamples.Count - 1].time : 0.0f
+        };
+
+        trace.poseSamples.AddRange(_recordedPoseSamples);
+        trace.commandEvents.AddRange(_recordedCommandEvents);
+        return trace;
+    }
+
+    private static string SaveTrace(string directory, CrowdVatAiDebugReproTrace trace)
+    {
+        if (string.IsNullOrEmpty(directory))
+            throw new ArgumentException("轨迹导出目录不能为空。", nameof(directory));
+
+        Directory.CreateDirectory(directory);
+        string sessionName = string.IsNullOrEmpty(trace.sessionName)
+            ? DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture)
+            : trace.sessionName;
+        string path = Path.Combine(directory, "crowd_ai_repro_" + sessionName + ".json");
+        File.WriteAllText(path, JsonUtility.ToJson(trace, true));
+        return path;
+    }
+
+    private static CrowdVatAiDebugReproTrace LoadTrace(string tracePath)
+    {
+        string json = File.ReadAllText(tracePath);
+        return JsonUtility.FromJson<CrowdVatAiDebugReproTrace>(json);
+    }
+
+    private void ApplyInitialReplayState()
+    {
+        if (_squadCommandController == null || _activeTrace == null)
+            return;
+
+        if (_activeTrace.initialSelectedSquadIndex >= 0)
+            _squadCommandController.TrySelectSquad(_activeTrace.initialSelectedSquadIndex);
+        else
+            _squadCommandController.ClearSelectedSquad();
+    }
+
+    private void ApplyPoseAtTime(float replayTime)
+    {
+        List<CrowdVatAiDebugReproPoseSample> poseSamples = _activeTrace.poseSamples;
+        if (poseSamples.Count == 1)
+        {
+            ApplyPoseSample(poseSamples[0]);
+            return;
+        }
+
+        while (_replayPoseIndex + 1 < poseSamples.Count && poseSamples[_replayPoseIndex + 1].time < replayTime)
+            _replayPoseIndex++;
+
+        int nextIndex = Mathf.Min(_replayPoseIndex + 1, poseSamples.Count - 1);
+        CrowdVatAiDebugReproPoseSample fromSample = poseSamples[_replayPoseIndex];
+        CrowdVatAiDebugReproPoseSample toSample = poseSamples[nextIndex];
+        float duration = Mathf.Max(toSample.time - fromSample.time, ReplayTimeEpsilon);
+        float interpolation = Mathf.Clamp01((replayTime - fromSample.time) / duration);
+
+        Vector3 characterPosition = Vector3.Lerp(fromSample.characterPosition, toSample.characterPosition, interpolation);
+        Quaternion characterRotation = Quaternion.Slerp(fromSample.characterRotation, toSample.characterRotation, interpolation);
+        Vector3 cameraPosition = Vector3.Lerp(fromSample.cameraPosition, toSample.cameraPosition, interpolation);
+        Quaternion cameraRotation = Quaternion.Slerp(fromSample.cameraRotation, toSample.cameraRotation, interpolation);
+
+        if (_characterTransform != null)
+            _characterTransform.SetPositionAndRotation(characterPosition, characterRotation);
+
+        if (_targetCamera != null)
+            _targetCamera.transform.SetPositionAndRotation(cameraPosition, cameraRotation);
+    }
+
+    private void ApplyPoseSample(CrowdVatAiDebugReproPoseSample sample)
+    {
+        if (_characterTransform != null)
+            _characterTransform.SetPositionAndRotation(sample.characterPosition, sample.characterRotation);
+
+        if (_targetCamera != null)
+            _targetCamera.transform.SetPositionAndRotation(sample.cameraPosition, sample.cameraRotation);
+    }
+
+    private void DispatchReplayEventsUpTo(float replayTime)
+    {
+        if (_activeTrace == null || _activeTrace.commandEvents == null || _squadCommandController == null)
+            return;
+
+        while (_replayCommandEventIndex < _activeTrace.commandEvents.Count)
+        {
+            CrowdVatAiDebugReproCommandEvent commandEvent = _activeTrace.commandEvents[_replayCommandEventIndex];
+            if (commandEvent.time > replayTime + ReplayTimeEpsilon)
+                break;
+
+            switch (commandEvent.type)
+            {
+                case CrowdVatAiDebugReproCommandEventType.SelectSquad:
+                    if (commandEvent.squadIndex >= 0)
+                        _squadCommandController.TrySelectSquad(commandEvent.squadIndex);
+                    else
+                        _squadCommandController.ClearSelectedSquad();
+                    break;
+
+                case CrowdVatAiDebugReproCommandEventType.IssueMoveCommand:
+                    _squadCommandController.TryIssueMoveCommand(
+                        commandEvent.squadIndex,
+                        commandEvent.worldPoint,
+                        commandEvent.commandType,
+                        commandEvent.updateFacing);
+                    break;
+            }
+
+            _replayCommandEventIndex++;
+        }
+    }
+
+    private void SuppressRuntimeInput(bool suppress)
+    {
+        if (_inputSuppressed == suppress)
+            return;
+
+        ResolveBindings();
+
+        if (suppress)
+        {
+            _previousCharacterMovementEnabled = _characterMovementController != null && _characterMovementController.enabled;
+            _previousCameraControllerEnabled = _cameraController != null && _cameraController.enabled;
+            _previousSquadCommandControllerEnabled = _squadCommandController != null && _squadCommandController.enabled;
+            _previousCharacterControllerEnabled = _characterController != null && _characterController.enabled;
+
+            if (_characterMovementController != null)
+                _characterMovementController.enabled = false;
+            if (_cameraController != null)
+                _cameraController.enabled = false;
+            if (_squadCommandController != null)
+                _squadCommandController.enabled = false;
+            if (_characterController != null)
+                _characterController.enabled = false;
+        }
+        else
+        {
+            if (_characterController != null)
+                _characterController.enabled = _previousCharacterControllerEnabled;
+            if (_characterMovementController != null)
+                _characterMovementController.enabled = _previousCharacterMovementEnabled;
+            if (_cameraController != null)
+                _cameraController.enabled = _previousCameraControllerEnabled;
+            if (_squadCommandController != null)
+                _squadCommandController.enabled = _previousSquadCommandControllerEnabled;
+        }
+
+        _inputSuppressed = suppress;
+    }
+
+    private static CrowdVatAiDebugReplayCaptureConfig SanitizeCaptureConfig(CrowdVatAiDebugReplayCaptureConfig config)
+    {
+        config.captureLeadTimeSeconds = Mathf.Max(0.0f, config.captureLeadTimeSeconds);
+        config.discoverySettings = config.discoverySettings.Sanitized();
+        if (config.targets == null)
+            config.targets = new List<CrowdVatAiDebugTarget>(4);
+        config.exportDirectory = config.exportDirectory ?? string.Empty;
+        config.phenomenon = config.phenomenon ?? string.Empty;
+        config.reproductionSteps = config.reproductionSteps ?? string.Empty;
+        config.expectedBehavior = config.expectedBehavior ?? string.Empty;
+        return config;
     }
 }

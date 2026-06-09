@@ -22,29 +22,19 @@ public struct CrowdVatAiDebugTarget
 
 public enum CrowdVatAiDebugDiscoveryMode
 {
-    Anomaly = 0,
     RegionSphere = 1,
     RegionBox = 2,
     ScreenRect = 3,
-    SquadAll = 4,
-    SquadAnomaly = 5
+    SquadAll = 4
 }
 
 [Serializable]
 public struct CrowdVatAiDebugDiscoverySettings
 {
-    public const int MaxCandidateCapacity = 128;
+    public const int MaxCandidateCapacity = 512;
 
     public CrowdVatAiDebugDiscoveryMode mode;
     public int candidateCapacity;
-    public float highSpeedThreshold;
-    public float inactiveMovingSpeedThreshold;
-    public float speedSpikeThreshold;
-    public float positionJumpThreshold;
-    public float stuckSpeedThreshold;
-    public float stuckMoveThreshold;
-    public float stuckIntentSpeedThreshold;
-    public int stuckFrameThreshold;
     public Vector3 worldCenter;
     public float radius;
     public Vector3 worldBoxCenter;
@@ -58,16 +48,8 @@ public struct CrowdVatAiDebugDiscoverySettings
     {
         return new CrowdVatAiDebugDiscoverySettings
         {
-            mode = CrowdVatAiDebugDiscoveryMode.Anomaly,
+            mode = CrowdVatAiDebugDiscoveryMode.RegionSphere,
             candidateCapacity = MaxCandidateCapacity,
-            highSpeedThreshold = 6.0f,
-            inactiveMovingSpeedThreshold = 0.05f,
-            speedSpikeThreshold = 4.0f,
-            positionJumpThreshold = 1.5f,
-            stuckSpeedThreshold = 0.05f,
-            stuckMoveThreshold = 0.02f,
-            stuckIntentSpeedThreshold = 0.5f,
-            stuckFrameThreshold = 30,
             worldCenter = Vector3.zero,
             radius = 5.0f,
             worldBoxCenter = Vector3.zero,
@@ -83,14 +65,13 @@ public struct CrowdVatAiDebugDiscoverySettings
     {
         CrowdVatAiDebugDiscoverySettings settings = this;
         settings.candidateCapacity = Mathf.Clamp(settings.candidateCapacity, 1, MaxCandidateCapacity);
-        settings.highSpeedThreshold = Mathf.Max(0.0f, settings.highSpeedThreshold);
-        settings.inactiveMovingSpeedThreshold = Mathf.Max(0.0f, settings.inactiveMovingSpeedThreshold);
-        settings.speedSpikeThreshold = Mathf.Max(0.0f, settings.speedSpikeThreshold);
-        settings.positionJumpThreshold = Mathf.Max(0.0f, settings.positionJumpThreshold);
-        settings.stuckSpeedThreshold = Mathf.Max(0.0f, settings.stuckSpeedThreshold);
-        settings.stuckMoveThreshold = Mathf.Max(0.0f, settings.stuckMoveThreshold);
-        settings.stuckIntentSpeedThreshold = Mathf.Max(0.0f, settings.stuckIntentSpeedThreshold);
-        settings.stuckFrameThreshold = Mathf.Clamp(settings.stuckFrameThreshold, 1, 600);
+        int rawMode = (int)settings.mode;
+        if (rawMode == 0)
+            settings.mode = CrowdVatAiDebugDiscoveryMode.RegionSphere;
+        else if (rawMode == 5)
+            settings.mode = CrowdVatAiDebugDiscoveryMode.SquadAll;
+        else if (!Enum.IsDefined(typeof(CrowdVatAiDebugDiscoveryMode), settings.mode))
+            settings.mode = CrowdVatAiDebugDiscoveryMode.RegionSphere;
         settings.radius = Mathf.Max(0.0f, settings.radius);
         settings.worldBoxExtents = new Vector3(
             Mathf.Max(0.0f, settings.worldBoxExtents.x),
@@ -139,7 +120,7 @@ public struct CrowdVatAiDebugGpuStageRecord
     public int solverIteration;
     public uint targetSlot;
     public uint instanceIndex;
-    public uint active;
+    public uint physicsActive;
     public uint deathState;
     public uint gridCellKey;
     public uint gridOccupantCount;
@@ -159,6 +140,7 @@ public struct CrowdVatAiDebugGpuStageRecord
     public Vector4 acquisitionRejectCounts0;
     public Vector4 acquisitionRejectCounts1;
     public Vector4 combatDebugShotInfo;
+    public Vector4 combatDebugShotTrace;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -168,8 +150,8 @@ public struct CrowdVatAiDebugGpuCandidateRecord
     public uint candidateSlot;
     public uint instanceIndex;
     public uint reasonMask;
-    public float score;
-    public uint active;
+    public float reservedFloat0;
+    public uint physicsActive;
     public uint deathState;
     public uint gridCellKey;
     public uint gridOccupantCount;
@@ -216,7 +198,11 @@ public struct CrowdVatAiDebugSystemSnapshot
     public bool hasClip;
     public bool isPlayingClip;
     public uint aliveGpuCount;
-    public uint activeGpuCount;
+    public uint aliveDispatchGroupCount;
+    public uint physicsActiveGpuCount;
+    public uint physicsActiveDispatchGroupCount;
+    public uint combatActiveGpuCount;
+    public uint combatActiveDispatchGroupCount;
     public uint visibleGpuCount;
 }
 
@@ -259,8 +245,10 @@ public struct CrowdVatAiDebugAgentSnapshot
     public Vector3 worldVelocity;
     public float speed;
     public float scale;
-    public bool active;
-    public uint activeRaw;
+    public bool physicsActive;
+    public uint physicsActiveRaw;
+    public bool combatActive;
+    public uint combatActiveRaw;
     public bool dead;
     public uint deathRaw;
     public float health;
@@ -292,8 +280,12 @@ public struct CrowdVatAiDebugAgentSnapshot
     public bool combatHasImpact;
     public int combatVisibleSampleIndex;
     public int combatShotHitAgentIndex;
+    public int combatResolvedHitAgentIndex;
+    public int combatShotOccupantCount;
+    public bool combatShotDamageApplied;
     public bool combatShotHitScene;
     public bool combatShotBlockedBySceneBeforeAgent;
+    public bool combatShotHitAgentPreservedVisual;
     public Vector3 combatWorldOrigin;
     public Vector3 combatWorldTarget;
     public Vector3 combatWorldImpactNormal;
@@ -541,21 +533,8 @@ public sealed class CrowdVatAiDebugRecorder
     private const uint InstanceCombatFlagHasLineOfSight = 1u << 1;
     private const uint InstanceCombatFlagFiredThisFrame = 1u << 2;
     private const uint GpuCandidateReasonRegion = 1u << 0;
-    private const uint GpuCandidateReasonDeadButActive = 1u << 1;
-    private const uint GpuCandidateReasonGridOverflow = 1u << 2;
-    private const uint GpuCandidateReasonInvalidState = 1u << 3;
-    private const uint GpuCandidateReasonHighSpeed = 1u << 4;
-    private const uint GpuCandidateReasonCombatTargetInvalid = 1u << 5;
-    private const uint GpuCandidateReasonAcquisitionTargetInvalid = 1u << 6;
-    private const uint GpuCandidateReasonRejectSaturated = 1u << 7;
-    private const uint GpuCandidateReasonShotBlockedByScene = 1u << 8;
     private const uint GpuCandidateReasonScreen = 1u << 9;
     private const uint GpuCandidateReasonSquad = 1u << 10;
-    private const uint GpuCandidateReasonInactiveMoving = 1u << 11;
-    private const uint GpuCandidateReasonNoLineOfSight = 1u << 12;
-    private const uint GpuCandidateReasonSpeedSpike = 1u << 13;
-    private const uint GpuCandidateReasonStuck = 1u << 14;
-    private const uint GpuCandidateReasonPositionJump = 1u << 15;
 
     private readonly List<CrowdVatAiDebugTarget> _targets = new List<CrowdVatAiDebugTarget>(8);
     private readonly List<CrowdVatAiDebugRecord> _records = new List<CrowdVatAiDebugRecord>(4096);
@@ -633,10 +612,6 @@ public sealed class CrowdVatAiDebugRecorder
         record.Add("expected", _expectedBehavior);
         record.Add("discovery.mode", _discoverySettings.mode);
         record.Add("discovery.capacity", _discoverySettings.candidateCapacity);
-        record.Add("discovery.highSpeed", _discoverySettings.highSpeedThreshold);
-        record.Add("discovery.speedSpike", _discoverySettings.speedSpikeThreshold);
-        record.Add("discovery.positionJump", _discoverySettings.positionJumpThreshold);
-        record.Add("discovery.stuckFrames", _discoverySettings.stuckFrameThreshold);
         record.Add("discovery.center", _discoverySettings.worldCenter);
         record.Add("discovery.radius", _discoverySettings.radius);
         record.Add("discovery.boxCenter", _discoverySettings.worldBoxCenter);
@@ -825,7 +800,11 @@ public sealed class CrowdVatAiDebugRecorder
         AddSparse(record, "sys.assignment", snapshot.activeAgentAssignmentCount);
         AddSparse(record, "sys.formationSlot", snapshot.activeFormationSlotCount);
         AddSparse(record, "sys.aliveGpu", snapshot.aliveGpuCount);
-        AddSparse(record, "sys.activeGpu", snapshot.activeGpuCount);
+        AddSparse(record, "sys.aliveDispatchGroups", snapshot.aliveDispatchGroupCount);
+        AddSparse(record, "sys.physicsActiveGpu", snapshot.physicsActiveGpuCount);
+        AddSparse(record, "sys.physicsActiveDispatchGroups", snapshot.physicsActiveDispatchGroupCount);
+        AddSparse(record, "sys.combatActiveGpu", snapshot.combatActiveGpuCount);
+        AddSparse(record, "sys.combatActiveDispatchGroups", snapshot.combatActiveDispatchGroupCount);
         AddSparse(record, "sys.visibleGpu", snapshot.visibleGpuCount);
         AddSparse(record, "grid.dim", snapshot.gridDimensions);
         AddSparse(record, "grid.cellSize", snapshot.gridCellSize);
@@ -843,7 +822,7 @@ public sealed class CrowdVatAiDebugRecorder
         AddSparse(record, "resource.hasRuntimeRender", snapshot.hasRuntimeRenderResource);
         AddSparse(record, "clip.has", snapshot.hasClip);
         AddSparse(record, "clip.playing", snapshot.isPlayingClip);
-        AddSparse(record, "query.active", snapshot.activeSpatialQueryCount);
+        AddSparse(record, "query.count", snapshot.activeSpatialQueryCount);
         AddSparse(record, "query.max", snapshot.maxSpatialQueries);
         AddSparse(record, "query.maxHits", snapshot.maxSpatialQueryHits);
         CommitSparse(record);
@@ -876,7 +855,8 @@ public sealed class CrowdVatAiDebugRecorder
         AddSparse(record, "localVel", snapshot.localVelocity);
         AddSparse(record, "speed", snapshot.speed);
         AddSparse(record, "scale", snapshot.scale);
-        AddSparse(record, "active", snapshot.active);
+        AddSparse(record, "physicsActive", snapshot.physicsActive);
+        AddSparse(record, "combatActive", snapshot.combatActive);
         AddSparse(record, "dead", snapshot.dead);
         AddSparse(record, "death.raw", snapshot.deathRaw);
         AddSparse(record, "health", snapshot.health);
@@ -896,7 +876,8 @@ public sealed class CrowdVatAiDebugRecorder
         AddSparse(record, "pos", snapshot.worldPosition);
         AddSparse(record, "vel", snapshot.worldVelocity);
         AddSparse(record, "yaw", snapshot.yawDegrees);
-        AddSparse(record, "activeRaw", snapshot.activeRaw);
+        AddSparse(record, "physicsActiveRaw", snapshot.physicsActiveRaw);
+        AddSparse(record, "combatActiveRaw", snapshot.combatActiveRaw);
         AddSparse(record, "deathRaw", snapshot.deathRaw);
         CommitSparse(record);
     }
@@ -938,7 +919,6 @@ public sealed class CrowdVatAiDebugRecorder
             AddSparse(record, "slot", (int)snapshot.candidateSlot);
             AddSparse(record, "reason", GetGpuCandidateReasonText(snapshot.reasonMask));
             AddSparse(record, "reasonMask", snapshot.reasonMask);
-            AddSparse(record, "score", snapshot.score);
             AddSparse(record, "pos", worldPosition);
             AddSparse(record, "localPos", localPosition);
             AddSparse(record, "yaw", Mathf.Repeat(snapshot.localPositionYaw.w * Mathf.Rad2Deg, 360.0f));
@@ -946,7 +926,7 @@ public sealed class CrowdVatAiDebugRecorder
             AddSparse(record, "localVel", localVelocity);
             AddSparse(record, "speed", worldVelocity.magnitude);
             AddSparse(record, "scale", snapshot.velocityScaleHealth.z);
-            AddSparse(record, "activeRaw", snapshot.active);
+            AddSparse(record, "physicsActiveRaw", snapshot.physicsActive);
             AddSparse(record, "dead", (snapshot.deathState & AiDebugDeathStateDeadFlag) != 0u);
             AddSparse(record, "deathRaw", snapshot.deathState);
             AddSparse(record, "health", snapshot.velocityScaleHealth.w);
@@ -959,6 +939,7 @@ public sealed class CrowdVatAiDebugRecorder
             }
 
             AddSparse(record, "combat.flags", snapshot.combatFlags);
+            AddSparse(record, "physicsActive", snapshot.physicsActive != 0u);
             AddSparse(record, "target", snapshot.combatTargetIndex);
             AddSparse(record, "hasTarget", (snapshot.combatFlags & InstanceCombatFlagHasTarget) != 0u);
             AddSparse(record, "los", (snapshot.combatFlags & InstanceCombatFlagHasLineOfSight) != 0u);
@@ -1000,11 +981,6 @@ public sealed class CrowdVatAiDebugRecorder
                 snapshot.acquisitionLastKnownScore.z);
 
             CrowdVatAiDebugRecord record = CreateSparseRecord("gpu.stage", (int)snapshot.instanceIndex, deltaTime);
-            AddSparse(record, "gpu.frame", (int)snapshot.frameIndex);
-            AddSparse(record, "slot", (int)snapshot.targetSlot);
-            AddSparse(record, "ph", GetGpuStageName(snapshot.stageId));
-            if (snapshot.solverIteration >= 0)
-                AddSparse(record, "iter", snapshot.solverIteration);
             AddSparse(record, "pos", worldPosition);
             AddSparse(record, "localPos", localPosition);
             AddSparse(record, "yaw", Mathf.Repeat(snapshot.localPositionYaw.w * Mathf.Rad2Deg, 360.0f));
@@ -1012,7 +988,7 @@ public sealed class CrowdVatAiDebugRecorder
             AddSparse(record, "localVel", localVelocity);
             AddSparse(record, "speed", worldVelocity.magnitude);
             AddSparse(record, "scale", snapshot.velocityScaleHealth.z);
-            AddSparse(record, "activeRaw", snapshot.active);
+            AddSparse(record, "physicsActiveRaw", snapshot.physicsActive);
             AddSparse(record, "dead", (snapshot.deathState & AiDebugDeathStateDeadFlag) != 0u);
             AddSparse(record, "deathRaw", snapshot.deathState);
             AddSparse(record, "health", snapshot.velocityScaleHealth.w);
@@ -1025,6 +1001,7 @@ public sealed class CrowdVatAiDebugRecorder
             }
 
             AddSparse(record, "combat.flags", snapshot.combatFlags);
+            AddSparse(record, "physicsActive", snapshot.physicsActive != 0u);
             AddSparse(record, "target", snapshot.combatTargetIndex);
             AddSparse(record, "hasTarget", (snapshot.combatFlags & InstanceCombatFlagHasTarget) != 0u);
             AddSparse(record, "los", (snapshot.combatFlags & InstanceCombatFlagHasLineOfSight) != 0u);
@@ -1040,6 +1017,10 @@ public sealed class CrowdVatAiDebugRecorder
             AddSparse(record, "shot.hitAgent", Mathf.RoundToInt(snapshot.combatDebugShotInfo.y));
             AddSparse(record, "shot.hitScene", snapshot.combatDebugShotInfo.z > 0.5f);
             AddSparse(record, "shot.blockedBySceneBeforeAgent", snapshot.combatDebugShotInfo.w > 0.5f);
+            AddSparse(record, "shot.hitAgentIndex", Mathf.RoundToInt(snapshot.combatDebugShotTrace.x));
+            AddSparse(record, "shot.occupantCount", Mathf.RoundToInt(snapshot.combatDebugShotTrace.y));
+            AddSparse(record, "shot.damageApplied", snapshot.combatDebugShotTrace.z > 0.5f);
+            AddSparse(record, "shot.hitAgentPreservedVisual", snapshot.combatDebugShotTrace.w > 0.5f);
 
             AddSparse(record, "acq.target", snapshot.acquisitionTargetIndex);
             AddSparse(record, "acq.lastAttacker", snapshot.acquisitionLastAttackerIndex);
@@ -1049,6 +1030,15 @@ public sealed class CrowdVatAiDebugRecorder
             AddSparse(record, "acq.score", snapshot.acquisitionLastKnownScore.w);
             AddSparse(record, "acq.timers", snapshot.acquisitionTimers);
             EmitTargetRejectCounts(record, snapshot.acquisitionRejectCounts0, snapshot.acquisitionRejectCounts1);
+
+            if (!HasSparsePayload(record))
+                continue;
+
+            record.Add("gpu.frame", (int)snapshot.frameIndex);
+            record.Add("slot", (int)snapshot.targetSlot);
+            record.Add("ph", GetGpuStageName(snapshot.stageId));
+            if (snapshot.solverIteration >= 0)
+                record.Add("iter", snapshot.solverIteration);
             CommitSparse(record);
         }
     }
@@ -1092,6 +1082,10 @@ public sealed class CrowdVatAiDebugRecorder
             AddSparse(record, "shot.hitAgent", snapshot.combatShotHitAgentIndex);
             AddSparse(record, "shot.hitScene", snapshot.combatShotHitScene);
             AddSparse(record, "shot.blockedBySceneBeforeAgent", snapshot.combatShotBlockedBySceneBeforeAgent);
+            AddSparse(record, "shot.hitAgentIndex", snapshot.combatResolvedHitAgentIndex);
+            AddSparse(record, "shot.occupantCount", snapshot.combatShotOccupantCount);
+            AddSparse(record, "shot.damageApplied", snapshot.combatShotDamageApplied);
+            AddSparse(record, "shot.hitAgentPreservedVisual", snapshot.combatShotHitAgentPreservedVisual);
             AddSparse(record, "origin", snapshot.combatWorldOrigin);
             AddSparse(record, "targetPoint", snapshot.combatWorldTarget);
             AddSparse(record, "impactNormal", snapshot.combatWorldImpactNormal);
@@ -1142,7 +1136,8 @@ public sealed class CrowdVatAiDebugRecorder
     {
         CrowdVatAiDebugRecord record = CreateSparseRecord("visibility.render", snapshot.runtimeInstanceIndex, deltaTime);
         AddSparse(record, "role", role);
-        AddSparse(record, "active", snapshot.active);
+        AddSparse(record, "physicsActive", snapshot.physicsActive);
+        AddSparse(record, "combatActive", snapshot.combatActive);
         AddSparse(record, "dead", snapshot.dead);
         AddSparse(record, "renderScale", snapshot.dead ? 0.0f : snapshot.scale);
         CommitSparse(record);
@@ -1188,21 +1183,8 @@ public sealed class CrowdVatAiDebugRecorder
 
         StringBuilder builder = new StringBuilder(96);
         AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonRegion, "region");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonDeadButActive, "deadButActive");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonGridOverflow, "gridOverflow");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonInvalidState, "invalidState");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonHighSpeed, "highSpeed");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonCombatTargetInvalid, "combatTargetInvalid");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonAcquisitionTargetInvalid, "acqTargetInvalid");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonRejectSaturated, "rejectSaturated");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonShotBlockedByScene, "shotBlockedByScene");
         AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonScreen, "screen");
         AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonSquad, "squad");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonInactiveMoving, "inactiveMoving");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonNoLineOfSight, "noLineOfSight");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonSpeedSpike, "speedSpike");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonStuck, "stuck");
-        AppendGpuCandidateReason(builder, reasonMask, GpuCandidateReasonPositionJump, "positionJump");
         return builder.Length > 0 ? builder.ToString() : "unknown";
     }
 
@@ -1260,13 +1242,18 @@ public sealed class CrowdVatAiDebugRecorder
 
     private void CommitSparse(CrowdVatAiDebugRecord record)
     {
-        if (record.Fields.Count <= 4)
-            return;
-
-        if (record.Fields.Count == 5 && record.Fields[4].Key == "id")
+        if (!HasSparsePayload(record))
             return;
 
         _records.Add(record);
+    }
+
+    private static bool HasSparsePayload(CrowdVatAiDebugRecord record)
+    {
+        if (record.Fields.Count <= 4)
+            return false;
+
+        return record.Fields.Count != 5 || record.Fields[4].Key != "id";
     }
 
     private float ComputeDeltaTime()
@@ -1310,10 +1297,6 @@ public sealed class CrowdVatAiDebugRecorder
         builder.AppendLine();
         builder.AppendLine("- 模式：" + _discoverySettings.mode);
         builder.AppendLine("- 候选容量：" + _discoverySettings.candidateCapacity.ToString(CultureInfo.InvariantCulture));
-        builder.AppendLine("- 高速阈值：" + _discoverySettings.highSpeedThreshold.ToString("0.####", CultureInfo.InvariantCulture));
-        builder.AppendLine("- 速度突变阈值：" + _discoverySettings.speedSpikeThreshold.ToString("0.####", CultureInfo.InvariantCulture));
-        builder.AppendLine("- 帧间位移跳变阈值：" + _discoverySettings.positionJumpThreshold.ToString("0.####", CultureInfo.InvariantCulture));
-        builder.AppendLine("- 卡住判定帧数：" + _discoverySettings.stuckFrameThreshold.ToString(CultureInfo.InvariantCulture));
         builder.AppendLine("- 区域中心：" + CrowdVatAiDebugRecord.ToStableString(_discoverySettings.worldCenter));
         builder.AppendLine("- 区域半径：" + _discoverySettings.radius.ToString("0.####", CultureInfo.InvariantCulture));
         builder.AppendLine("- 盒子中心：" + CrowdVatAiDebugRecord.ToStableString(_discoverySettings.worldBoxCenter));
@@ -1343,7 +1326,7 @@ public sealed class CrowdVatAiDebugRecorder
         builder.AppendLine();
         builder.AppendLine("- `agent.state` 中位置、速度、死亡、所属小队的异常变化。");
         builder.AppendLine("- `gpu.phase` 中 GPU 帧末状态是否和 CPU 意图不一致。");
-        builder.AppendLine("- `gpu.discovery` 中 GPU 自动发现的异常候选实例、reason、score 与候选容量是否打满。");
+        builder.AppendLine("- `gpu.discovery` 中 GPU 自动发现的候选实例、reason 与候选容量是否打满。");
         builder.AppendLine("- `spatial.grid` 中 cell occupant、overflow、neighbor 变化。");
         builder.AppendLine("- `combat.query` 中目标、LOS、开火、命中、血量变化。");
         builder.AppendLine("- `squad.intent` 中命令、目标点、移动速度、alive count 变化。");

@@ -39,7 +39,7 @@ public struct CrowdVatSquadAliveObservation
 public struct CrowdVatCombatObservation
 {
     public int runtimeInstanceIndex;
-    public bool active;
+    public bool physicsActive;
     public bool dead;
     public bool hasTarget;
     public int runtimeTargetInstanceIndex;
@@ -378,7 +378,7 @@ public sealed class CrowdVatGpuBridgeState
         for (int index = 0; index < source.Length; index++)
         {
             CrowdVatDirtyRange range = source[index];
-            if (!range.IsValid)
+            if (range.count <= 0)
                 continue;
 
             range.startIndex = Math.Max(0, range.startIndex);

@@ -1,0 +1,1972 @@
+schema_version: 1
+catalog_id: qianxia.gpu_pass_catalog
+marker_format: "[{pass_id}] {display_name}"
+passes:
+  - pass_id: crowd.workset.build_alive_list
+    display_name: Crowd / Workset / Build Alive List
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildAliveInstanceList
+    owner: crowd_system
+    aliases: [Crowd.Update.BuildAliveList]
+    purpose: >
+      Compact all non-dead crowd instances into the alive workset used by
+      simulation, culling, combat and rendering passes.
+    inputs:
+      - name: _InstanceCount
+        type: Constant
+        access: read
+        meaning: Total runtime crowd instance count.
+      - name: _DeathStateBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Per-instance death state used to reject inactive agents.
+    outputs:
+      - name: _AliveInstanceCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Atomic count of alive instances.
+      - name: _AliveInstanceIndexBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Dense list of alive instance indices.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: ceil(instance_count / 64)
+      data_parallel_unit: one_thread_per_instance
+    performance_hints:
+      memory_pattern: sequential_scan_plus_atomic_append
+      expected_bottleneck: atomic_append_when_alive_ratio_is_high
+      has_atomics: true
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: BuildAliveInstanceList
+
+  - pass_id: crowd.workset.build_alive_dispatch_args
+    display_name: Crowd / Workset / Build Alive Dispatch Args
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildAliveDispatchArgs
+    owner: crowd_system
+    aliases: [Crowd.Update.BuildAliveDispatchArgs]
+    purpose: >
+      Convert the alive instance count into indirect dispatch arguments for
+      later alive-workset compute passes.
+    inputs:
+      - name: _AliveInstanceCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive instance count produced by alive compaction.
+    outputs:
+      - name: _AliveInstanceDispatchArgsBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Three uint dispatch dimensions for alive indirect dispatch.
+
+      - name: _AliveInstanceCountValue
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Single uint dispatch X dimension written alongside full dispatch args.
+    dispatch:
+      thread_group_size: [1, 1, 1]
+      group_count_formula: 1
+      data_parallel_unit: one_thread_per_dispatch_args
+    performance_hints:
+      memory_pattern: single_counter_read_single_args_write
+      expected_bottleneck: none_unless_synchronized_with_previous_pass
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: BuildAliveDispatchArgs
+
+  - pass_id: crowd.wake_grid.clear
+    display_name: Crowd / Wake Grid / Clear
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: ClearWakeGrid
+    owner: crowd_system
+    aliases: [Crowd.Update.WakeGridClear]
+    purpose: >
+      Clear the lightweight wake grid counters before rebuilding neighbor wake
+      information for physics activation.
+    inputs:
+      - name: _WakeGridCellCount
+        type: Constant
+        access: read
+        meaning: Number of wake grid cells.
+    outputs:
+      - name: _WakeGridCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Per-cell wake occupancy counter reset to zero.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: ceil(wake_grid_cell_count / 64)
+      data_parallel_unit: one_thread_per_wake_grid_cell
+    performance_hints:
+      memory_pattern: linear_grid_clear
+      expected_bottleneck: memory_bandwidth_when_grid_is_large
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: ClearWakeGrid
+
+  - pass_id: crowd.wake_grid.build
+    display_name: Crowd / Wake Grid / Build
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildWakeGrid
+    owner: crowd_system
+    aliases: [Crowd.Update.WakeGridBuild]
+    purpose: >
+      Scatter alive instances into a coarse wake grid used to wake nearby
+      physics agents.
+    inputs:
+      - name: _AliveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive workset used as source instances.
+      - name: _SimulationStateBuffer
+        type: StructuredBuffer<InstanceSimulationState>
+        access: read
+        meaning: Per-instance local position used to choose a wake cell.
+    outputs:
+      - name: _WakeGridCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Atomic per-cell wake occupancy count.
+      - name: _WakeGridOccupantBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Bounded instance indices per wake grid cell.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_alive_count
+      data_parallel_unit: one_thread_per_alive_instance
+    performance_hints:
+      memory_pattern: spatial_hash_scatter
+      expected_bottleneck: atomic_contention_in_dense_cells
+      has_atomics: true
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: BuildWakeGrid
+
+  - pass_id: crowd.workset.evaluate_physics_active
+    display_name: Crowd / Workset / Evaluate Physics Active
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: EvaluatePhysicsActive
+    owner: crowd_system
+    aliases: [Crowd.Update.EvaluatePhysicsActive]
+    purpose: >
+      Decide which alive instances should remain in the expensive physics
+      simulation set based on command motion, wake state, neighbor activity and
+      sleep timers.
+    inputs:
+      - name: _AliveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive workset to evaluate.
+      - name: _WakeGridCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Neighbor wake information.
+      - name: _PhysicsActivationMetaBuffer
+        type: RWStructuredBuffer<float4>
+        access: read_write
+        meaning: Hold timers, sleep timers and previous correction magnitude.
+    outputs:
+      - name: _PhysicsActiveStateBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Per-instance active flag for physics simulation.
+      - name: _PhysicsActivationMetaBuffer
+        type: RWStructuredBuffer<float4>
+        access: read_write
+        meaning: Updated active/sleep metadata.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_alive_count
+      data_parallel_unit: one_thread_per_alive_instance
+    performance_hints:
+      memory_pattern: indirect_workset_with_neighbor_wake_reads
+      expected_bottleneck: branch_divergence_and_random_wake_grid_reads
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: high
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: EvaluatePhysicsActive
+
+  - pass_id: crowd.workset.build_physics_active_list
+    display_name: Crowd / Workset / Build Physics Active List
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildPhysicsActiveInstanceList
+    owner: crowd_system
+    aliases: [Crowd.Update.BuildPhysicsActiveList]
+    purpose: >
+      Compact alive instances whose physics-active flag is set into the
+      workset used by crowd collision and grid simulation passes.
+    inputs:
+      - name: _AliveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive source workset.
+      - name: _PhysicsActiveStateBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Per-instance physics-active flag.
+    outputs:
+      - name: _PhysicsActiveInstanceCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Atomic physics-active instance count.
+      - name: _PhysicsActiveInstanceIndexBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Dense physics-active instance list.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_alive_count
+      data_parallel_unit: one_thread_per_alive_instance
+    performance_hints:
+      memory_pattern: indirect_scan_plus_atomic_append
+      expected_bottleneck: atomic_append_when_active_ratio_is_high
+      has_atomics: true
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: BuildPhysicsActiveInstanceList
+
+  - pass_id: crowd.workset.build_physics_active_dispatch_args
+    display_name: Crowd / Workset / Build Physics Active Dispatch Args
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildPhysicsActiveDispatchArgs
+    owner: crowd_system
+    aliases: [Crowd.Update.BuildPhysicsActiveDispatchArgs]
+    purpose: >
+      Convert the physics-active count into indirect dispatch arguments for
+      physics-active simulation passes.
+    inputs:
+      - name: _PhysicsActiveInstanceCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Physics-active instance count.
+    outputs:
+      - name: _PhysicsActiveInstanceDispatchArgsBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Three uint dispatch dimensions for physics-active passes.
+
+      - name: _PhysicsActiveInstanceCountValue
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Single uint dispatch X dimension for physics-active indirect dispatch.
+    dispatch:
+      thread_group_size: [1, 1, 1]
+      group_count_formula: 1
+      data_parallel_unit: one_thread_per_dispatch_args
+    performance_hints:
+      memory_pattern: single_counter_read_single_args_write
+      expected_bottleneck: none_unless_synchronized_with_previous_pass
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: BuildPhysicsActiveDispatchArgs
+
+  - pass_id: crowd.combat.evaluate_active
+    display_name: Crowd / Combat / Evaluate Active
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: EvaluateCombatActive
+    owner: crowd_system
+    aliases: [Crowd.Combat.EvaluateActive]
+    purpose: >
+      Decide which alive instances need combat processing based on target
+      state, visual feedback hold timers and staggered probe frames.
+    inputs:
+      - name: _AliveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive source workset.
+      - name: _CombatStateBuffer
+        type: StructuredBuffer<InstanceCombatStateData>
+        access: read
+        meaning: Current combat visual and target state.
+      - name: _TargetAcquisitionStateBuffer
+        type: StructuredBuffer<TargetAcquisitionStateData>
+        access: read
+        meaning: Per-instance target acquisition state.
+    outputs:
+      - name: _CombatActiveStateBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Per-instance combat-active flag.
+      - name: _CombatActivationMetaBuffer
+        type: RWStructuredBuffer<float4>
+        access: read_write
+        meaning: Combat hold timer, reason mask and target debug metadata.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_alive_count
+      data_parallel_unit: one_thread_per_alive_instance
+    performance_hints:
+      memory_pattern: indirect_workset_state_reads
+      expected_bottleneck: branch_divergence_from_probe_and_visual_state
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: EvaluateCombatActive
+
+  - pass_id: crowd.combat.build_active_list
+    display_name: Crowd / Combat / Build Active List
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildCombatActiveInstanceList
+    owner: crowd_system
+    aliases: [Crowd.Combat.BuildActiveList]
+    purpose: >
+      Compact alive instances marked combat-active into an indirect workset for
+      target acquisition and combat resolution.
+    inputs:
+      - name: _AliveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive source workset.
+      - name: _CombatActiveStateBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Combat-active flag produced by evaluation.
+    outputs:
+      - name: _CombatActiveInstanceCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Atomic combat-active instance count.
+      - name: _CombatActiveInstanceIndexBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Dense combat-active instance list.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_alive_count
+      data_parallel_unit: one_thread_per_alive_instance
+    performance_hints:
+      memory_pattern: indirect_scan_plus_atomic_append
+      expected_bottleneck: atomic_append_when_combat_active_ratio_is_high
+      has_atomics: true
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: BuildCombatActiveInstanceList
+
+  - pass_id: crowd.combat.compact_active_list
+    display_name: Crowd / Combat / Compact Active List
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: CompactCombatActiveInstanceList
+    owner: crowd_system
+    aliases: [Crowd.Combat.CompactActiveList]
+    purpose: >
+      Merge the target-priority combat-active suffix into the dense combat
+      workset prefix after the append pass split active instances by reason.
+    inputs:
+      - name: _CombatActiveInstanceCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Counter 0 stores visual/probe active count; counter 1 stores target-priority active count.
+      - name: _CombatActiveInstanceIndexBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Combat-active list with target-priority entries temporarily appended from the end.
+    outputs:
+      - name: _CombatActiveInstanceCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Counter 0 updated to the final merged combat-active count.
+      - name: _CombatActiveInstanceIndexBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Dense combat-active list with target-priority entries copied behind the prefix.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: ceil(instance_count / 64)
+      data_parallel_unit: one_thread_per_target_priority_combat_active_instance
+    performance_hints:
+      memory_pattern: suffix_to_prefix_compaction
+      expected_bottleneck: memory_copy_when_many_agents_have_targets
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: CompactCombatActiveInstanceList
+
+  - pass_id: crowd.combat.build_active_dispatch_args
+    display_name: Crowd / Combat / Build Active Dispatch Args
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildCombatActiveDispatchArgs
+    owner: crowd_system
+    aliases: [Crowd.Combat.BuildActiveDispatchArgs]
+    purpose: >
+      Convert the combat-active count into indirect dispatch arguments for
+      combat processing passes.
+    inputs:
+      - name: _CombatActiveInstanceCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Combat-active instance count.
+    outputs:
+      - name: _CombatActiveInstanceDispatchArgsBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Three uint dispatch dimensions for combat-active passes.
+
+      - name: _CombatActiveInstanceCountValue
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Single uint dispatch X dimension for combat-active indirect dispatch.
+    dispatch:
+      thread_group_size: [1, 1, 1]
+      group_count_formula: 1
+      data_parallel_unit: one_thread_per_dispatch_args
+    performance_hints:
+      memory_pattern: single_counter_read_single_args_write
+      expected_bottleneck: none_unless_synchronized_with_previous_pass
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: BuildCombatActiveDispatchArgs
+
+  - pass_id: crowd.combat.clear_candidate_counters
+    display_name: Crowd / Combat / Clear Candidate Counters
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: ClearCombatSquadCandidateCounters
+    owner: crowd_system
+    aliases: [Crowd.Combat.ClearCandidateCounters]
+    purpose: >
+      Clear per-squad combat candidate counters before rebuilding broadphase
+      candidate clusters.
+    inputs:
+      - name: _SquadStateCount
+        type: Constant
+        access: read
+        meaning: Runtime squad count.
+    outputs:
+      - name: _CombatSquadCandidateCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Per-squad candidate counter reset to zero.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: ceil(squad_state_count / 64)
+      data_parallel_unit: one_thread_per_squad
+    performance_hints:
+      memory_pattern: linear_squad_counter_clear
+      expected_bottleneck: none_unless_squad_count_is_large
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: ClearCombatSquadCandidateCounters
+
+  - pass_id: crowd.combat.build_candidate_clusters
+    display_name: Crowd / Combat / Build Candidate Clusters
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildCombatCandidateClusters
+    owner: crowd_system
+    aliases: [Crowd.Combat.BuildCandidateClusters]
+    purpose: >
+      Scan CPU-built runtime squad broadphase cell-tile work items and append
+      bounded hostile instance candidates inside combat range without broadcasting
+      the largest squad tile count to every squad.
+    inputs:
+      - name: _SquadStateBuffer
+        type: StructuredBuffer<SquadStateData>
+        access: read
+        meaning: Runtime squad centers, faction and bounds.
+      - name: _GridCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Spatial grid occupancy counts.
+      - name: _GridOccupantBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Candidate instance indices per grid cell.
+      - name: _CombatCandidateClusterWorkItemBuffer
+        type: StructuredBuffer<CombatCandidateClusterWorkItemData>
+        access: read
+        meaning: Per-dispatch work items containing source squad index, tile begin, cell width/count and clamped grid min coordinate.
+    outputs:
+      - name: _CombatSquadCandidateCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Atomic candidate count per source squad.
+      - name: _CombatSquadCandidateBuffer
+        type: RWStructuredBuffer<CombatSquadCandidateData>
+        access: write
+        meaning: Bounded hostile candidates per source squad, prepacked with target index, faction, target top local position and scale.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_dispatch(sum(per_squad_candidate_cluster_tile_count), 1, 1)
+      data_parallel_unit: one_thread_per_grid_occupant_in_cpu_built_squad_cell_tile_work_item
+    performance_hints:
+      memory_pattern: compact_squad_tile_workset_scan_with_per_candidate_atomic_append
+      expected_bottleneck: dense_candidate_record_writes_and_per_squad_atomic_append
+      has_atomics: true
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectWorksets.hlsl
+      function: BuildCombatCandidateClusters
+
+  - pass_id: crowd.render.clear_runtime_squad_bounds
+    display_name: Crowd / Render / Clear Runtime Squad Bounds
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: ClearVisibleRuntimeSquadBounds
+    owner: crowd_system
+    aliases: [Crowd.Culling.ClearRuntimeSquadBounds]
+    purpose: >
+      Reset per-squad runtime AABB accumulators and visibility masks before the
+      GPU-driven squad coarse culling prepass.
+    inputs:
+      - name: _SquadStateCount
+        type: Constant
+        access: read
+        meaning: Number of active runtime squads to clear.
+    outputs:
+      - name: _RuntimeSquadBoundsBuffer
+        type: RWStructuredBuffer<RuntimeSquadBoundsData>
+        access: write
+        meaning: Per-squad ordered min/max bounds reset to empty sentinels.
+      - name: _VisibleRuntimeSquadMaskBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Per-squad visibility mask reset to zero.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: ceil(squad_state_count / 64)
+      data_parallel_unit: one_thread_per_squad
+    performance_hints:
+      memory_pattern: linear_squad_clear
+      expected_bottleneck: memory_bandwidth_when_squad_count_is_large
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCulling.hlsl
+      function: ClearVisibleRuntimeSquadBounds
+
+  - pass_id: crowd.render.build_runtime_squad_bounds
+    display_name: Crowd / Render / Build Runtime Squad Bounds
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildVisibleRuntimeSquadBounds
+    owner: crowd_system
+    aliases: [Crowd.Culling.BuildRuntimeSquadBounds]
+    purpose: >
+      Scan alive runtime instances, reconstruct their per-instance render AABB
+      on the GPU, and atomically accumulate per-squad min/max bounds for the
+      next coarse culling stage.
+    inputs:
+      - name: _AliveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive source workset.
+      - name: _SimulationStateBuffer
+        type: StructuredBuffer<InstanceSimulationState>
+        access: read
+        meaning: Current transform state used to rebuild per-instance bounds.
+      - name: _AgentSquadDataBuffer
+        type: StructuredBuffer<AgentSquadData>
+        access: read
+        meaning: Per-instance runtime squad assignment.
+    outputs:
+      - name: _RuntimeSquadBoundsBuffer
+        type: RWStructuredBuffer<RuntimeSquadBoundsData>
+        access: read_write
+        meaning: Per-squad ordered min/max bounds updated through atomic min/max.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_alive_count
+      data_parallel_unit: one_thread_per_alive_instance
+    performance_hints:
+      memory_pattern: indirect_scan_plus_per_squad_atomic_minmax
+      expected_bottleneck: atomic_minmax_contention_in_dense_runtime_squads
+      has_atomics: true
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCulling.hlsl
+      function: BuildVisibleRuntimeSquadBounds
+
+  - pass_id: crowd.render.cull_runtime_squads
+    display_name: Crowd / Render / Cull Runtime Squads
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: CullVisibleRuntimeSquads
+    owner: crowd_system
+    aliases: [Crowd.Culling.CullRuntimeSquads]
+    purpose: >
+      Test each GPU-built runtime squad AABB against the camera frustum and
+      write the coarse visibility mask consumed by the instance compaction pass.
+    inputs:
+      - name: _RuntimeSquadBoundsBuffer
+        type: StructuredBuffer<RuntimeSquadBoundsData>
+        access: read
+        meaning: Per-squad AABB generated from alive instances.
+      - name: _VisibleFrustumPlanes
+        type: Constant
+        access: read
+        meaning: Camera frustum planes plus root transform used for local AABB tests.
+    outputs:
+      - name: _VisibleRuntimeSquadMaskBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Per-squad coarse visibility mask for the final instance pass.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: ceil(squad_state_count / 64)
+      data_parallel_unit: one_thread_per_squad
+    performance_hints:
+      memory_pattern: sequential_squad_bounds_read_plus_plane_tests
+      expected_bottleneck: plane_test_alu_when_squad_count_is_high
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCulling.hlsl
+      function: CullVisibleRuntimeSquads
+
+  - pass_id: crowd.render.instance_culling
+    display_name: Crowd / Render / Instance Culling
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildVisibleRuntimeInstanceList
+    owner: crowd_system
+    aliases: [Crowd.Culling.BuildVisibleRuntimeList]
+    purpose: >
+      Filter alive runtime instances through the GPU-built squad visibility mask
+      plus per-instance camera frustum tests, then append visible instance
+      indices into up to three distance-tier draw lists for indirect rendering.
+    inputs:
+      - name: _AliveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive source workset.
+      - name: _SimulationStateBuffer
+        type: StructuredBuffer<InstanceSimulationState>
+        access: read
+        meaning: Current transform state used for frustum testing.
+      - name: _AgentSquadDataBuffer
+        type: StructuredBuffer<AgentSquadData>
+        access: read
+        meaning: Per-instance runtime squad assignment used to consult the coarse visibility mask.
+      - name: _VisibleRuntimeSquadMaskBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: GPU-generated per-squad coarse visibility mask.
+    outputs:
+      - name: _VisibleInstanceCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Atomic LOD0 visible instance count.
+      - name: _VisibleInstanceIndices
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Dense LOD0 visible instance list.
+      - name: _VisibleLod1InstanceCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Atomic LOD1 visible instance count.
+      - name: _VisibleLod1InstanceIndices
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Dense LOD1 visible instance list.
+      - name: _VisibleLod2InstanceCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Atomic LOD2 visible instance count.
+      - name: _VisibleLod2InstanceIndices
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Dense LOD2 visible instance list.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_alive_count
+      data_parallel_unit: one_thread_per_alive_instance
+    performance_hints:
+      memory_pattern: indirect_scan_with_squad_mask_reads_distance_tier_branch_and_atomic_append
+      expected_bottleneck: squad_mask_reads_frustum_branching_distance_tier_partition_and_atomic_append
+      has_atomics: true
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCulling.hlsl
+      function: BuildVisibleRuntimeInstanceList
+
+  - pass_id: crowd.render.build_indirect_args
+    display_name: Crowd / Render / Build Indirect Args
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildVisibleIndirectArgs
+    owner: crowd_system
+    aliases: [Crowd.Culling.BuildVisibleIndirectArgs]
+    purpose: >
+      Build the tier-local indirect draw argument record from the current
+      visible instance counter and static mesh index parameters. This pass is
+      dispatched once per active render LOD tier and submesh.
+    inputs:
+      - name: _VisibleInstanceCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Current render LOD tier visible instance count.
+      - name: _VisibleRenderArgsIndexCount
+        type: Constant
+        access: read
+        meaning: Mesh index count per instance.
+    outputs:
+      - name: _VisibleRenderArgsBuffer
+        type: RWStructuredBuffer<IndirectDrawIndexedArgsData>
+        access: write
+        meaning: Current render LOD tier indirect draw indexed argument record.
+
+      - name: _VisibleInstanceCountValue
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Single uint current-tier visible instance count for indirect draw args validation.
+    dispatch:
+      thread_group_size: [1, 1, 1]
+      group_count_formula: 1
+      data_parallel_unit: one_thread_per_draw_args
+    performance_hints:
+      memory_pattern: single_counter_read_single_args_write
+      expected_bottleneck: none_unless_synchronized_with_culling
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCulling.hlsl
+      function: BuildVisibleIndirectArgs
+
+  - pass_id: crowd.sim.predict_instances
+    display_name: Crowd / Sim / Predict Instances
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: PredictInstances
+    owner: crowd_system
+    aliases: [Crowd.Update.PredictAnimation]
+    purpose: >
+      Predict per-instance movement from command velocity, interaction bubbles,
+      local avoidance, formation projection and environment constraints.
+    inputs:
+      - name: _AliveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive source workset.
+      - name: _SpawnData
+        type: StructuredBuffer<InstanceSpawnData>
+        access: read
+        meaning: Static spawn anchor and authored instance data.
+      - name: _InteractionSphereBuffer
+        type: StructuredBuffer<InteractionSphereData>
+        access: read
+        meaning: Runtime interaction bubble influences.
+    outputs:
+      - name: _SimulationStateBuffer
+        type: RWStructuredBuffer<InstanceSimulationState>
+        access: read_write
+        meaning: Predicted position, yaw, scale and velocity.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_alive_count
+      data_parallel_unit: one_thread_per_alive_instance
+    performance_hints:
+      memory_pattern: indirect_per_instance_state_update_with_small_loop
+      expected_bottleneck: branch_divergence_from_movement_modes_and_interactions
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: high
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+      function: PredictInstances
+
+  - pass_id: crowd.query_grid.build_clear_dispatch_args
+    display_name: Crowd / Query Grid / Build Clear Dispatch Args
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildGridClearDispatchArgs
+    owner: crowd_system
+    aliases: [Crowd.QueryGrid.BuildClearDispatchArgs]
+    purpose: >
+      Convert the previous touched-cell count into indirect dispatch arguments
+      for sparse grid clearing.
+    inputs:
+      - name: _GridPrevTouchedCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Count of grid cells touched in the previous build.
+    outputs:
+      - name: _GridClearDispatchArgsBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Three uint dispatch dimensions for sparse grid clearing.
+
+      - name: _GridClearDispatchCountValue
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Single uint dispatch X dimension for grid clear indirect dispatch.
+    dispatch:
+      thread_group_size: [1, 1, 1]
+      group_count_formula: 1
+      data_parallel_unit: one_thread_per_dispatch_args
+    performance_hints:
+      memory_pattern: single_counter_read_single_args_write
+      expected_bottleneck: none_unless_synchronized_with_previous_grid_build
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+      function: BuildGridClearDispatchArgs
+
+  - pass_id: crowd.query_grid.clear_touched_cells
+    display_name: Crowd / Query Grid / Clear Touched Cells
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: ClearGrid
+    owner: crowd_system
+    aliases: [Crowd.QueryGrid.ClearTouchedCells]
+    purpose: >
+      Clear only spatial grid cells touched by the previous frame instead of
+      clearing the entire grid.
+    inputs:
+      - name: _GridPrevTouchedCellBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: List of previously touched grid cell indices.
+      - name: _GridPrevTouchedCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Previous touched cell count.
+    outputs:
+      - name: _GridCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Per-cell occupancy counter reset for touched cells.
+      - name: _GridCurrTouchedCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Current touched cell count reset before rebuild.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_grid_clear_count
+      data_parallel_unit: one_thread_per_previous_touched_cell
+    performance_hints:
+      memory_pattern: sparse_grid_clear
+      expected_bottleneck: random_writes_when_touched_cells_are_fragmented
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+      function: ClearGrid
+
+  - pass_id: crowd.query_grid.build
+    display_name: Crowd / Query Grid / Build
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildGrid
+    owner: crowd_system
+    aliases: [Crowd.QueryGrid.Build]
+    purpose: >
+      Scatter alive or physics-active instances into the spatial query grid
+      used by crowd collision, combat and scene queries.
+    inputs:
+      - name: _AliveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive workset for broad grid mode.
+      - name: _PhysicsActiveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Physics-active workset for narrow grid mode.
+      - name: _SimulationStateBuffer
+        type: StructuredBuffer<InstanceSimulationState>
+        access: read
+        meaning: Current position used to choose a grid cell.
+    outputs:
+      - name: _GridCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Atomic per-cell occupancy count.
+      - name: _GridOccupantBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Bounded occupant list per grid cell.
+      - name: _GridCurrTouchedCellBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Sparse list of cells touched by this build.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_alive_or_physics_active_count
+      data_parallel_unit: one_thread_per_grid_source_instance
+    performance_hints:
+      memory_pattern: spatial_hash_scatter_with_touched_cell_tracking
+      expected_bottleneck: atomic_contention_and_cell_overflow_in_dense_crowds
+      has_atomics: true
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+      function: BuildGrid
+
+  - pass_id: crowd.scene_query.build_spatial_elements
+    display_name: Crowd / Scene Query / Build Spatial Elements
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildSpatialElements
+    owner: crowd_system
+    aliases: [Crowd.SceneQuery.BuildSpatialElements]
+    purpose: >
+      Build queryable per-instance spatial element metadata such as capsule,
+      faction, target mask and active flags.
+    inputs:
+      - name: _SpawnData
+        type: StructuredBuffer<InstanceSpawnData>
+        access: read
+        meaning: Static faction, mask and authored placement data.
+      - name: _SimulationStateBuffer
+        type: StructuredBuffer<InstanceSimulationState>
+        access: read
+        meaning: Current position and scale.
+      - name: _PhysicsActiveStateBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Physics-active state exposed to query filters.
+    outputs:
+      - name: _SpatialElementBuffer
+        type: RWStructuredBuffer<SpatialElementData>
+        access: write
+        meaning: Queryable per-instance capsule and filter metadata.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: ceil(instance_count / 64)
+      data_parallel_unit: one_thread_per_instance
+    performance_hints:
+      memory_pattern: sequential_instance_to_spatial_element_write
+      expected_bottleneck: memory_bandwidth
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+      function: BuildSpatialElements
+
+  - pass_id: crowd.sim.solve_crowd
+    display_name: Crowd / Sim / Solve Crowd
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: SolveCrowdCollisions
+    owner: crowd_system
+    aliases: [Crowd.Simulation.SolveCrowd]
+    purpose: >
+      Resolve per-instance crowd movement, environment constraints, local
+      collision pressure and formation correction for physics-active agents.
+    inputs:
+      - name: _PhysicsActiveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Workset of instances selected for crowd simulation.
+      - name: _SpawnData
+        type: StructuredBuffer<InstanceSpawnData>
+        access: read
+        meaning: Static spawn anchor, scale and authored placement data.
+      - name: _GridCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Spatial grid occupancy counts used for neighbor search.
+      - name: _GridOccupantBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Spatial grid occupant indices used for local collision checks.
+    outputs:
+      - name: _SimulationStateBuffer
+        type: RWStructuredBuffer<InstanceSimulationState>
+        access: read_write
+        meaning: Updated local position, yaw, scale and velocity.
+      - name: _PhysicsActivationMetaBuffer
+        type: RWStructuredBuffer<float4>
+        access: read_write
+        meaning: Updated correction magnitude for activation/sleep logic.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_physics_active_count
+      data_parallel_unit: one_thread_per_physics_active_instance
+    performance_hints:
+      memory_pattern: indirect_workset_plus_spatial_grid_neighbor_reads
+      expected_bottleneck: neighbor_search_bandwidth_and_branch_divergence
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: high
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSimulation.hlsl
+      function: SolveCrowdCollisions
+
+  - pass_id: crowd.combat.resolve_target_acquisition
+    display_name: Crowd / Combat / Resolve Target Acquisition
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: ResolveTargetAcquisition
+    owner: crowd_system
+    aliases: [Crowd.Combat.ResolveTargetAcquisition]
+    purpose: >
+      Refresh cheap target acquisition state for combat-active agents, validate
+      current targets without ray marching, emit the current-target recheck slot,
+      and leave squad-path Top-K search to a separate parallel candidate pass.
+      Non-squad agents keep the fallback grid search here.
+    inputs:
+      - name: _CombatActiveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Combat-active workset.
+      - name: _GridCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Fallback spatial grid occupancy.
+      - name: _GridOccupantBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Fallback spatial grid occupants.
+      - name: _TargetAcquisitionLineOfSightRecheckInterval
+        type: float
+        access: read
+        meaning: Existing-target LOS refresh interval; timers.w determines whether a recheck record is emitted.
+    outputs:
+      - name: _TargetAcquisitionStateBuffer
+        type: RWStructuredBuffer<TargetAcquisitionStateData>
+        access: read_write
+        meaning: Current target, timers, flags and debug reject counters.
+      - name: _TargetAcquisitionCandidateBuffer
+        type: RWStructuredBuffer<TargetAcquisitionCandidateData>
+        access: write
+        meaning: Fixed slots per instance; slot 0 current target recheck, plus fallback Top-K candidates for non-squad agents.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_combat_active_count
+      data_parallel_unit: one_thread_per_combat_active_instance
+    performance_hints:
+      memory_pattern: current_target_validation_or_fallback_grid_search_per_agent
+      expected_bottleneck: fallback_grid_scan_for_non_squad_agents
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+      sdf_occlusion: none
+      existing_target_los_recheck: emits_fixed_slot_query_when_target_acquisition_timers_w_expires
+      squad_candidate_evaluation: delegated_to_crowd.combat.evaluate_squad_acquisition_candidates
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+      function: ResolveTargetAcquisition
+
+  - pass_id: crowd.combat.build_squad_acquisition_dispatch_args
+    display_name: Crowd / Combat / Build Squad Acquisition Dispatch Args
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildSquadAcquisitionDispatchArgs
+    owner: crowd_system
+    aliases: [Crowd.Combat.BuildSquadAcquisitionDispatchArgs]
+    purpose: >
+      Convert combat-active count into one indirect dispatch group per active
+      agent for parallel squad candidate scoring.
+    inputs:
+      - name: _CombatActiveInstanceCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Combat-active count.
+    outputs:
+      - name: _SquadAcquisitionDispatchArgsBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Indirect dispatch arguments for squad acquisition evaluation.
+    dispatch:
+      thread_group_size: [1, 1, 1]
+      group_count_formula: direct_1
+      data_parallel_unit: one_thread_builds_args
+    performance_hints:
+      memory_pattern: single_counter_read_single_args_write
+      expected_bottleneck: none
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+      function: BuildSquadAcquisitionDispatchArgs
+
+  - pass_id: crowd.combat.evaluate_squad_acquisition_candidates
+    display_name: Crowd / Combat / Evaluate Squad Acquisition Candidates
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: EvaluateSquadAcquisitionCandidates
+    owner: crowd_system
+    aliases: [Crowd.Combat.EvaluateSquadAcquisitionCandidates]
+    purpose: >
+      Score prebuilt squad candidates with one thread group per agent and
+      one or more candidate slots per thread, reduce the group Top-K in shared
+      memory, and write slots 1..Top-K for the LOS pass.
+    inputs:
+      - name: _CombatActiveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Combat-active workset.
+      - name: _CombatActiveInstanceCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Combat-active count.
+      - name: _CombatSquadCandidateCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Candidate count per source squad.
+      - name: _CombatSquadCandidateBuffer
+        type: StructuredBuffer<CombatSquadCandidateData>
+        access: read
+        meaning: Prepacked hostile target candidates per source squad.
+      - name: _TargetAcquisitionStateBuffer
+        type: StructuredBuffer<TargetAcquisitionStateData>
+        access: read
+        meaning: Current target and attacker bonus state.
+    outputs:
+      - name: _TargetAcquisitionCandidateBuffer
+        type: RWStructuredBuffer<TargetAcquisitionCandidateData>
+        access: write
+        meaning: Per-agent Top-K squad acquisition candidates in slots 1..Top-K.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_combat_active_count
+      data_parallel_unit: one_group_per_combat_active_instance_one_thread_per_candidate_stride
+    performance_hints:
+      memory_pattern: coalesced_per_squad_candidate_records_plus_group_top_k_reduce
+      expected_bottleneck: candidate_record_bandwidth_and_group_reduction
+      has_atomics: false
+      has_group_shared_memory: true
+      branch_divergence_risk: medium
+      top_k: 3
+      candidate_record_bytes: 32
+      max_candidate_slots_per_squad: 512
+      candidate_random_state_reads: 0
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+      function: EvaluateSquadAcquisitionCandidates
+
+  - pass_id: crowd.combat.build_target_acquisition_los_dispatch_args
+    display_name: Crowd / Combat / Build Target Acquisition LOS Dispatch Args
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: BuildTargetAcquisitionLosDispatchArgs
+    owner: crowd_system
+    aliases: [Crowd.Combat.BuildTargetAcquisitionLosDispatchArgs]
+    purpose: >
+      Build indirect dispatch arguments for one LOS query thread per
+      combat-active current-target recheck slot plus Top-K acquisition candidates.
+    inputs:
+      - name: _CombatActiveInstanceCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Combat-active count.
+    outputs:
+      - name: _TargetAcquisitionLosDispatchArgsBuffer
+        type: RWStructuredBuffer<uint>
+        access: write
+        meaning: Indirect dispatch arguments for candidate LOS queries.
+    dispatch:
+      thread_group_size: [1, 1, 1]
+      group_count_formula: direct_1
+      data_parallel_unit: one_thread_builds_args
+    performance_hints:
+      memory_pattern: single_counter_read_single_args_write
+      expected_bottleneck: none
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+      function: BuildTargetAcquisitionLosDispatchArgs
+
+  - pass_id: crowd.combat.resolve_target_acquisition_los
+    display_name: Crowd / Combat / Resolve Target Acquisition LOS
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: ResolveTargetAcquisitionLineOfSight
+    owner: crowd_system
+    aliases: [Crowd.Combat.ResolveTargetAcquisitionLineOfSight]
+    purpose: >
+      Resolve Environment SDF LOS for current-target rechecks and Top-K target
+      acquisition candidates as independent ray-query threads.
+    inputs:
+      - name: _CombatActiveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Combat-active workset.
+      - name: _TargetAcquisitionCandidateBuffer
+        type: RWStructuredBuffer<TargetAcquisitionCandidateData>
+        access: read_write
+        meaning: Current recheck and Top-K candidates updated with LOS flags and reject reasons.
+      - name: _EnvironmentDistanceFieldTexture
+        type: Texture3D<float4>
+        access: read
+        meaning: Baked Environment SDF sampled by distance-only LOS ray march.
+    outputs:
+      - name: _TargetAcquisitionCandidateBuffer
+        type: RWStructuredBuffer<TargetAcquisitionCandidateData>
+        access: read_write
+        meaning: Candidate LOS result flags.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_combat_active_count_times_target_acquisition_candidate_slots
+      data_parallel_unit: one_thread_per_current_or_top_k_candidate_ray
+    performance_hints:
+      memory_pattern: independent_top_k_sdf_los_rays
+      expected_bottleneck: distance_only_sdf_ray_march_texture_sampling
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: high
+      top_k: 3
+      candidate_slots_per_instance: 4
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+      function: ResolveTargetAcquisitionLineOfSight
+
+  - pass_id: crowd.combat.finalize_target_acquisition
+    display_name: Crowd / Combat / Finalize Target Acquisition
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: FinalizeTargetAcquisition
+    owner: crowd_system
+    aliases: [Crowd.Combat.FinalizeTargetAcquisition]
+    purpose: >
+      Merge current-target recheck and Top-K LOS results back into per-agent
+      target acquisition state.
+    inputs:
+      - name: _CombatActiveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Combat-active workset.
+      - name: _TargetAcquisitionCandidateBuffer
+        type: RWStructuredBuffer<TargetAcquisitionCandidateData>
+        access: read
+        meaning: Current recheck plus Top-K candidate score and LOS results.
+    outputs:
+      - name: _TargetAcquisitionStateBuffer
+        type: RWStructuredBuffer<TargetAcquisitionStateData>
+        access: read_write
+        meaning: Final selected target, timers and debug reject counters.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_combat_active_count
+      data_parallel_unit: one_thread_per_combat_active_instance
+    performance_hints:
+      memory_pattern: small_fixed_top_k_merge_per_agent
+      expected_bottleneck: negligible_compared_to_los
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+      top_k: 3
+      candidate_slots_per_instance: 4
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+      function: FinalizeTargetAcquisition
+
+  - pass_id: crowd.combat.resolve_instance
+    display_name: Crowd / Combat / Resolve Instance
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: ResolveInstanceCombat
+    owner: crowd_system
+    aliases: [Crowd.Combat.ResolveInstance]
+    purpose: >
+      Apply per-instance combat state updates, damage feedback, cooldowns and
+      shot visual state for combat-active agents, while keeping no-target and
+      non-firing instances on a fast path and reserving target revalidation,
+      SDF tracing and hit resolution for actual firing attempts.
+    inputs:
+      - name: _CombatActiveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Combat-active workset.
+      - name: _TargetAcquisitionStateBuffer
+        type: StructuredBuffer<TargetAcquisitionStateData>
+        access: read
+        meaning: Target chosen by acquisition.
+      - name: _DeathStateBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Health/death state for damage resolution.
+    outputs:
+      - name: _CombatStateBuffer
+        type: RWStructuredBuffer<InstanceCombatStateData>
+        access: read_write
+        meaning: Updated combat state, visuals and shot debug metadata.
+      - name: _DeathStateBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Updated target death/health state when shots hit.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_combat_active_count
+      data_parallel_unit: one_thread_per_combat_active_instance
+    performance_hints:
+      memory_pattern: per_agent_state_update_with_target_random_access
+      expected_bottleneck: branch_divergence_and_random_target_state_writes
+      has_atomics: true
+      has_group_shared_memory: false
+      branch_divergence_risk: high
+      fast_path_split: no_target_or_cooldown_only_instances_exit_before_los_sdf_and_hit_resolution
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectCombat.hlsl
+      function: ResolveInstanceCombat
+
+  - pass_id: crowd.scene_query.clear_results
+    display_name: Crowd / Scene Query / Clear Results
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: ClearSpatialQueryResults
+    owner: crowd_system
+    aliases: [Crowd.SceneQuery.ClearResults]
+    purpose: >
+      Clear per-query result headers and bounded hit slots before resolving
+      gameplay spatial queries.
+    inputs:
+      - name: _SpatialQueryBuffer
+        type: StructuredBuffer<SpatialQueryData>
+        access: read
+        meaning: Query max hit capacity controls how many hit slots to clear.
+    outputs:
+      - name: _SpatialQueryResultBuffer
+        type: RWStructuredBuffer<SpatialQueryResultData>
+        access: write
+        meaning: Per-query hit count and overflow state reset.
+      - name: _SpatialQueryHitBuffer
+        type: RWStructuredBuffer<SpatialQueryHitData>
+        access: write
+        meaning: Bounded hit records reset.
+    dispatch:
+      thread_group_size: [8, 1, 1]
+      group_count_formula: ceil(spatial_query_count / 8)
+      data_parallel_unit: one_thread_per_query
+    performance_hints:
+      memory_pattern: per_query_header_clear_plus_bounded_hit_loop
+      expected_bottleneck: large_max_hits_per_query
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSpatialQuery.hlsl
+      function: ClearSpatialQueryResults
+
+  - pass_id: crowd.scene_query.resolve
+    display_name: Crowd / Scene Query / Resolve
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: ResolveSpatialQueries
+    owner: crowd_system
+    aliases: [Crowd.SceneQuery.Resolve]
+    purpose: >
+      Resolve gameplay spatial queries against the crowd spatial grid and write
+      bounded hit lists for AI/gameplay consumers.
+    inputs:
+      - name: _SpatialQueryBuffer
+        type: StructuredBuffer<SpatialQueryData>
+        access: read
+        meaning: Query shape, mask, faction and max hit budget.
+      - name: _GridCounterBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Occupancy count per spatial grid cell.
+      - name: _GridOccupantBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Candidate instance indices per spatial grid cell.
+      - name: _SpatialElementBuffer
+        type: StructuredBuffer<SpatialElementData>
+        access: read
+        meaning: Queryable per-instance capsule and filter metadata.
+    outputs:
+      - name: _SpatialQueryResultBuffer
+        type: RWStructuredBuffer<SpatialQueryResultData>
+        access: write
+        meaning: Per-query hit counts and overflow state.
+      - name: _SpatialQueryHitBuffer
+        type: RWStructuredBuffer<SpatialQueryHitData>
+        access: write
+        meaning: Bounded hit records for each query.
+    dispatch:
+      thread_group_size: [8, 1, 1]
+      group_count_formula: ceil(spatial_query_count / 8)
+      data_parallel_unit: one_thread_per_query
+    performance_hints:
+      memory_pattern: query_driven_grid_range_scan
+      expected_bottleneck: worst_case_cell_occupancy_and_nested_loops
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: high
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectSpatialQuery.hlsl
+      function: ResolveSpatialQueries
+
+  - pass_id: crowd.animation.finalize_instances
+    display_name: Crowd / Animation / Finalize Instances
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: FinalizeInstances
+    owner: crowd_system
+    aliases: [Crowd.Update.FinalizeAnimation]
+    purpose: >
+      Convert resolved simulation and combat state into render transforms,
+      VAT frame data and blend data for the indirect skinned draw.
+    inputs:
+      - name: _AliveInstanceIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Alive source workset.
+      - name: _SimulationStateBuffer
+        type: StructuredBuffer<InstanceSimulationState>
+        access: read
+        meaning: Final position, yaw, scale and velocity.
+      - name: _InstanceAnimationStateBuffer
+        type: StructuredBuffer<InstanceAnimationStateGpuData>
+        access: read
+        meaning: Current and next animation clip state.
+      - name: _AnimationClipMetadataBuffer
+        type: StructuredBuffer<AnimationClipGpuData>
+        access: read
+        meaning: VAT clip frame metadata.
+    outputs:
+      - name: _InstanceTransforms
+        type: RWStructuredBuffer<MatrixRows>
+        access: write
+        meaning: Render transform rows per instance.
+      - name: _InstanceFrameData
+        type: RWStructuredBuffer<float4>
+        access: write
+        meaning: Current VAT frame and blend factor.
+      - name: _InstanceFrameBlendData
+        type: RWStructuredBuffer<float4>
+        access: write
+        meaning: Next VAT frame and combat visual flash.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: indirect_alive_count
+      data_parallel_unit: one_thread_per_alive_instance
+    performance_hints:
+      memory_pattern: indirect_per_instance_render_output_write
+      expected_bottleneck: memory_bandwidth_and_animation_metadata_random_reads
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectFinalize.hlsl
+      function: FinalizeInstances
+
+  - pass_id: crowd.debug.capture_gpu_stage
+    display_name: Crowd / Debug / Capture GPU Stage
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: CaptureAiDebugGpuStage
+    owner: crowd_system
+    aliases: [Crowd.Debug.CaptureGpuStage]
+    purpose: >
+      Capture detailed GPU-side state for selected debug target instances into
+      AI debug stage records.
+    inputs:
+      - name: _AiDebugTargetIndexBuffer
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Selected instance indices to capture.
+      - name: _SimulationStateBuffer
+        type: StructuredBuffer<InstanceSimulationState>
+        access: read
+        meaning: Current simulation state snapshot.
+      - name: _CombatStateBuffer
+        type: StructuredBuffer<InstanceCombatStateData>
+        access: read
+        meaning: Combat debug state snapshot.
+    outputs:
+      - name: _AiDebugStageRecordBuffer
+        type: RWStructuredBuffer<CrowdVatAiDebugGpuStageRecord>
+        access: write
+        meaning: Per-target GPU debug record.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: ceil(ai_debug_target_count / 64)
+      data_parallel_unit: one_thread_per_debug_target
+    performance_hints:
+      memory_pattern: sparse_debug_target_gather
+      expected_bottleneck: debug_only_not_frame_budget_critical
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectAiDebug.hlsl
+      function: CaptureAiDebugGpuStage
+
+  - pass_id: crowd.debug.discover_gpu_candidates
+    display_name: Crowd / Debug / Discover GPU Candidates
+    type: compute
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirect.compute
+    kernel: DiscoverAiDebugGpuCandidates
+    owner: crowd_system
+    aliases: [Crowd.Debug.DiscoverGpuCandidates]
+    purpose: >
+      Scan live instances and append candidates matching AI debug filters such
+      as region, screen rect, squad, invalid target or grid overflow.
+    inputs:
+      - name: _SimulationStateBuffer
+        type: StructuredBuffer<InstanceSimulationState>
+        access: read
+        meaning: Instance position used by debug filters.
+      - name: _CombatStateBuffer
+        type: StructuredBuffer<InstanceCombatStateData>
+        access: read
+        meaning: Combat target and debug status.
+      - name: _TargetAcquisitionStateBuffer
+        type: StructuredBuffer<TargetAcquisitionStateData>
+        access: read
+        meaning: Target acquisition debug status.
+    outputs:
+      - name: _AiDebugCandidateCounterBuffer
+        type: RWStructuredBuffer<uint>
+        access: read_write
+        meaning: Atomic discovered candidate count.
+      - name: _AiDebugCandidateRecordBuffer
+        type: RWStructuredBuffer<CrowdVatAiDebugGpuCandidateRecord>
+        access: write
+        meaning: Bounded candidate records for editor inspection.
+    dispatch:
+      thread_group_size: [64, 1, 1]
+      group_count_formula: ceil(instance_count / 64)
+      data_parallel_unit: one_thread_per_instance
+    performance_hints:
+      memory_pattern: full_instance_scan_with_debug_atomic_append
+      expected_bottleneck: debug_only_atomic_append_and_filter_branching
+      has_atomics: true
+      has_group_shared_memory: false
+      branch_divergence_risk: high
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectAiDebug.hlsl
+      function: DiscoverAiDebugGpuCandidates
+
+  - pass_id: crowd.render.skinned_mesh
+    display_name: Crowd / Render / Skinned Mesh
+    type: indirect_draw
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectLit.shader
+    kernel: UniversalForward
+    shader_pass: UniversalForward
+    owner: crowd_system
+    aliases: [Crowd.Render.SkinnedMesh]
+    purpose: >
+      Draw visible VAT crowd instances using indirect draw arguments and
+      per-instance transform/frame buffers produced by compute passes. The
+      renderer submits this draw once per active render LOD tier, reusing the
+      same lit VAT shader with tier-specific mesh/material resources.
+    inputs:
+      - name: _VisibleRenderArgsBuffer
+        type: IndirectDrawIndexedArgs
+        access: read
+        meaning: Current render LOD tier indirect draw argument record.
+      - name: _VisibleInstanceIndices
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Current render LOD tier visible source instance indices; the material binding is rebound per draw to the LOD0, LOD1 or LOD2 compaction buffer.
+      - name: _InstanceTransforms
+        type: StructuredBuffer<MatrixRows>
+        access: read
+        meaning: Per-instance render transform rows.
+      - name: _InstanceFrameData
+        type: StructuredBuffer<float4>
+        access: read
+        meaning: VAT frame and blend data.
+    indirect_draw:
+      draw_kind: render_mesh_indirect
+      args_buffer: _VisibleRenderArgsBuffer
+      visible_instance_buffer: _VisibleInstanceIndices
+      instance_count_formula: lod0_visible_instance_count + lod1_visible_instance_count + lod2_visible_instance_count
+    performance_hints:
+      memory_pattern: indirect_visible_instance_fetch
+      expected_bottleneck: vertex_texture_animation_and_instance_buffer_bandwidth
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectLit.shader
+      function: UniversalForward
+
+  - pass_id: crowd.render.skinned_mesh.lod0
+    display_name: Crowd / Render / Skinned Mesh / LOD0
+    type: indirect_draw
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectLit.shader
+    kernel: UniversalForward
+    shader_pass: UniversalForward
+    owner: crowd_system
+    aliases: [Crowd.Render.SkinnedMesh.LOD0]
+    purpose: >
+      Draw the nearest visible VAT crowd instances using the primary crowd render
+      LOD mesh, materials and visible instance compaction buffer.
+    inputs:
+      - name: _VisibleRenderArgsBuffer
+        type: IndirectDrawIndexedArgs
+        access: read
+        meaning: LOD0 indirect draw argument record.
+      - name: _VisibleInstanceIndices
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: LOD0 visible source instance indices.
+      - name: _InstanceTransforms
+        type: StructuredBuffer<MatrixRows>
+        access: read
+        meaning: Per-instance render transform rows.
+      - name: _InstanceFrameData
+        type: StructuredBuffer<float4>
+        access: read
+        meaning: VAT frame and blend data.
+    indirect_draw:
+      draw_kind: render_mesh_indirect
+      args_buffer: _VisibleRenderArgsBuffer
+      visible_instance_buffer: _VisibleInstanceIndices
+      instance_count_formula: lod0_visible_instance_count
+    performance_hints:
+      memory_pattern: indirect_visible_instance_fetch
+      expected_bottleneck: vertex_texture_animation_and_instance_buffer_bandwidth
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectLit.shader
+      function: UniversalForward
+
+  - pass_id: crowd.render.skinned_mesh.lod1
+    display_name: Crowd / Render / Skinned Mesh / LOD1
+    type: indirect_draw
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectLit.shader
+    kernel: UniversalForward
+    shader_pass: UniversalForward
+    owner: crowd_system
+    aliases: [Crowd.Render.SkinnedMesh.LOD1]
+    purpose: >
+      Draw the middle-distance visible VAT crowd instances using the secondary
+      crowd render LOD mesh, materials and visible instance compaction buffer.
+    inputs:
+      - name: _VisibleRenderArgsBuffer
+        type: IndirectDrawIndexedArgs
+        access: read
+        meaning: LOD1 indirect draw argument record.
+      - name: _VisibleInstanceIndices
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: LOD1 visible source instance indices.
+      - name: _InstanceTransforms
+        type: StructuredBuffer<MatrixRows>
+        access: read
+        meaning: Per-instance render transform rows.
+      - name: _InstanceFrameData
+        type: StructuredBuffer<float4>
+        access: read
+        meaning: VAT frame and blend data.
+    indirect_draw:
+      draw_kind: render_mesh_indirect
+      args_buffer: _VisibleRenderArgsBuffer
+      visible_instance_buffer: _VisibleInstanceIndices
+      instance_count_formula: lod1_visible_instance_count
+    performance_hints:
+      memory_pattern: indirect_visible_instance_fetch
+      expected_bottleneck: vertex_texture_animation_and_instance_buffer_bandwidth
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectLit.shader
+      function: UniversalForward
+
+  - pass_id: crowd.render.skinned_mesh.lod2
+    display_name: Crowd / Render / Skinned Mesh / LOD2
+    type: indirect_draw
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectLit.shader
+    kernel: UniversalForward
+    shader_pass: UniversalForward
+    owner: crowd_system
+    aliases: [Crowd.Render.SkinnedMesh.LOD2]
+    purpose: >
+      Draw the farthest visible VAT crowd instances using the tertiary crowd
+      render LOD mesh, materials and visible instance compaction buffer.
+    inputs:
+      - name: _VisibleRenderArgsBuffer
+        type: IndirectDrawIndexedArgs
+        access: read
+        meaning: LOD2 indirect draw argument record.
+      - name: _VisibleInstanceIndices
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: LOD2 visible source instance indices.
+      - name: _InstanceTransforms
+        type: StructuredBuffer<MatrixRows>
+        access: read
+        meaning: Per-instance render transform rows.
+      - name: _InstanceFrameData
+        type: StructuredBuffer<float4>
+        access: read
+        meaning: VAT frame and blend data.
+    indirect_draw:
+      draw_kind: render_mesh_indirect
+      args_buffer: _VisibleRenderArgsBuffer
+      visible_instance_buffer: _VisibleInstanceIndices
+      instance_count_formula: lod2_visible_instance_count
+    performance_hints:
+      memory_pattern: indirect_visible_instance_fetch
+      expected_bottleneck: vertex_texture_animation_and_instance_buffer_bandwidth
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatIndirectLit.shader
+      function: UniversalForward
+
+  - pass_id: crowd.render.combat_tracer
+    display_name: Crowd / Render / Combat Tracer
+    type: indirect_draw
+    shader: Assets/Project/Crowds/VAT/Shader/CrowdVatCombatTracer.shader
+    kernel: UniversalForward
+    shader_pass: UniversalForward
+    owner: crowd_system
+    aliases: [Crowd.Render.CombatTracer]
+    purpose: >
+      Draw combat tracer visuals for visible crowd instances using combat state
+      generated by GPU combat passes.
+    inputs:
+      - name: _VisibleRenderArgsBuffer
+        type: IndirectDrawIndexedArgs
+        access: read
+        meaning: Indirect draw argument record.
+      - name: _VisibleInstanceIndices
+        type: StructuredBuffer<uint>
+        access: read
+        meaning: Visible source instance indices.
+      - name: _CombatStateBuffer
+        type: StructuredBuffer<InstanceCombatStateData>
+        access: read
+        meaning: Combat tracer origin, target and visual flash data.
+    indirect_draw:
+      draw_kind: render_mesh_indirect
+      args_buffer: _VisibleRenderArgsBuffer
+      visible_instance_buffer: _VisibleInstanceIndices
+      instance_count_formula: visible_instance_count
+    performance_hints:
+      memory_pattern: indirect_visible_instance_combat_state_fetch
+      expected_bottleneck: overdraw_or_extra_draw_cost_when_tracers_are_enabled
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/Crowds/VAT/Shader/CrowdVatCombatTracer.shader
+      function: UniversalForward
+
+  - pass_id: grass.render.lod0
+    display_name: Grass / Render / LOD0
+    type: indirect_draw
+    shader: Assets/Project/CS/New_Grass/shader/NewGrassBezierBladeToon.shader
+    kernel: Forward
+    shader_pass: Forward
+    owner: grass_system
+    aliases: [Grass.Render.LOD0]
+    purpose: >
+      Draw high-detail procedural grass blades using the LOD0 append buffer and
+      indirect draw arguments generated by the grass visibility update.
+    inputs:
+      - name: _ArgsBufferLod0
+        type: IndirectDrawIndexedArgs
+        access: read
+        meaning: Indirect draw arguments whose instance count comes from the LOD0 visible blade append buffer.
+      - name: _GrassBladesLod0
+        type: StructuredBuffer<VisibleGrassInstance>
+        access: read
+        meaning: Visible LOD0 grass instances produced by the culling and LOD compute pass.
+      - name: _GeneratedGrassBlades
+        type: StructuredBuffer<GrassBlade>
+        access: read
+        meaning: Generated blade source data shared by all grass LOD draw passes.
+      - name: _GrassAlbedo
+        type: Texture2D
+        access: read
+        meaning: Optional high-detail grass albedo texture.
+      - name: _ColorNoiseMask
+        type: Texture2D
+        access: read
+        meaning: World-space color variation mask.
+    outputs:
+      - name: CameraColor
+        type: RenderTarget
+        access: write
+        meaning: Main camera color target.
+      - name: CameraDepth
+        type: DepthTarget
+        access: read_write
+        meaning: Camera depth target used by opaque grass.
+    indirect_draw:
+      draw_kind: draw_mesh_instanced_indirect
+      args_buffer: _ArgsBufferLod0
+      visible_instance_buffer: _GrassBladesLod0
+      instance_count_formula: visible_lod0_blade_count
+      mesh: NewGrassBlade_HighLOD
+    pipeline:
+      vs: Vert
+      ps: Frag
+      blend: off
+      zwrite: true
+      ztest: LessEqual
+    performance_hints:
+      memory_pattern: indirect_visible_grass_instance_fetch
+      expected_bottleneck: vertex_animation_and_overdraw
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: medium
+    source:
+      file: Assets/Project/CS/New_Grass/shader/NewGrassBezierBladeToon.shader
+      function: Forward
+
+  - pass_id: grass.render.lod1
+    display_name: Grass / Render / LOD1
+    type: indirect_draw
+    shader: Assets/Project/CS/New_Grass/shader/NewGrassBezierBladeToonMid.shader
+    kernel: Forward
+    shader_pass: Forward
+    owner: grass_system
+    aliases: [Grass.Render.LOD1]
+    purpose: >
+      Draw medium-detail procedural grass blades using the LOD1 append buffer
+      and indirect draw arguments generated by the grass visibility update.
+    inputs:
+      - name: _ArgsBufferLod1
+        type: IndirectDrawIndexedArgs
+        access: read
+        meaning: Indirect draw arguments whose instance count comes from the LOD1 visible blade append buffer.
+      - name: _GrassBladesLod1
+        type: StructuredBuffer<VisibleGrassInstance>
+        access: read
+        meaning: Visible LOD1 grass instances produced by the culling and LOD compute pass.
+      - name: _GeneratedGrassBlades
+        type: StructuredBuffer<GrassBlade>
+        access: read
+        meaning: Generated blade source data shared by all grass LOD draw passes.
+      - name: _ColorNoiseMask
+        type: Texture2D
+        access: read
+        meaning: World-space color variation mask.
+    outputs:
+      - name: CameraColor
+        type: RenderTarget
+        access: write
+        meaning: Main camera color target.
+      - name: CameraDepth
+        type: DepthTarget
+        access: read_write
+        meaning: Camera depth target used by opaque grass.
+    indirect_draw:
+      draw_kind: draw_mesh_instanced_indirect
+      args_buffer: _ArgsBufferLod1
+      visible_instance_buffer: _GrassBladesLod1
+      instance_count_formula: visible_lod1_blade_count
+      mesh: NewGrassBlade_MidLOD
+    pipeline:
+      vs: Vert
+      ps: Frag
+      blend: off
+      zwrite: true
+      ztest: LessEqual
+    performance_hints:
+      memory_pattern: indirect_visible_grass_instance_fetch
+      expected_bottleneck: vertex_animation_and_overdraw
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/CS/New_Grass/shader/NewGrassBezierBladeToonMid.shader
+      function: Forward
+
+  - pass_id: grass.render.lod2
+    display_name: Grass / Render / LOD2
+    type: indirect_draw
+    shader: Assets/Project/CS/New_Grass/shader/NewGrassBezierBladeToonFar.shader
+    kernel: Forward
+    shader_pass: Forward
+    owner: grass_system
+    aliases: [Grass.Render.LOD2]
+    purpose: >
+      Draw far procedural grass blades using the LOD2 append buffer and indirect
+      draw arguments generated by the grass visibility update.
+    inputs:
+      - name: _ArgsBufferLod2
+        type: IndirectDrawIndexedArgs
+        access: read
+        meaning: Indirect draw arguments whose instance count comes from the LOD2 visible blade append buffer.
+      - name: _GrassBladesLod2
+        type: StructuredBuffer<VisibleGrassInstance>
+        access: read
+        meaning: Visible LOD2 grass instances produced by the culling and LOD compute pass.
+      - name: _GeneratedGrassBlades
+        type: StructuredBuffer<GrassBlade>
+        access: read
+        meaning: Generated blade source data shared by all grass LOD draw passes.
+      - name: _ColorNoiseMask
+        type: Texture2D
+        access: read
+        meaning: World-space color variation mask.
+    outputs:
+      - name: CameraColor
+        type: RenderTarget
+        access: write
+        meaning: Main camera color target.
+      - name: CameraDepth
+        type: DepthTarget
+        access: read_write
+        meaning: Camera depth target used by opaque grass.
+    indirect_draw:
+      draw_kind: draw_mesh_instanced_indirect
+      args_buffer: _ArgsBufferLod2
+      visible_instance_buffer: _GrassBladesLod2
+      instance_count_formula: visible_lod2_blade_count
+      mesh: NewGrassBlade_LowLOD
+    pipeline:
+      vs: Vert
+      ps: Frag
+      blend: off
+      zwrite: true
+      ztest: LessEqual
+    performance_hints:
+      memory_pattern: indirect_visible_grass_instance_fetch
+      expected_bottleneck: overdraw
+      has_atomics: false
+      has_group_shared_memory: false
+      branch_divergence_risk: low
+    source:
+      file: Assets/Project/CS/New_Grass/shader/NewGrassBezierBladeToonFar.shader
+      function: Forward

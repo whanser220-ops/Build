@@ -21,6 +21,7 @@ Shader "Project/Crowd/VATCombatTracer"
 
     HLSLINCLUDE
     #pragma target 4.5
+    #pragma enable_d3d11_debug_symbols
 
     #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
     #define UNITY_INDIRECT_DRAW_ARGS IndirectDrawIndexedArgs
@@ -182,7 +183,8 @@ Shader "Project/Crowd/VATCombatTracer"
         output.active = 0.0;
         output.effectId = input.effectId.x;
 
-        uint sourceInstanceID = GetIndirectInstanceID(input.instanceID);
+        uint visibleInstanceID = GetIndirectInstanceID(input.instanceID);
+        uint sourceInstanceID = _VisibleInstanceIndices[visibleInstanceID];
         InstanceCombatStateData combatState = _CombatStateBuffer[sourceInstanceID];
         uint flags = combatState.flags;
         uint effectId = (uint)round(input.effectId.x);

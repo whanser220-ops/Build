@@ -65,7 +65,7 @@ public class CrowdVatIndirectCollisionApproximationTests
         SetField(renderer, "_maxCellOccupancy", 8);
         SetField(renderer, "_solverIterations", 2);
         SetField(renderer, "_selfCollisionStrength", 1.0f);
-        SetField(renderer, "_anchorStiffness", 0.0f);
+        SetField(renderer, "_goalStiffness", 0.0f);
         SetField(renderer, "_velocityDamping", 0.2f);
         SetField(renderer, "_maxPushPerStep", 0.25f);
         SetField(renderer, "_maxDisplacementFromSpawn", 1.2f);

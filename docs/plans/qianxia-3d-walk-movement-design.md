@@ -4,11 +4,18 @@
 
 - 版本：v0.2
 - 日期：2026-04-15
-- 状态：方案稿
+- 状态：已偏离实现（角色 prefab 与安装工具已落地，正文仍停留在方案稿阶段）
+- 同步级别：弱同步
 - 作者：Codex
 - 适用项目：`Unity 6 6000.0.46f1`
+- 当前实现锚点：
+  - `Assets/Project/Characters/Qianxia/Scripts/QianxiaGenshinCharacterController.cs`
+  - `Assets/Project/Characters/Qianxia/Scripts/QianxiaGenshinCameraController.cs`
+  - `Assets/Project/Characters/Qianxia/Generated/QianxiaThirdPerson.prefab`
+  - `Assets/Project/Characters/Qianxia/Editor/QianxiaCharacterSetupUtility.cs`
+- 最后实现核对：2026-05-06
 - 关联实现：
-  - `Assets/InputSystem_Actions.inputactions`
+  - `Assets/Project/Configs/Input/InputSystem_Actions.inputactions`
   - `Assets/Project/Characters/Qianxia/Scripts/QianxiaGenshinCharacterController.cs`
   - `Assets/Project/Characters/Qianxia/Scripts/QianxiaGenshinCameraController.cs`
 - 外部资源：
@@ -56,7 +63,7 @@
 
 - 输入系统：`Packages/manifest.json` 已包含 `com.unity.inputsystem 1.14.0`。
 - 相机包：`Packages/manifest.json` 已包含 `com.unity.cinemachine 2.10.3`。
-- 现有输入资产：`Assets/InputSystem_Actions.inputactions` 已有 `Player` Action Map，并包含 `Move`、`Look`、`Jump`、`Sprint`、`Interact` 等 Action。
+- 现有输入资产：`Assets/Project/Configs/Input/InputSystem_Actions.inputactions` 已有 `Player` Action Map，并包含 `Move`、`Look`、`Jump`、`Sprint`、`Interact` 等 Action。
 - 现有角色移动脚本：`QianxiaGenshinCharacterController` 已实现基于 `CharacterController` 的移动、转向、地面检测、重力、`coyote time`、`jump buffer` 和 Animator 参数更新。
 - 现有镜头脚本：`QianxiaGenshinCameraController` 已实现第三人称跟随、手动看向输入、镜头避障、滚轮缩放和移动驱动自动回中。
 
@@ -218,7 +225,7 @@ Root Motion 可以作为后续升级方向，但前提是先补齐：
 
 | 模块 | 当前落点 | 职责 |
 |------|------|------|
-| 输入 | `Assets/InputSystem_Actions.inputactions` | 提供 `Move`、`Look`、`Jump`、`Sprint` 等 Action |
+| 输入 | `Assets/Project/Configs/Input/InputSystem_Actions.inputactions` | 提供 `Move`、`Look`、`Jump`、`Sprint` 等 Action |
 | 角色移动 | `QianxiaGenshinCharacterController` | 速度解算、重力、转向、地面检测、Animator 参数输出 |
 | 第三人称镜头 | `QianxiaGenshinCameraController` | 跟随、绕角色旋转、避障、自动回中、缩放 |
 | 动画表现 | 待补 Animator Controller | 根据 `Speed / Grounded / HasMove` 切换表现 |

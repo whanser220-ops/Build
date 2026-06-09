@@ -21,6 +21,8 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
     private void UpdateGpuBuffers()
     {
+        RefreshGpuPassDebugMetadataState();
+
         if (!_hasClip || !HasSimulationReadWriteBuffers())
             return;
 
@@ -41,7 +43,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         bool needsCombatGrid = _enableGpuInstanceCombat;
         bool needsSpatialQueryGrid = spatialQueryCount > 0;
         bool usesCrowdApproximation = _enableApproximateCollision && _instanceCount > 1;
-        bool usesLocalAvoidance = usesCrowdApproximation && _enableLocalAvoidance;
         RebuildAliveInstanceCompactionData();
         bool captureAiDebugGpuStages = _aiDebugGpuStageCaptureActive;
         if (captureAiDebugGpuStages)
@@ -50,35 +51,38 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             captureAiDebugGpuStages = _aiDebugGpuStageCaptureActive;
         }
 
-        if (usesLocalAvoidance)
-        {
-            BindClearGridKernel();
-            DispatchGrid(_clearGridKernel);
-
-            _updateCompute.SetInt(GridBuildModeId, GridBuildModeAllQueryables);
-            BindBuildGridKernel(useActiveInstanceList: false);
-            DispatchAliveInstancesIndirect(_buildGridKernel);
-        }
-
         BindPredictKernel();
         DispatchAliveInstancesIndirect(_predictKernel);
         SwapSimulationBuffers();
+
         if (captureAiDebugGpuStages)
             CaptureAiDebugGpuStage(CrowdVatAiDebugGpuStageId.PredictAfter, -1);
+
+        BindClearWakeGridKernel();
+        DispatchWakeGrid(_clearWakeGridKernel);
+
+        BindBuildWakeGridKernel();
+        DispatchAliveInstancesIndirect(_buildWakeGridKernel);
+
+        EvaluatePhysicsActive();
+        RebuildPhysicsActiveInstanceCompactionData();
+        if (!needsCombatGrid)
+            ResetCombatActiveInstanceCompactionData();
 
         bool usesEnvironmentPbd = _hasResolvedEnvironmentDistanceField || _hasResolvedTerrainCollision || _hasResolvedStaticSdfCollision;
         int solverPassCount = usesCrowdApproximation || usesEnvironmentPbd ? Mathf.Max(1, _solverIterations) : 0;
 
         for (int iterationIndex = 0; iterationIndex < solverPassCount; iterationIndex++)
         {
-            BindClearGridKernel();
-            DispatchGrid(_clearGridKernel);
+            ClearGridForRebuild();
 
-            BindBuildGridKernel(useActiveInstanceList: false);
-            DispatchAliveInstancesIndirect(_buildGridKernel);
+            _updateCompute.SetInt(GridBuildModeId, GridBuildModePhysicsActiveOnly);
+            BindBuildGridKernel(usePhysicsActiveInstanceList: true);
+            DispatchPhysicsActiveInstancesIndirect(_buildGridKernel);
+            SwapGridTouchedBuffers();
 
             BindSolveKernel();
-            DispatchAliveInstancesIndirect(_solveCrowdKernel);
+            DispatchPhysicsActiveInstancesIndirect(_solveCrowdKernel);
             SwapSimulationBuffers();
             if (captureAiDebugGpuStages)
                 CaptureAiDebugGpuStage(CrowdVatAiDebugGpuStageId.SolveAfter, iterationIndex);
@@ -86,14 +90,19 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
         if (needsCombatGrid || needsSpatialQueryGrid)
         {
-            BindClearGridKernel();
-            DispatchGrid(_clearGridKernel);
+            ClearGridForRebuild();
 
             _updateCompute.SetInt(GridBuildModeId, GridBuildModeAllQueryables);
-            BindBuildGridKernel(useActiveInstanceList: false);
+            BindBuildGridKernel(usePhysicsActiveInstanceList: false);
             DispatchAliveInstancesIndirect(_buildGridKernel);
+            SwapGridTouchedBuffers();
             if (captureAiDebugGpuStages)
                 CaptureAiDebugGpuStage(CrowdVatAiDebugGpuStageId.GridAfter, -1);
+
+            if (needsCombatGrid)
+                RebuildCombatActiveInstanceCompactionData();
+            else
+                ResetCombatActiveInstanceCompactionData();
 
             if (needsSpatialQueryGrid)
             {
@@ -103,13 +112,30 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
             if (needsCombatGrid)
             {
-                BindResolveTargetAcquisitionKernel(useActiveInstanceList: false);
-                DispatchAliveInstancesIndirect(_resolveTargetAcquisitionKernel);
+                BuildCombatSquadCandidates();
+
+                BindResolveTargetAcquisitionKernel();
+                DispatchCombatActiveInstancesIndirect(_resolveTargetAcquisitionKernel);
+
+                BindBuildSquadAcquisitionDispatchArgsKernel();
+                DispatchGpuPass(_buildSquadAcquisitionDispatchArgsKernel, 1, 1, 1);
+
+                BindEvaluateSquadAcquisitionCandidatesKernel();
+                DispatchSquadAcquisitionIndirect(_evaluateSquadAcquisitionCandidatesKernel);
+
+                BindBuildTargetAcquisitionLosDispatchArgsKernel();
+                DispatchGpuPass(_buildTargetAcquisitionLosDispatchArgsKernel, 1, 1, 1);
+
+                BindResolveTargetAcquisitionLineOfSightKernel();
+                DispatchTargetAcquisitionLosQueriesIndirect(_resolveTargetAcquisitionLineOfSightKernel);
+
+                BindFinalizeTargetAcquisitionKernel();
+                DispatchCombatActiveInstancesIndirect(_finalizeTargetAcquisitionKernel);
                 if (captureAiDebugGpuStages)
                     CaptureAiDebugGpuStage(CrowdVatAiDebugGpuStageId.TargetAcquisitionAfter, -1);
 
-                BindResolveInstanceCombatKernel(useActiveInstanceList: false);
-                DispatchAliveInstancesIndirect(_resolveInstanceCombatKernel);
+                BindResolveInstanceCombatKernel();
+                DispatchCombatActiveInstancesIndirect(_resolveInstanceCombatKernel);
                 if (captureAiDebugGpuStages)
                     CaptureAiDebugGpuStage(CrowdVatAiDebugGpuStageId.CombatAfter, -1);
             }
@@ -126,7 +152,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
                 CaptureAiDebugGpuStage(CrowdVatAiDebugGpuStageId.SpatialQueryAfter, -1);
         }
 
-        _updateCompute.SetInt(GridBuildModeId, GridBuildModeActiveOnly);
+        _updateCompute.SetInt(GridBuildModeId, GridBuildModePhysicsActiveOnly);
 
         BindFinalizeKernel();
         DispatchAliveInstancesIndirect(_finalizeKernel);
@@ -245,28 +271,209 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         DispatchAllInstances(_buildAliveInstanceListKernel);
 
         BindBuildAliveDispatchArgsKernel();
-        _updateCompute.Dispatch(_buildAliveDispatchArgsKernel, 1, 1, 1);
+        DispatchGpuPass(_buildAliveDispatchArgsKernel, 1, 1, 1);
     }
 
-    private void RebuildActiveInstanceCompactionData()
+    private void RebuildPhysicsActiveInstanceCompactionData()
     {
-        if (_activeInstanceCounterBuffer == null || _activeInstanceDispatchArgsBuffer == null)
+        if (_physicsActiveInstanceCounterBuffer == null || _physicsActiveInstanceDispatchArgsBuffer == null)
             return;
 
-        _activeInstanceCounterBuffer.SetData(ActiveInstanceCounterResetData);
-        _activeInstanceDispatchArgsBuffer.SetData(ActiveInstanceDispatchArgsResetData);
+        _physicsActiveInstanceCounterBuffer.SetData(AliveInstanceCounterResetData);
+        _physicsActiveInstanceDispatchArgsBuffer.SetData(AliveInstanceDispatchArgsResetData);
 
-        BindBuildActiveInstanceListKernel();
-        DispatchAliveInstancesIndirect(_buildActiveInstanceListKernel);
+        BindBuildPhysicsActiveInstanceListKernel();
+        DispatchAliveInstancesIndirect(_buildPhysicsActiveInstanceListKernel);
 
-        BindBuildActiveDispatchArgsKernel();
-        _updateCompute.Dispatch(_buildActiveDispatchArgsKernel, 1, 1, 1);
+        BindBuildPhysicsActiveDispatchArgsKernel();
+        DispatchGpuPass(_buildPhysicsActiveDispatchArgsKernel, 1, 1, 1);
+    }
+
+    private void RebuildCombatActiveInstanceCompactionData()
+    {
+        if (_combatActiveInstanceCounterBuffer == null || _combatActiveInstanceDispatchArgsBuffer == null)
+            return;
+
+        _combatActiveInstanceCounterBuffer.SetData(CombatActiveInstanceCounterResetData);
+        _combatActiveInstanceDispatchArgsBuffer.SetData(AliveInstanceDispatchArgsResetData);
+
+        BindEvaluateCombatActiveKernel();
+        DispatchAliveInstancesIndirect(_evaluateCombatActiveKernel);
+
+        BindBuildCombatActiveInstanceListKernel();
+        DispatchAliveInstancesIndirect(_buildCombatActiveInstanceListKernel);
+
+        BindCompactCombatActiveInstanceListKernel();
+        DispatchAllInstances(_compactCombatActiveInstanceListKernel);
+
+        BindBuildCombatActiveDispatchArgsKernel();
+        DispatchGpuPass(_buildCombatActiveDispatchArgsKernel, 1, 1, 1);
+    }
+
+    private void BuildCombatSquadCandidates()
+    {
+        if (!HasRuntimeSquadAnchorData() ||
+            _clearCombatSquadCandidateCountersKernel < 0 ||
+            _buildCombatCandidateClustersKernel < 0 ||
+            _combatSquadCandidateBuffer == null ||
+            _combatSquadCandidateCounterBuffer == null ||
+            _combatCandidateClusterDispatchArgsBuffer == null)
+        {
+            return;
+        }
+
+        BindClearCombatSquadCandidateCountersKernel();
+        DispatchSquads(_clearCombatSquadCandidateCountersKernel, _activeSquadStateCount);
+
+        int workItemCount = BuildCombatCandidateClusterWorkItems();
+        if (workItemCount <= 0)
+            return;
+
+        BindBuildCombatCandidateClustersKernel();
+        DispatchCombatCandidateClustersIndirect(_buildCombatCandidateClustersKernel);
+    }
+
+    private int BuildCombatCandidateClusterWorkItems()
+    {
+        if (_runtimeSquadStates == null ||
+            _activeSquadStateCount <= 0 ||
+            _gridDimensions.x <= 0 ||
+            _gridDimensions.y <= 0 ||
+            _queryCellSize <= 0.0f ||
+            !_enableGpuInstanceCombat ||
+            _combatRange <= 0.0f)
+        {
+            return 0;
+        }
+
+        int squadCount = Mathf.Min(_activeSquadStateCount, _runtimeSquadStates.Length);
+        float combatRange = Mathf.Max(_combatRange, 0.0f);
+        float targetPadding = Mathf.Max(_maximumQueryAgentRadius, _collisionRadius);
+        int workItemCount = 0;
+        for (int squadIndex = 0; squadIndex < squadCount; squadIndex++)
+        {
+            CrowdVatSquadState squadState = _runtimeSquadStates[squadIndex];
+            if (squadState.factionMask == CrowdVatFactionMask.None)
+                continue;
+
+            Vector3 localCenter = transform.InverseTransformPoint(squadState.worldCenter);
+            float sourceRadius = Mathf.Max(Mathf.Max(squadState.cohesionRadius, _maxDisplacementFromSpawn), _collisionRadius);
+            float broadphaseRadius = sourceRadius + combatRange + targetPadding;
+            Vector2 sourceCenterXZ = new Vector2(localCenter.x, localCenter.z);
+            if (!TryGetSimulationGridCellRange(
+                sourceCenterXZ - Vector2.one * broadphaseRadius,
+                sourceCenterXZ + Vector2.one * broadphaseRadius,
+                out Vector2Int minCoord,
+                out Vector2Int maxCoord))
+            {
+                continue;
+            }
+
+            int cellWidth = maxCoord.x - minCoord.x + 1;
+            int cellHeight = maxCoord.y - minCoord.y + 1;
+            int cellCount = Mathf.Max(0, cellWidth * cellHeight);
+            int tileCount = Mathf.CeilToInt(cellCount / (float)CombatCandidateClusterCellsPerTile);
+            if (tileCount <= 0)
+                continue;
+
+            EnsureCombatCandidateClusterWorkItemUploadCapacity(workItemCount + tileCount);
+            for (int tileIndex = 0; tileIndex < tileCount; tileIndex++)
+            {
+                _combatCandidateClusterWorkItemUploadCache[workItemCount] = new CombatCandidateClusterWorkItemData
+                {
+                    sourceSquadIndex = (uint)squadIndex,
+                    tileBegin = (uint)(tileIndex * CombatCandidateClusterCellsPerTile),
+                    cellWidth = (uint)cellWidth,
+                    cellCount = (uint)cellCount,
+                    minCoordX = minCoord.x,
+                    minCoordY = minCoord.y
+                };
+                workItemCount++;
+            }
+        }
+
+        if (workItemCount <= 0)
+            return 0;
+
+        EnsureCombatCandidateClusterWorksetBuffers(workItemCount);
+        _combatCandidateClusterWorkItemBuffer.SetData(
+            _combatCandidateClusterWorkItemUploadCache,
+            0,
+            0,
+            workItemCount);
+        _combatCandidateClusterDispatchArgsUploadCache[0] = (uint)workItemCount;
+        _combatCandidateClusterDispatchArgsUploadCache[1] = 1u;
+        _combatCandidateClusterDispatchArgsUploadCache[2] = 1u;
+        _combatCandidateClusterDispatchArgsBuffer.SetData(_combatCandidateClusterDispatchArgsUploadCache);
+        return workItemCount;
+    }
+
+    private void EnsureCombatCandidateClusterWorkItemUploadCapacity(int requiredCount)
+    {
+        if (_combatCandidateClusterWorkItemUploadCache != null &&
+            _combatCandidateClusterWorkItemUploadCache.Length >= requiredCount)
+        {
+            return;
+        }
+
+        int capacity = Mathf.Max(1, _combatCandidateClusterWorkItemUploadCache?.Length ?? 0);
+        while (capacity < requiredCount)
+            capacity *= 2;
+
+        Array.Resize(ref _combatCandidateClusterWorkItemUploadCache, capacity);
+    }
+
+    private bool TryGetSimulationGridCellRange(Vector2 minXZ, Vector2 maxXZ, out Vector2Int minCoord, out Vector2Int maxCoord)
+    {
+        minCoord = default;
+        maxCoord = default;
+        if (_gridDimensions.x <= 0 ||
+            _gridDimensions.y <= 0 ||
+            _queryCellSize <= 0.0f ||
+            maxXZ.x < _gridMinXZ.x ||
+            maxXZ.y < _gridMinXZ.y ||
+            minXZ.x >= _gridMaxXZ.x ||
+            minXZ.y >= _gridMaxXZ.y)
+        {
+            return false;
+        }
+
+        Vector2 clampedMin = Vector2.Max(minXZ, _gridMinXZ);
+        Vector2 clampedMax = Vector2.Min(maxXZ, _gridMaxXZ - Vector2.one * 1e-4f);
+        minCoord = GetClampedSimulationGridCellCoord(clampedMin);
+        maxCoord = GetClampedSimulationGridCellCoord(clampedMax);
+        return true;
+    }
+
+    private Vector2Int GetClampedSimulationGridCellCoord(Vector2 localXZ)
+    {
+        float invCellSize = 1.0f / Mathf.Max(_queryCellSize, 1e-4f);
+        int cellX = Mathf.Clamp(Mathf.FloorToInt((localXZ.x - _gridMinXZ.x) * invCellSize), 0, _gridDimensions.x - 1);
+        int cellY = Mathf.Clamp(Mathf.FloorToInt((localXZ.y - _gridMinXZ.y) * invCellSize), 0, _gridDimensions.y - 1);
+        return new Vector2Int(cellX, cellY);
+    }
+
+    private void ResetCombatActiveInstanceCompactionData()
+    {
+        if (_combatActiveInstanceCounterBuffer == null || _combatActiveInstanceDispatchArgsBuffer == null)
+            return;
+
+        _combatActiveInstanceCounterBuffer.SetData(CombatActiveInstanceCounterResetData);
+        _combatActiveInstanceDispatchArgsBuffer.SetData(AliveInstanceDispatchArgsResetData);
+    }
+
+    private void EvaluatePhysicsActive()
+    {
+        BindEvaluatePhysicsActiveKernel();
+        _updateCompute.SetInt(PhysicsActivationPassId, 0);
+        DispatchAliveInstancesIndirect(_evaluatePhysicsActiveKernel);
+
+        _updateCompute.SetInt(PhysicsActivationPassId, 1);
+        DispatchAliveInstancesIndirect(_evaluatePhysicsActiveKernel);
     }
 
     private void ConfigureCommonComputeParameters(float deltaTime, int interactionSphereCount)
     {
-        Vector3 activeBubbleLocalCenter = Vector3.zero;
-        bool useActiveBubble = _enableActiveBubble && TryGetActiveBubbleLocalCenter(out activeBubbleLocalCenter);
         bool hasTerrain = TryResolveSceneQueryTerrain(out Terrain terrain) &&
             terrain != null &&
             terrain.terrainData != null &&
@@ -302,16 +509,16 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _updateCompute.SetInt(ClipLoopId, (_loopOverride || _currentClip.Loop) ? 1 : 0);
         _updateCompute.SetFloat(DeltaTimeId, deltaTime);
         _updateCompute.SetInt(EnableApproximateCollisionId, _enableApproximateCollision ? 1 : 0);
-        _updateCompute.SetInt(UseActiveBubbleId, useActiveBubble ? 1 : 0);
         _updateCompute.SetInt(InteractionSphereCountId, interactionSphereCount);
-        _updateCompute.SetVector(ActiveBubbleCenterId, new Vector4(activeBubbleLocalCenter.x, activeBubbleLocalCenter.y, activeBubbleLocalCenter.z, 0.0f));
-        _updateCompute.SetFloat(ActiveBubbleRadiusId, _activeBubbleRadius);
-        _updateCompute.SetFloat(ActiveBubbleRetentionRadiusId, _activeBubbleRetentionRadius);
         _updateCompute.SetInts(GridDimId, _gridDimensions.x, _gridDimensions.y);
         _updateCompute.SetInt(GridCellCountId, _gridCellCount);
         _updateCompute.SetInt(MaxCellOccupancyId, _maxCellOccupancy);
         _updateCompute.SetFloat(CellSizeId, _queryCellSize);
         _updateCompute.SetFloat(InvCellSizeId, 1.0f / Mathf.Max(_queryCellSize, 1e-4f));
+        _updateCompute.SetInts(WakeGridDimId, _wakeGridDimensions.x, _wakeGridDimensions.y);
+        _updateCompute.SetInt(WakeGridCellCountId, _wakeGridCellCount);
+        _updateCompute.SetFloat(WakeGridCellSizeId, _resolvedWakeGridCellSize);
+        _updateCompute.SetFloat(WakeInvGridCellSizeId, 1.0f / Mathf.Max(_resolvedWakeGridCellSize, 1e-4f));
         _updateCompute.SetVector(GridMinXZId, _gridMinXZ);
         _updateCompute.SetVector(GridMaxXZId, _gridMaxXZ);
         _updateCompute.SetFloat(CollisionRadiusId, _collisionRadius);
@@ -341,6 +548,16 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _updateCompute.SetFloat(MaxPushPerStepId, _maxPushPerStep);
         _updateCompute.SetFloat(MaxDisplacementFromSpawnId, _maxDisplacementFromSpawn);
         _updateCompute.SetFloat(InactiveReturnStrengthId, _inactiveReturnStrength);
+        _updateCompute.SetFloat(PhysicsWakeSpeedId, Mathf.Max(0.0f, _physicsWakeSpeed));
+        _updateCompute.SetFloat(PhysicsSleepSpeedId, Mathf.Max(0.0f, _physicsSleepSpeed));
+        _updateCompute.SetFloat(PhysicsWakeAnchorErrorId, Mathf.Max(0.0f, _physicsWakeAnchorError));
+        _updateCompute.SetFloat(PhysicsSleepAnchorErrorId, Mathf.Max(0.0f, _physicsSleepAnchorError));
+        _updateCompute.SetFloat(PhysicsWakeNeighborRadiusId, Mathf.Max(_physicsWakeNeighborRadius, Mathf.Max(_collisionRadius * 3.0f, 1.1f)));
+        _updateCompute.SetFloat(PhysicsActiveHoldTimeId, Mathf.Max(0.0f, _physicsActiveHoldTime));
+        _updateCompute.SetFloat(PhysicsSleepDelayId, Mathf.Max(0.0f, _physicsSleepDelay));
+        _updateCompute.SetFloat(CombatActiveHoldTimeId, Mathf.Max(0.0f, _combatActiveHoldTime));
+        _updateCompute.SetInt(CombatActiveProbeIntervalFramesId, Mathf.Max(1, _combatActiveProbeIntervalFrames));
+        _updateCompute.SetInt(SimulationFrameIndexId, Application.isPlaying ? Mathf.Max(Time.frameCount, 0) : 0);
         _updateCompute.SetInt(EnableEnvironmentDistanceFieldId, useEnvironmentDistanceField ? 1 : 0);
         _updateCompute.SetInt(EnableTerrainCollisionId, useTerrainCollision ? 1 : 0);
         _updateCompute.SetFloat(TerrainHeightOffsetId, _terrainHeightOffset);
@@ -355,6 +572,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _updateCompute.SetInt(EnableCombatTerrainOcclusionId, 0);
         _updateCompute.SetFloat(CombatTerrainOcclusionSampleSpacingId, _combatTerrainOcclusionSampleSpacing);
         _updateCompute.SetFloat(CombatTerrainOcclusionClearanceId, _combatTerrainOcclusionClearance);
+        _updateCompute.SetInt(CombatEnvironmentOcclusionMaxStepsId, Mathf.Clamp(_combatEnvironmentOcclusionMaxSteps, 1, 96));
         _updateCompute.SetFloat(CombatOriginHeightId, _combatOriginHeight);
         _updateCompute.SetFloat(CombatTargetHeightId, ResolveCombatTargetHeight());
         _updateCompute.SetFloat(CombatMuzzleFlashDecayId, _combatMuzzleFlashDecay);
@@ -366,16 +584,16 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _updateCompute.SetFloat(CombatNoTargetRetryDelayId, _combatNoTargetRetryDelay);
         _updateCompute.SetFloat(TargetAcquisitionSearchIntervalMinId, Mathf.Max(0.02f, _targetAcquisitionSearchIntervalMin));
         _updateCompute.SetFloat(TargetAcquisitionSearchIntervalMaxId, Mathf.Max(Mathf.Max(0.02f, _targetAcquisitionSearchIntervalMin), _targetAcquisitionSearchIntervalMax));
-        _updateCompute.SetFloat(TargetAcquisitionFarDistanceId, Mathf.Max(0.1f, _targetAcquisitionFarDistance));
-        _updateCompute.SetFloat(TargetAcquisitionFarIntervalMultiplierId, Mathf.Max(1.0f, _targetAcquisitionFarIntervalMultiplier));
         _updateCompute.SetFloat(TargetAcquisitionFovCosineId, Mathf.Cos(Mathf.Clamp(_targetAcquisitionFovDegrees, 1.0f, 360.0f) * 0.5f * Mathf.Deg2Rad));
         _updateCompute.SetInt(TargetAcquisitionMaxCandidateChecksId, Mathf.Max(1, _targetAcquisitionMaxCandidateChecks));
         _updateCompute.SetFloat(TargetAcquisitionCurrentTargetBonusId, Mathf.Max(0.0f, _targetAcquisitionCurrentTargetBonus));
         _updateCompute.SetFloat(TargetAcquisitionLastAttackerBonusId, Mathf.Max(0.0f, _targetAcquisitionLastAttackerBonus));
         _updateCompute.SetFloat(TargetAcquisitionLockDurationId, Mathf.Max(0.0f, _targetAcquisitionLockDuration));
         _updateCompute.SetFloat(TargetAcquisitionLostSightGraceId, Mathf.Max(0.0f, _targetAcquisitionLostSightGrace));
+        _updateCompute.SetFloat(TargetAcquisitionLineOfSightRecheckIntervalId, Mathf.Max(0.0f, _targetAcquisitionLineOfSightRecheckInterval));
         _updateCompute.SetFloat(TargetAcquisitionDistanceScoreWeightId, Mathf.Max(0.0f, _targetAcquisitionDistanceScoreWeight));
         _updateCompute.SetFloat(TargetAcquisitionViewScoreWeightId, Mathf.Max(0.0f, _targetAcquisitionViewScoreWeight));
+        _updateCompute.SetInt(CombatCandidateCapacityPerSquadId, HasRuntimeSquadAnchorData() ? Mathf.Clamp(_combatCandidateCapacityPerSquad, 1, CombatCandidateCapacityPerSquadMax) : 0);
         _updateCompute.SetVector(EnvironmentDistanceWorldCenterId, hasBakedEnvironmentDistanceField ? bakedEnvironmentField.worldCenter : Vector3.zero);
         _updateCompute.SetVector(EnvironmentDistanceWorldSizeId, hasBakedEnvironmentDistanceField ? bakedEnvironmentField.worldSize : Vector3.one);
         _updateCompute.SetFloat(EnvironmentDistanceDistanceScaleId, hasBakedEnvironmentDistanceField ? bakedEnvironmentField.distanceScale : 1.0f);
@@ -384,7 +602,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _updateCompute.SetVector(StaticSdfWorldSizeId, hasStaticSdfField ? staticSdfField.worldSize : Vector3.one);
         _updateCompute.SetFloat(StaticSdfDistanceScaleId, hasStaticSdfField ? staticSdfField.distanceScale : 1.0f);
         _updateCompute.SetFloat(StaticSdfDistanceBiasId, hasStaticSdfField ? staticSdfField.distanceBias : 0.0f);
-        _updateCompute.SetInt(GridBuildModeId, GridBuildModeActiveOnly);
+        _updateCompute.SetInt(GridBuildModeId, GridBuildModePhysicsActiveOnly);
         _updateCompute.SetInt(SpatialQueryCountId, _activeSpatialQueryCount);
         _updateCompute.SetInt(MaxSpatialQueryHitsId, _maxHitsPerSpatialQuery);
         _updateCompute.SetInt(EnableRuntimeSquadAnchorsId, HasRuntimeSquadAnchorData() ? 1 : 0);
@@ -429,14 +647,13 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
     private void BindPredictKernel()
     {
-        _updateCompute.SetBuffer(_predictKernel, SpawnDataId, _spawnDataBuffer);
+        SetGpuPassBuffer(_predictKernel, SpawnDataId, "_SpawnData", "spawnData", _spawnDataBuffer, GpuPassBindingAccess.Srv);
         BindSimulationReadBuffers(_predictKernel);
         BindSimulationWriteBuffers(_predictKernel);
-        _updateCompute.SetBuffer(_predictKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_predictKernel, DeathStateBufferId, _deathStateBuffer);
-        _updateCompute.SetBuffer(_predictKernel, InteractionSphereBufferId, _interactionSphereBuffer);
-        _updateCompute.SetBuffer(_predictKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_predictKernel, GridOccupantBufferId, _gridOccupantBuffer);
+        SetGpuPassBuffer(_predictKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_predictKernel, InteractionSphereBufferId, "_InteractionSphereBuffer", "interactionSphere", _interactionSphereBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_predictKernel, WakeGridCounterBufferId, "_WakeGridCounterBuffer", "wakeGridCounter", _wakeGridCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_predictKernel, WakeGridOccupantBufferId, "_WakeGridOccupantBuffer", "wakeGridOccupant", _wakeGridOccupantBuffer, GpuPassBindingAccess.Srv);
         BindAliveInstanceListBuffers(_predictKernel);
         BindRuntimeSquadBuffers(_predictKernel);
         _updateCompute.SetTexture(_predictKernel, TerrainHeightmapId, _resolvedTerrainHeightmap != null ? _resolvedTerrainHeightmap : Texture2D.blackTexture);
@@ -446,104 +663,227 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
     private void BindBuildAliveInstanceListKernel()
     {
-        _updateCompute.SetBuffer(_buildAliveInstanceListKernel, DeathStateBufferId, _deathStateBuffer);
-        _updateCompute.SetBuffer(_buildAliveInstanceListKernel, AliveInstanceIndexBufferId, _aliveInstanceIndexBuffer);
-        _updateCompute.SetBuffer(_buildAliveInstanceListKernel, AliveInstanceCounterBufferId, _aliveInstanceCounterBuffer);
+        SetGpuPassBuffer(_buildAliveInstanceListKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildAliveInstanceListKernel, AliveInstanceIndexBufferId, "_AliveInstanceIndexBuffer", "aliveInstanceIndex", _aliveInstanceIndexBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildAliveInstanceListKernel, AliveInstanceCounterBufferId, "_AliveInstanceCounterBuffer", "aliveInstanceCounter", _aliveInstanceCounterBuffer, GpuPassBindingAccess.Uav);
     }
 
     private void BindBuildAliveDispatchArgsKernel()
     {
-        _updateCompute.SetBuffer(_buildAliveDispatchArgsKernel, AliveInstanceCounterBufferId, _aliveInstanceCounterBuffer);
-        _updateCompute.SetBuffer(_buildAliveDispatchArgsKernel, AliveInstanceDispatchArgsBufferId, _aliveInstanceDispatchArgsBuffer);
+        SetGpuPassBuffer(_buildAliveDispatchArgsKernel, AliveInstanceCounterBufferId, "_AliveInstanceCounterBuffer", "aliveInstanceCounter", _aliveInstanceCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildAliveDispatchArgsKernel, AliveInstanceDispatchArgsBufferId, "_AliveInstanceDispatchArgsBuffer", "aliveInstanceDispatchArgs", _aliveInstanceDispatchArgsBuffer, GpuPassBindingAccess.Uav);
     }
 
-    private void BindBuildActiveInstanceListKernel()
+    private void BindClearWakeGridKernel()
     {
-        _updateCompute.SetBuffer(_buildActiveInstanceListKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_buildActiveInstanceListKernel, DeathStateBufferId, _deathStateBuffer);
-        BindAliveInstanceListBuffers(_buildActiveInstanceListKernel);
-        _updateCompute.SetBuffer(_buildActiveInstanceListKernel, ActiveInstanceIndexBufferId, _activeInstanceIndexBuffer);
-        _updateCompute.SetBuffer(_buildActiveInstanceListKernel, ActiveInstanceCounterBufferId, _activeInstanceCounterBuffer);
+        SetGpuPassBuffer(_clearWakeGridKernel, WakeGridCounterBufferId, "_WakeGridCounterBuffer", "wakeGridCounter", _wakeGridCounterBuffer, GpuPassBindingAccess.Uav);
     }
 
-    private void BindBuildActiveDispatchArgsKernel()
+    private void BindBuildWakeGridKernel()
     {
-        _updateCompute.SetBuffer(_buildActiveDispatchArgsKernel, ActiveInstanceCounterBufferId, _activeInstanceCounterBuffer);
-        _updateCompute.SetBuffer(_buildActiveDispatchArgsKernel, ActiveInstanceDispatchArgsBufferId, _activeInstanceDispatchArgsBuffer);
+        BindSimulationReadBuffers(_buildWakeGridKernel);
+        SetGpuPassBuffer(_buildWakeGridKernel, WakeGridCounterBufferId, "_WakeGridCounterBuffer", "wakeGridCounter", _wakeGridCounterBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildWakeGridKernel, WakeGridOccupantBufferId, "_WakeGridOccupantBuffer", "wakeGridOccupant", _wakeGridOccupantBuffer, GpuPassBindingAccess.Uav);
+        BindAliveInstanceListBuffers(_buildWakeGridKernel);
+    }
+
+    private void BindEvaluatePhysicsActiveKernel()
+    {
+        SetGpuPassBuffer(_evaluatePhysicsActiveKernel, SpawnDataId, "_SpawnData", "spawnData", _spawnDataBuffer, GpuPassBindingAccess.Srv);
+        BindSimulationReadBuffers(_evaluatePhysicsActiveKernel);
+        SetGpuPassBuffer(_evaluatePhysicsActiveKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_evaluatePhysicsActiveKernel, PhysicsActiveStateBufferId, "_PhysicsActiveStateBuffer", "physicsActiveState", _physicsActiveStateBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_evaluatePhysicsActiveKernel, PhysicsActivationMetaBufferId, "_PhysicsActivationMetaBuffer", "physicsActivationMeta", _physicsActivationMetaBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_evaluatePhysicsActiveKernel, WakeGridCounterBufferId, "_WakeGridCounterBuffer", "wakeGridCounter", _wakeGridCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_evaluatePhysicsActiveKernel, WakeGridOccupantBufferId, "_WakeGridOccupantBuffer", "wakeGridOccupant", _wakeGridOccupantBuffer, GpuPassBindingAccess.Srv);
+        BindAliveInstanceListBuffers(_evaluatePhysicsActiveKernel);
+        BindRuntimeSquadBuffers(_evaluatePhysicsActiveKernel);
+    }
+
+    private void BindBuildPhysicsActiveInstanceListKernel()
+    {
+        SetGpuPassBuffer(_buildPhysicsActiveInstanceListKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildPhysicsActiveInstanceListKernel, PhysicsActiveStateBufferId, "_PhysicsActiveStateBuffer", "physicsActiveState", _physicsActiveStateBuffer, GpuPassBindingAccess.Srv);
+        BindAliveInstanceListBuffers(_buildPhysicsActiveInstanceListKernel);
+        SetGpuPassBuffer(_buildPhysicsActiveInstanceListKernel, PhysicsActiveInstanceIndexBufferId, "_PhysicsActiveInstanceIndexBuffer", "physicsActiveInstanceIndex", _physicsActiveInstanceIndexBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildPhysicsActiveInstanceListKernel, PhysicsActiveInstanceCounterBufferId, "_PhysicsActiveInstanceCounterBuffer", "physicsActiveInstanceCounter", _physicsActiveInstanceCounterBuffer, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindBuildPhysicsActiveDispatchArgsKernel()
+    {
+        SetGpuPassBuffer(_buildPhysicsActiveDispatchArgsKernel, PhysicsActiveInstanceCounterBufferId, "_PhysicsActiveInstanceCounterBuffer", "physicsActiveInstanceCounter", _physicsActiveInstanceCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildPhysicsActiveDispatchArgsKernel, PhysicsActiveInstanceDispatchArgsBufferId, "_PhysicsActiveInstanceDispatchArgsBuffer", "physicsActiveInstanceDispatchArgs", _physicsActiveInstanceDispatchArgsBuffer, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindEvaluateCombatActiveKernel()
+    {
+        SetGpuPassBuffer(_evaluateCombatActiveKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_evaluateCombatActiveKernel, CombatStateBufferId, "_CombatStateBuffer", "combatState", _combatStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_evaluateCombatActiveKernel, TargetAcquisitionStateBufferId, "_TargetAcquisitionStateBuffer", "targetAcquisitionState", _targetAcquisitionStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_evaluateCombatActiveKernel, CombatActiveStateBufferId, "_CombatActiveStateBuffer", "combatActiveState", _combatActiveStateBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_evaluateCombatActiveKernel, CombatActivationMetaBufferId, "_CombatActivationMetaBuffer", "combatActivationMeta", _combatActivationMetaBuffer, GpuPassBindingAccess.Uav);
+        BindAliveInstanceListBuffers(_evaluateCombatActiveKernel);
+    }
+
+    private void BindBuildCombatActiveInstanceListKernel()
+    {
+        SetGpuPassBuffer(_buildCombatActiveInstanceListKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildCombatActiveInstanceListKernel, CombatActiveStateBufferId, "_CombatActiveStateBuffer", "combatActiveState", _combatActiveStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildCombatActiveInstanceListKernel, CombatActivationMetaBufferId, "_CombatActivationMetaBuffer", "combatActivationMeta", _combatActivationMetaBuffer, GpuPassBindingAccess.Srv);
+        BindAliveInstanceListBuffers(_buildCombatActiveInstanceListKernel);
+        SetGpuPassBuffer(_buildCombatActiveInstanceListKernel, CombatActiveInstanceIndexBufferId, "_CombatActiveInstanceIndexBuffer", "combatActiveInstanceIndex", _combatActiveInstanceIndexBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildCombatActiveInstanceListKernel, CombatActiveInstanceCounterBufferId, "_CombatActiveInstanceCounterBuffer", "combatActiveInstanceCounter", _combatActiveInstanceCounterBuffer, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindCompactCombatActiveInstanceListKernel()
+    {
+        SetGpuPassBuffer(_compactCombatActiveInstanceListKernel, CombatActiveInstanceIndexBufferId, "_CombatActiveInstanceIndexBuffer", "combatActiveInstanceIndex", _combatActiveInstanceIndexBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_compactCombatActiveInstanceListKernel, CombatActiveInstanceCounterBufferId, "_CombatActiveInstanceCounterBuffer", "combatActiveInstanceCounter", _combatActiveInstanceCounterBuffer, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindBuildCombatActiveDispatchArgsKernel()
+    {
+        SetGpuPassBuffer(_buildCombatActiveDispatchArgsKernel, CombatActiveInstanceCounterBufferId, "_CombatActiveInstanceCounterBuffer", "combatActiveInstanceCounter", _combatActiveInstanceCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildCombatActiveDispatchArgsKernel, CombatActiveInstanceDispatchArgsBufferId, "_CombatActiveInstanceDispatchArgsBuffer", "combatActiveInstanceDispatchArgs", _combatActiveInstanceDispatchArgsBuffer, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindBuildGridClearDispatchArgsKernel()
+    {
+        SetGpuPassBuffer(_buildGridClearDispatchArgsKernel, GridPrevTouchedCounterBufferId, "_GridPrevTouchedCounterBuffer", "gridPrevTouchedCounter", _gridPrevTouchedCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildGridClearDispatchArgsKernel, GridClearDispatchArgsBufferId, "_GridClearDispatchArgsBuffer", "gridClearDispatchArgs", _gridClearDispatchArgsBuffer, GpuPassBindingAccess.Uav);
     }
 
     private void BindClearGridKernel()
     {
-        _updateCompute.SetBuffer(_clearGridKernel, GridCounterBufferId, _gridCounterBuffer);
+        SetGpuPassBuffer(_clearGridKernel, GridCounterBufferId, "_GridCounterBuffer", "gridCounter", _gridCounterBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_clearGridKernel, GridPrevTouchedCellBufferId, "_GridPrevTouchedCellBuffer", "gridPrevTouchedCell", _gridPrevTouchedCellBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_clearGridKernel, GridPrevTouchedCounterBufferId, "_GridPrevTouchedCounterBuffer", "gridPrevTouchedCounter", _gridPrevTouchedCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_clearGridKernel, GridCurrTouchedCounterBufferId, "_GridCurrTouchedCounterBuffer", "gridCurrTouchedCounter", _gridCurrTouchedCounterBuffer, GpuPassBindingAccess.Uav);
     }
 
-    private void BindBuildGridKernel(bool useActiveInstanceList)
+    private void BindBuildGridKernel(bool usePhysicsActiveInstanceList)
     {
         BindSimulationReadBuffers(_buildGridKernel);
-        _updateCompute.SetBuffer(_buildGridKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_buildGridKernel, GridOccupantBufferId, _gridOccupantBuffer);
-        if (useActiveInstanceList)
-            BindActiveInstanceListBuffers(_buildGridKernel);
-        else
-            BindAliveInstanceListBuffers(_buildGridKernel);
+        _updateCompute.SetInt(GridBuildModeId, usePhysicsActiveInstanceList ? GridBuildModePhysicsActiveOnly : GridBuildModeAllQueryables);
+        SetGpuPassBuffer(_buildGridKernel, GridCounterBufferId, "_GridCounterBuffer", "gridCounter", _gridCounterBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildGridKernel, GridOccupantBufferId, "_GridOccupantBuffer", "gridOccupant", _gridOccupantBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildGridKernel, GridCurrTouchedCellBufferId, "_GridCurrTouchedCellBuffer", "gridCurrTouchedCell", _gridCurrTouchedCellBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildGridKernel, GridCurrTouchedCounterBufferId, "_GridCurrTouchedCounterBuffer", "gridCurrTouchedCounter", _gridCurrTouchedCounterBuffer, GpuPassBindingAccess.Uav);
+        BindPhysicsActiveInstanceListBuffers(_buildGridKernel, GpuPassBindingAccess.Srv);
+        BindAliveInstanceListBuffers(_buildGridKernel);
     }
 
     private void BindBuildSpatialElementsKernel()
     {
-        _updateCompute.SetBuffer(_buildSpatialElementsKernel, SpawnDataId, _spawnDataBuffer);
+        SetGpuPassBuffer(_buildSpatialElementsKernel, SpawnDataId, "_SpawnData", "spawnData", _spawnDataBuffer, GpuPassBindingAccess.Srv);
         BindSimulationReadBuffers(_buildSpatialElementsKernel);
-        _updateCompute.SetBuffer(_buildSpatialElementsKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_buildSpatialElementsKernel, DeathStateBufferId, _deathStateBuffer);
-        BindSpatialElementBuffers(_buildSpatialElementsKernel);
+        SetGpuPassBuffer(_buildSpatialElementsKernel, PhysicsActiveStateBufferId, "_PhysicsActiveStateBuffer", "physicsActiveState", _physicsActiveStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildSpatialElementsKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        BindSpatialElementBuffers(_buildSpatialElementsKernel, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindBuildCombatCandidateClustersKernel()
+    {
+        SetGpuPassBuffer(_buildCombatCandidateClustersKernel, SpawnDataId, "_SpawnData", "spawnData", _spawnDataBuffer, GpuPassBindingAccess.Srv);
+        BindSimulationReadBuffers(_buildCombatCandidateClustersKernel);
+        SetGpuPassBuffer(_buildCombatCandidateClustersKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildCombatCandidateClustersKernel, GridCounterBufferId, "_GridCounterBuffer", "gridCounter", _gridCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildCombatCandidateClustersKernel, GridOccupantBufferId, "_GridOccupantBuffer", "gridOccupant", _gridOccupantBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildCombatCandidateClustersKernel, CombatCandidateClusterWorkItemBufferId, "_CombatCandidateClusterWorkItemBuffer", "combatCandidateClusterWorkItem", _combatCandidateClusterWorkItemBuffer, GpuPassBindingAccess.Srv);
+        BindRuntimeSquadBuffers(_buildCombatCandidateClustersKernel);
+        BindCombatSquadCandidateBuffers(_buildCombatCandidateClustersKernel, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindClearCombatSquadCandidateCountersKernel()
+    {
+        SetGpuPassBuffer(_clearCombatSquadCandidateCountersKernel, CombatSquadCandidateCounterBufferId, "_CombatSquadCandidateCounterBuffer", "combatSquadCandidateCounter", _combatSquadCandidateCounterBuffer, GpuPassBindingAccess.Uav);
     }
 
     private void BindSolveKernel()
     {
-        _updateCompute.SetBuffer(_solveCrowdKernel, SpawnDataId, _spawnDataBuffer);
+        SetGpuPassBuffer(_solveCrowdKernel, SpawnDataId, "_SpawnData", "spawnData", _spawnDataBuffer, GpuPassBindingAccess.Srv);
         BindSimulationReadBuffers(_solveCrowdKernel);
         BindSimulationWriteBuffers(_solveCrowdKernel);
-        _updateCompute.SetBuffer(_solveCrowdKernel, DeathStateBufferId, _deathStateBuffer);
-        _updateCompute.SetBuffer(_solveCrowdKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_solveCrowdKernel, GridOccupantBufferId, _gridOccupantBuffer);
-        BindAliveInstanceListBuffers(_solveCrowdKernel);
+        SetGpuPassBuffer(_solveCrowdKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_solveCrowdKernel, PhysicsActivationMetaBufferId, "_PhysicsActivationMetaBuffer", "physicsActivationMeta", _physicsActivationMetaBuffer, GpuPassBindingAccess.Uav);
+        BindPhysicsActiveInstanceListReadBuffers(_solveCrowdKernel);
+        SetGpuPassBuffer(_solveCrowdKernel, GridCounterBufferId, "_GridCounterBuffer", "gridCounter", _gridCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_solveCrowdKernel, GridOccupantBufferId, "_GridOccupantBuffer", "gridOccupant", _gridOccupantBuffer, GpuPassBindingAccess.Srv);
         BindRuntimeSquadBuffers(_solveCrowdKernel);
         _updateCompute.SetTexture(_solveCrowdKernel, TerrainHeightmapId, _resolvedTerrainHeightmap != null ? _resolvedTerrainHeightmap : Texture2D.blackTexture);
         _updateCompute.SetTexture(_solveCrowdKernel, StaticSdfTextureId, _resolvedStaticSdfTexture != null ? _resolvedStaticSdfTexture : GetFallbackStaticSdfTexture());
         _updateCompute.SetTexture(_solveCrowdKernel, EnvironmentDistanceFieldTextureId, _resolvedEnvironmentDistanceFieldTexture != null ? _resolvedEnvironmentDistanceFieldTexture : GetFallbackStaticSdfTexture());
     }
 
-    private void BindResolveTargetAcquisitionKernel(bool useActiveInstanceList)
+    private void BindResolveTargetAcquisitionKernel()
     {
-        _updateCompute.SetBuffer(_resolveTargetAcquisitionKernel, SpawnDataId, _spawnDataBuffer);
+        SetGpuPassBuffer(_resolveTargetAcquisitionKernel, SpawnDataId, "_SpawnData", "spawnData", _spawnDataBuffer, GpuPassBindingAccess.Srv);
         BindSimulationReadBuffers(_resolveTargetAcquisitionKernel);
-        _updateCompute.SetBuffer(_resolveTargetAcquisitionKernel, DeathStateBufferId, _deathStateBuffer);
-        _updateCompute.SetBuffer(_resolveTargetAcquisitionKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_resolveTargetAcquisitionKernel, GridOccupantBufferId, _gridOccupantBuffer);
-        _updateCompute.SetBuffer(_resolveTargetAcquisitionKernel, TargetAcquisitionStateBufferId, _targetAcquisitionStateBuffer);
-        if (useActiveInstanceList)
-            BindActiveInstanceListBuffers(_resolveTargetAcquisitionKernel);
-        else
-            BindAliveInstanceListBuffers(_resolveTargetAcquisitionKernel);
+        SetGpuPassBuffer(_resolveTargetAcquisitionKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveTargetAcquisitionKernel, GridCounterBufferId, "_GridCounterBuffer", "gridCounter", _gridCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveTargetAcquisitionKernel, GridOccupantBufferId, "_GridOccupantBuffer", "gridOccupant", _gridOccupantBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveTargetAcquisitionKernel, TargetAcquisitionStateBufferId, "_TargetAcquisitionStateBuffer", "targetAcquisitionState", _targetAcquisitionStateBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_resolveTargetAcquisitionKernel, TargetAcquisitionCandidateBufferId, "_TargetAcquisitionCandidateBuffer", "targetAcquisitionCandidate", _targetAcquisitionCandidateBuffer, GpuPassBindingAccess.Uav);
+        BindCombatActiveInstanceListBuffers(_resolveTargetAcquisitionKernel);
+        BindRuntimeSquadBuffers(_resolveTargetAcquisitionKernel);
         _updateCompute.SetTexture(_resolveTargetAcquisitionKernel, TerrainHeightmapId, _resolvedTerrainHeightmap != null ? _resolvedTerrainHeightmap : Texture2D.blackTexture);
         _updateCompute.SetTexture(_resolveTargetAcquisitionKernel, StaticSdfTextureId, _resolvedStaticSdfTexture != null ? _resolvedStaticSdfTexture : GetFallbackStaticSdfTexture());
         _updateCompute.SetTexture(_resolveTargetAcquisitionKernel, EnvironmentDistanceFieldTextureId, _resolvedEnvironmentDistanceFieldTexture != null ? _resolvedEnvironmentDistanceFieldTexture : GetFallbackStaticSdfTexture());
     }
 
-    private void BindResolveInstanceCombatKernel(bool useActiveInstanceList)
+    private void BindBuildTargetAcquisitionLosDispatchArgsKernel()
     {
-        _updateCompute.SetBuffer(_resolveInstanceCombatKernel, SpawnDataId, _spawnDataBuffer);
+        SetGpuPassBuffer(_buildTargetAcquisitionLosDispatchArgsKernel, CombatActiveInstanceCounterBufferId, "_CombatActiveInstanceCounterBuffer", "combatActiveInstanceCounter", _combatActiveInstanceCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildTargetAcquisitionLosDispatchArgsKernel, TargetAcquisitionLosDispatchArgsBufferId, "_TargetAcquisitionLosDispatchArgsBuffer", "targetAcquisitionLosDispatchArgs", _targetAcquisitionLosDispatchArgsBuffer, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindBuildSquadAcquisitionDispatchArgsKernel()
+    {
+        SetGpuPassBuffer(_buildSquadAcquisitionDispatchArgsKernel, CombatActiveInstanceCounterBufferId, "_CombatActiveInstanceCounterBuffer", "combatActiveInstanceCounter", _combatActiveInstanceCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildSquadAcquisitionDispatchArgsKernel, SquadAcquisitionDispatchArgsBufferId, "_SquadAcquisitionDispatchArgsBuffer", "squadAcquisitionDispatchArgs", _squadAcquisitionDispatchArgsBuffer, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindEvaluateSquadAcquisitionCandidatesKernel()
+    {
+        BindSimulationReadBuffers(_evaluateSquadAcquisitionCandidatesKernel);
+        SetGpuPassBuffer(_evaluateSquadAcquisitionCandidatesKernel, SpawnDataId, "_SpawnData", "spawnData", _spawnDataBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_evaluateSquadAcquisitionCandidatesKernel, TargetAcquisitionStateBufferId, "_TargetAcquisitionStateBuffer", "targetAcquisitionState", _targetAcquisitionStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_evaluateSquadAcquisitionCandidatesKernel, TargetAcquisitionCandidateBufferId, "_TargetAcquisitionCandidateBuffer", "targetAcquisitionCandidate", _targetAcquisitionCandidateBuffer, GpuPassBindingAccess.Uav);
+        BindCombatActiveInstanceListBuffers(_evaluateSquadAcquisitionCandidatesKernel);
+        BindRuntimeSquadBuffers(_evaluateSquadAcquisitionCandidatesKernel);
+        BindCombatSquadCandidateBuffers(_evaluateSquadAcquisitionCandidatesKernel, GpuPassBindingAccess.Srv);
+    }
+
+    private void BindResolveTargetAcquisitionLineOfSightKernel()
+    {
+        BindSimulationReadBuffers(_resolveTargetAcquisitionLineOfSightKernel);
+        SetGpuPassBuffer(_resolveTargetAcquisitionLineOfSightKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveTargetAcquisitionLineOfSightKernel, TargetAcquisitionCandidateBufferId, "_TargetAcquisitionCandidateBuffer", "targetAcquisitionCandidate", _targetAcquisitionCandidateBuffer, GpuPassBindingAccess.Uav);
+        BindCombatActiveInstanceListBuffers(_resolveTargetAcquisitionLineOfSightKernel);
+        _updateCompute.SetTexture(_resolveTargetAcquisitionLineOfSightKernel, TerrainHeightmapId, _resolvedTerrainHeightmap != null ? _resolvedTerrainHeightmap : Texture2D.blackTexture);
+        _updateCompute.SetTexture(_resolveTargetAcquisitionLineOfSightKernel, StaticSdfTextureId, _resolvedStaticSdfTexture != null ? _resolvedStaticSdfTexture : GetFallbackStaticSdfTexture());
+        _updateCompute.SetTexture(_resolveTargetAcquisitionLineOfSightKernel, EnvironmentDistanceFieldTextureId, _resolvedEnvironmentDistanceFieldTexture != null ? _resolvedEnvironmentDistanceFieldTexture : GetFallbackStaticSdfTexture());
+    }
+
+    private void BindFinalizeTargetAcquisitionKernel()
+    {
+        SetGpuPassBuffer(_finalizeTargetAcquisitionKernel, TargetAcquisitionStateBufferId, "_TargetAcquisitionStateBuffer", "targetAcquisitionState", _targetAcquisitionStateBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_finalizeTargetAcquisitionKernel, TargetAcquisitionCandidateBufferId, "_TargetAcquisitionCandidateBuffer", "targetAcquisitionCandidate", _targetAcquisitionCandidateBuffer, GpuPassBindingAccess.Uav);
+        BindCombatActiveInstanceListBuffers(_finalizeTargetAcquisitionKernel);
+    }
+
+    private void BindResolveInstanceCombatKernel()
+    {
+        SetGpuPassBuffer(_resolveInstanceCombatKernel, SpawnDataId, "_SpawnData", "spawnData", _spawnDataBuffer, GpuPassBindingAccess.Srv);
         BindSimulationReadBuffers(_resolveInstanceCombatKernel);
-        _updateCompute.SetBuffer(_resolveInstanceCombatKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_resolveInstanceCombatKernel, DeathStateBufferId, _deathStateBuffer);
-        _updateCompute.SetBuffer(_resolveInstanceCombatKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_resolveInstanceCombatKernel, GridOccupantBufferId, _gridOccupantBuffer);
-        _updateCompute.SetBuffer(_resolveInstanceCombatKernel, CombatStateBufferId, _combatStateBuffer);
-        _updateCompute.SetBuffer(_resolveInstanceCombatKernel, TargetAcquisitionStateBufferId, _targetAcquisitionStateBuffer);
-        _updateCompute.SetBuffer(_resolveInstanceCombatKernel, SquadAliveCountBufferId, _squadAliveCountBuffer);
-        if (useActiveInstanceList)
-            BindActiveInstanceListBuffers(_resolveInstanceCombatKernel);
-        else
-            BindAliveInstanceListBuffers(_resolveInstanceCombatKernel);
+        SetGpuPassBuffer(_resolveInstanceCombatKernel, PhysicsActiveStateBufferId, "_PhysicsActiveStateBuffer", "physicsActiveState", _physicsActiveStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveInstanceCombatKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_resolveInstanceCombatKernel, GridCounterBufferId, "_GridCounterBuffer", "gridCounter", _gridCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveInstanceCombatKernel, GridOccupantBufferId, "_GridOccupantBuffer", "gridOccupant", _gridOccupantBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveInstanceCombatKernel, CombatStateBufferId, "_CombatStateBuffer", "combatState", _combatStateBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_resolveInstanceCombatKernel, TargetAcquisitionStateBufferId, "_TargetAcquisitionStateBuffer", "targetAcquisitionState", _targetAcquisitionStateBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_resolveInstanceCombatKernel, SquadAliveCountBufferId, "_SquadAliveCountBuffer", "squadAliveCount", _squadAliveCountBuffer, GpuPassBindingAccess.Srv);
+        BindCombatActiveInstanceListReadBuffers(_resolveInstanceCombatKernel);
         BindRuntimeSquadBuffers(_resolveInstanceCombatKernel);
         _updateCompute.SetTexture(_resolveInstanceCombatKernel, TerrainHeightmapId, _resolvedTerrainHeightmap != null ? _resolvedTerrainHeightmap : Texture2D.blackTexture);
         _updateCompute.SetTexture(_resolveInstanceCombatKernel, StaticSdfTextureId, _resolvedStaticSdfTexture != null ? _resolvedStaticSdfTexture : GetFallbackStaticSdfTexture());
@@ -552,8 +892,8 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
     private void BindAliveInstanceListBuffers(int kernel)
     {
-        _updateCompute.SetBuffer(kernel, AliveInstanceIndexReadBufferId, _aliveInstanceIndexBuffer);
-        _updateCompute.SetBuffer(kernel, AliveInstanceCounterReadBufferId, _aliveInstanceCounterBuffer);
+        SetGpuPassBuffer(kernel, AliveInstanceIndexReadBufferId, "_AliveInstanceIndexReadBuffer", "aliveInstanceIndex", _aliveInstanceIndexBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(kernel, AliveInstanceCounterReadBufferId, "_AliveInstanceCounterReadBuffer", "aliveInstanceCounter", _aliveInstanceCounterBuffer, GpuPassBindingAccess.Srv);
     }
 
     private bool HasSimulationReadBuffers()
@@ -577,106 +917,156 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
     private void BindSimulationReadBuffers(int kernel)
     {
-        _updateCompute.SetBuffer(kernel, SimulationPositionYawReadBufferId, _simulationPositionYawReadBuffer);
-        _updateCompute.SetBuffer(kernel, SimulationScaleReadBufferId, _simulationScaleReadBuffer);
-        _updateCompute.SetBuffer(kernel, SimulationVelocityReadBufferId, _simulationVelocityReadBuffer);
+        SetGpuPassBuffer(kernel, SimulationPositionYawReadBufferId, "_SimulationPositionYawReadBuffer", "simulationPositionYaw.read", _simulationPositionYawReadBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(kernel, SimulationScaleReadBufferId, "_SimulationScaleReadBuffer", "simulationScale.read", _simulationScaleReadBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(kernel, SimulationVelocityReadBufferId, "_SimulationVelocityReadBuffer", "simulationVelocity.read", _simulationVelocityReadBuffer, GpuPassBindingAccess.Srv);
     }
 
     private void BindSimulationWriteBuffers(int kernel)
     {
-        _updateCompute.SetBuffer(kernel, SimulationPositionYawWriteBufferId, _simulationPositionYawWriteBuffer);
-        _updateCompute.SetBuffer(kernel, SimulationScaleWriteBufferId, _simulationScaleWriteBuffer);
-        _updateCompute.SetBuffer(kernel, SimulationVelocityWriteBufferId, _simulationVelocityWriteBuffer);
+        SetGpuPassBuffer(kernel, SimulationPositionYawWriteBufferId, "_SimulationPositionYawWriteBuffer", "simulationPositionYaw.write", _simulationPositionYawWriteBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(kernel, SimulationScaleWriteBufferId, "_SimulationScaleWriteBuffer", "simulationScale.write", _simulationScaleWriteBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(kernel, SimulationVelocityWriteBufferId, "_SimulationVelocityWriteBuffer", "simulationVelocity.write", _simulationVelocityWriteBuffer, GpuPassBindingAccess.Uav);
     }
 
-    private void BindSpatialElementBuffers(int kernel)
+    private void BindSpatialElementBuffers(int kernel, GpuPassBindingAccess access)
     {
-        _updateCompute.SetBuffer(kernel, SpatialCapsuleStartRadiusBufferId, _spatialCapsuleStartRadiusBuffer);
-        _updateCompute.SetBuffer(kernel, SpatialCapsuleEndHeightBufferId, _spatialCapsuleEndHeightBuffer);
-        _updateCompute.SetBuffer(kernel, SpatialOwnerIndexBufferId, _spatialOwnerIndexBuffer);
-        _updateCompute.SetBuffer(kernel, SpatialTargetMaskBufferId, _spatialTargetMaskBuffer);
-        _updateCompute.SetBuffer(kernel, SpatialFlagsBufferId, _spatialFlagsBuffer);
-        _updateCompute.SetBuffer(kernel, SpatialFactionBufferId, _spatialFactionBuffer);
+        SetGpuPassBuffer(kernel, SpatialCapsuleStartRadiusBufferId, "_SpatialCapsuleStartRadiusBuffer", "spatialCapsuleStartRadius", _spatialCapsuleStartRadiusBuffer, access);
+        SetGpuPassBuffer(kernel, SpatialCapsuleEndHeightBufferId, "_SpatialCapsuleEndHeightBuffer", "spatialCapsuleEndHeight", _spatialCapsuleEndHeightBuffer, access);
+        SetGpuPassBuffer(kernel, SpatialOwnerIndexBufferId, "_SpatialOwnerIndexBuffer", "spatialOwnerIndex", _spatialOwnerIndexBuffer, access);
+        SetGpuPassBuffer(kernel, SpatialTargetMaskBufferId, "_SpatialTargetMaskBuffer", "spatialTargetMask", _spatialTargetMaskBuffer, access);
+        SetGpuPassBuffer(kernel, SpatialFlagsBufferId, "_SpatialFlagsBuffer", "spatialFlags", _spatialFlagsBuffer, access);
+        SetGpuPassBuffer(kernel, SpatialFactionBufferId, "_SpatialFactionBuffer", "spatialFaction", _spatialFactionBuffer, access);
     }
 
-    private void BindActiveInstanceListBuffers(int kernel)
+    private void BindPhysicsActiveInstanceListBuffers(int kernel, GpuPassBindingAccess access)
     {
-        _updateCompute.SetBuffer(kernel, ActiveInstanceIndexBufferId, _activeInstanceIndexBuffer);
-        _updateCompute.SetBuffer(kernel, ActiveInstanceCounterBufferId, _activeInstanceCounterBuffer);
+        SetGpuPassBuffer(kernel, PhysicsActiveInstanceIndexBufferId, "_PhysicsActiveInstanceIndexBuffer", "physicsActiveInstanceIndex", _physicsActiveInstanceIndexBuffer, access);
+        SetGpuPassBuffer(kernel, PhysicsActiveInstanceCounterBufferId, "_PhysicsActiveInstanceCounterBuffer", "physicsActiveInstanceCounter", _physicsActiveInstanceCounterBuffer, access);
     }
 
-    private void BindBuildVisibleRuntimeInstanceListKernel()
+    private void BindPhysicsActiveInstanceListReadBuffers(int kernel)
+    {
+        SetGpuPassBuffer(kernel, PhysicsActiveInstanceIndexReadBufferId, "_PhysicsActiveInstanceIndexReadBuffer", "physicsActiveInstanceIndex", _physicsActiveInstanceIndexBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(kernel, PhysicsActiveInstanceCounterReadBufferId, "_PhysicsActiveInstanceCounterReadBuffer", "physicsActiveInstanceCounter", _physicsActiveInstanceCounterBuffer, GpuPassBindingAccess.Srv);
+    }
+
+    private void BindCombatActiveInstanceListBuffers(int kernel)
+    {
+        SetGpuPassBuffer(kernel, CombatActiveInstanceIndexBufferId, "_CombatActiveInstanceIndexBuffer", "combatActiveInstanceIndex", _combatActiveInstanceIndexBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(kernel, CombatActiveInstanceCounterBufferId, "_CombatActiveInstanceCounterBuffer", "combatActiveInstanceCounter", _combatActiveInstanceCounterBuffer, GpuPassBindingAccess.Srv);
+    }
+
+    private void BindCombatActiveInstanceListReadBuffers(int kernel)
+    {
+        SetGpuPassBuffer(kernel, CombatActiveInstanceIndexReadBufferId, "_CombatActiveInstanceIndexReadBuffer", "combatActiveInstanceIndex", _combatActiveInstanceIndexBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(kernel, CombatActiveInstanceCounterReadBufferId, "_CombatActiveInstanceCounterReadBuffer", "combatActiveInstanceCounter", _combatActiveInstanceCounterBuffer, GpuPassBindingAccess.Srv);
+    }
+
+    private void BindCombatSquadCandidateBuffers(int kernel, GpuPassBindingAccess access)
+    {
+        SetGpuPassBuffer(kernel, CombatSquadCandidateBufferId, "_CombatSquadCandidateBuffer", "combatSquadCandidate", _combatSquadCandidateBuffer, access);
+        SetGpuPassBuffer(kernel, CombatSquadCandidateCounterBufferId, "_CombatSquadCandidateCounterBuffer", "combatSquadCandidateCounter", _combatSquadCandidateCounterBuffer, access);
+    }
+
+    private void BindClearVisibleRuntimeSquadBoundsKernel()
+    {
+        SetGpuPassBuffer(_clearVisibleRuntimeSquadBoundsKernel, RuntimeSquadBoundsBufferId, "_RuntimeSquadBoundsBuffer", "runtimeSquadBounds", _runtimeSquadBoundsBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_clearVisibleRuntimeSquadBoundsKernel, VisibleRuntimeSquadMaskBufferId, "_VisibleRuntimeSquadMaskBuffer", "visibleRuntimeSquadMask", _visibleRuntimeSquadMaskBuffer, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindBuildVisibleRuntimeSquadBoundsKernel()
+    {
+        BindAliveInstanceListBuffers(_buildVisibleRuntimeSquadBoundsKernel);
+        SetGpuPassBuffer(_buildVisibleRuntimeSquadBoundsKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        BindSimulationReadBuffers(_buildVisibleRuntimeSquadBoundsKernel);
+        SetGpuPassBuffer(_buildVisibleRuntimeSquadBoundsKernel, AgentSquadDataBufferId, "_AgentSquadDataBuffer", "agentSquadData", _agentSquadDataBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildVisibleRuntimeSquadBoundsKernel, RuntimeSquadBoundsBufferId, "_RuntimeSquadBoundsBuffer", "runtimeSquadBounds", _runtimeSquadBoundsBuffer, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindCullVisibleRuntimeSquadsKernel()
+    {
+        SetGpuPassBuffer(_cullVisibleRuntimeSquadsKernel, RuntimeSquadBoundsBufferId, "_RuntimeSquadBoundsBuffer", "runtimeSquadBounds", _runtimeSquadBoundsBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_cullVisibleRuntimeSquadsKernel, VisibleRuntimeSquadMaskBufferId, "_VisibleRuntimeSquadMaskBuffer", "visibleRuntimeSquadMask", _visibleRuntimeSquadMaskBuffer, GpuPassBindingAccess.Uav);
+    }
+
+    private void BindBuildVisibleRuntimeInstanceListKernel(bool renderAllAliveInstances = false)
     {
         BindAliveInstanceListBuffers(_buildVisibleRuntimeInstanceListKernel);
-        _updateCompute.SetBuffer(_buildVisibleRuntimeInstanceListKernel, DeathStateBufferId, _deathStateBuffer);
+        SetGpuPassBuffer(_buildVisibleRuntimeInstanceListKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
         BindSimulationReadBuffers(_buildVisibleRuntimeInstanceListKernel);
-        _updateCompute.SetBuffer(_buildVisibleRuntimeInstanceListKernel, AgentSquadDataBufferId, _agentSquadDataBuffer);
-        _updateCompute.SetBuffer(_buildVisibleRuntimeInstanceListKernel, VisibleRuntimeSquadMaskBufferId, _visibleRuntimeSquadMaskBuffer);
-        _updateCompute.SetBuffer(_buildVisibleRuntimeInstanceListKernel, VisibleInstanceIndicesId, _visibleInstanceIndexBuffer);
-        _updateCompute.SetBuffer(_buildVisibleRuntimeInstanceListKernel, VisibleInstanceCounterBufferId, _visibleInstanceCounterBuffer);
-        _updateCompute.SetInt(VisibleRuntimeSquadCountId, _activeSquadStateCount);
-        _updateCompute.SetInt(VisibleUnassignedInstancesId, _visibleUnassignedInstancesThisFrame ? 1 : 0);
+        SetGpuPassBuffer(_buildVisibleRuntimeInstanceListKernel, AgentSquadDataBufferId, "_AgentSquadDataBuffer", "agentSquadData", _agentSquadDataBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildVisibleRuntimeInstanceListKernel, VisibleRuntimeSquadMaskBufferId, "_VisibleRuntimeSquadMaskBuffer", "visibleRuntimeSquadMask", _visibleRuntimeSquadMaskBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildVisibleRuntimeInstanceListKernel, VisibleInstanceIndicesId, "_VisibleInstanceIndices", "visibleInstanceIndex", _visibleInstanceIndexBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildVisibleRuntimeInstanceListKernel, VisibleInstanceCounterBufferId, "_VisibleInstanceCounterBuffer", "visibleInstanceCounter", _visibleInstanceCounterBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildVisibleRuntimeInstanceListKernel, VisibleLod1InstanceIndicesId, "_VisibleLod1InstanceIndices", "visibleLod1InstanceIndex", _visibleLod1InstanceIndexBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildVisibleRuntimeInstanceListKernel, VisibleLod1InstanceCounterBufferId, "_VisibleLod1InstanceCounterBuffer", "visibleLod1InstanceCounter", _visibleLod1InstanceCounterBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildVisibleRuntimeInstanceListKernel, VisibleLod2InstanceIndicesId, "_VisibleLod2InstanceIndices", "visibleLod2InstanceIndex", _visibleLod2InstanceIndexBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_buildVisibleRuntimeInstanceListKernel, VisibleLod2InstanceCounterBufferId, "_VisibleLod2InstanceCounterBuffer", "visibleLod2InstanceCounter", _visibleLod2InstanceCounterBuffer, GpuPassBindingAccess.Uav);
+        _updateCompute.SetInt(VisibleRuntimeSquadCountId, renderAllAliveInstances ? 0 : _activeSquadStateCount);
+        _updateCompute.SetInt(VisibleUnassignedInstancesId, renderAllAliveInstances || _visibleUnassignedInstancesThisFrame ? 1 : 0);
+        SyncVisibleLodParameters();
     }
 
-    private void BindBuildVisibleChunkInstanceListKernel()
+    private void BindBuildVisibleIndirectArgsKernel(
+        GraphicsBuffer argsBuffer,
+        Mesh mesh,
+        int subMeshIndex,
+        ComputeBuffer visibleCounterBuffer,
+        string runtimeName)
     {
-        BindAliveInstanceListBuffers(_buildVisibleChunkInstanceListKernel);
-        _updateCompute.SetBuffer(_buildVisibleChunkInstanceListKernel, DeathStateBufferId, _deathStateBuffer);
-        BindSimulationReadBuffers(_buildVisibleChunkInstanceListKernel);
-        _updateCompute.SetBuffer(_buildVisibleChunkInstanceListKernel, InstanceRenderChunkBufferId, _instanceRenderChunkBuffer);
-        _updateCompute.SetBuffer(_buildVisibleChunkInstanceListKernel, VisibleRenderChunkMaskBufferId, _visibleRenderChunkMaskBuffer);
-        _updateCompute.SetBuffer(_buildVisibleChunkInstanceListKernel, VisibleInstanceIndicesId, _visibleInstanceIndexBuffer);
-        _updateCompute.SetBuffer(_buildVisibleChunkInstanceListKernel, VisibleInstanceCounterBufferId, _visibleInstanceCounterBuffer);
-        _updateCompute.SetInt(VisibleRenderChunkCountId, _renderChunks != null ? _renderChunks.Length : 0);
-    }
-
-    private void BindBuildVisibleIndirectArgsKernel(GraphicsBuffer argsBuffer, Mesh mesh, int subMeshIndex)
-    {
-        _updateCompute.SetBuffer(_buildVisibleIndirectArgsKernel, VisibleInstanceCounterBufferId, _visibleInstanceCounterBuffer);
-        _updateCompute.SetBuffer(_buildVisibleIndirectArgsKernel, VisibleRenderArgsBufferId, argsBuffer);
+        SetGpuPassBuffer(_buildVisibleIndirectArgsKernel, VisibleInstanceCounterBufferId, "_VisibleInstanceCounterBuffer", runtimeName, visibleCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_buildVisibleIndirectArgsKernel, VisibleRenderArgsBufferId, "_VisibleRenderArgsBuffer", "visibleRenderArgs", argsBuffer, GpuPassBindingAccess.Uav);
         _updateCompute.SetInt(VisibleRenderArgsIndexCountId, (int)mesh.GetIndexCount(subMeshIndex));
         _updateCompute.SetInt(VisibleRenderArgsStartIndexId, (int)mesh.GetIndexStart(subMeshIndex));
         _updateCompute.SetInt(VisibleRenderArgsBaseVertexId, unchecked((int)mesh.GetBaseVertex(subMeshIndex)));
     }
 
+    private void SyncVisibleLodParameters()
+    {
+        _updateCompute.SetInt(VisibleLodTierCountId, Mathf.Max(1, _activeVisibleLodTierCountThisFrame));
+        _updateCompute.SetFloat(VisibleLod1StartDistanceId, _visibleLod1StartDistanceThisFrame);
+        _updateCompute.SetFloat(VisibleLod2StartDistanceId, _visibleLod2StartDistanceThisFrame);
+    }
+
     private void BindRuntimeSquadBuffers(int kernel)
     {
-        _updateCompute.SetBuffer(kernel, SquadStateBufferId, _squadStateBuffer);
-        _updateCompute.SetBuffer(kernel, AgentSquadDataBufferId, _agentSquadDataBuffer);
-        _updateCompute.SetBuffer(kernel, FormationSlotBufferId, _formationSlotBuffer);
+        SetGpuPassBuffer(kernel, SquadStateBufferId, "_SquadStateBuffer", "squadState", _squadStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(kernel, AgentSquadDataBufferId, "_AgentSquadDataBuffer", "agentSquadData", _agentSquadDataBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(kernel, FormationSlotBufferId, "_FormationSlotBuffer", "formationSlot", _formationSlotBuffer, GpuPassBindingAccess.Srv);
     }
 
     private void BindFinalizeKernel()
     {
-        _updateCompute.SetBuffer(_finalizeKernel, SpawnDataId, _spawnDataBuffer);
+        SetGpuPassBuffer(_finalizeKernel, SpawnDataId, "_SpawnData", "spawnData", _spawnDataBuffer, GpuPassBindingAccess.Srv);
         BindSimulationReadBuffers(_finalizeKernel);
-        _updateCompute.SetBuffer(_finalizeKernel, DeathStateBufferId, _deathStateBuffer);
-        _updateCompute.SetBuffer(_finalizeKernel, CombatStateBufferId, _combatStateBuffer);
-        _updateCompute.SetBuffer(_finalizeKernel, AnimationClipMetadataBufferId, _animationClipMetadataBuffer);
-        _updateCompute.SetBuffer(_finalizeKernel, InstanceAnimationStateBufferId, _instanceAnimationStateBuffer);
-        _updateCompute.SetBuffer(_finalizeKernel, InstanceTransformsId, _instanceTransformBuffer);
-        _updateCompute.SetBuffer(_finalizeKernel, InstanceFrameDataId, _instanceFrameDataBuffer);
-        _updateCompute.SetBuffer(_finalizeKernel, InstanceFrameBlendDataId, _instanceFrameBlendDataBuffer);
+        SetGpuPassBuffer(_finalizeKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_finalizeKernel, CombatStateBufferId, "_CombatStateBuffer", "combatState", _combatStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_finalizeKernel, AnimationClipMetadataBufferId, "_AnimationClipMetadataBuffer", "animationClipMetadata", _animationClipMetadataBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_finalizeKernel, InstanceAnimationStateBufferId, "_InstanceAnimationStateBuffer", "instanceAnimationState", _instanceAnimationStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_finalizeKernel, InstanceTransformsId, "_InstanceTransforms", "instanceTransforms", _instanceTransformBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_finalizeKernel, InstanceFrameDataId, "_InstanceFrameData", "instanceFrameData", _instanceFrameDataBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_finalizeKernel, InstanceFrameBlendDataId, "_InstanceFrameBlendData", "instanceFrameBlendData", _instanceFrameBlendDataBuffer, GpuPassBindingAccess.Uav);
         BindAliveInstanceListBuffers(_finalizeKernel);
     }
 
     private void BindClearSpatialQueriesKernel()
     {
-        _updateCompute.SetBuffer(_clearSpatialQueriesKernel, SpatialQueryBufferId, _spatialQueryBuffer);
-        _updateCompute.SetBuffer(_clearSpatialQueriesKernel, SpatialQueryResultBufferId, _spatialQueryResultBuffer);
-        _updateCompute.SetBuffer(_clearSpatialQueriesKernel, SpatialQueryHitBufferId, _spatialQueryHitBuffer);
+        SetGpuPassBuffer(_clearSpatialQueriesKernel, SpatialQueryBufferId, "_SpatialQueryBuffer", "spatialQuery", _spatialQueryBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_clearSpatialQueriesKernel, SpatialQueryResultBufferId, "_SpatialQueryResultBuffer", "spatialQueryResult", _spatialQueryResultBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_clearSpatialQueriesKernel, SpatialQueryHitBufferId, "_SpatialQueryHitBuffer", "spatialQueryHit", _spatialQueryHitBuffer, GpuPassBindingAccess.Uav);
     }
 
     private void BindResolveSpatialQueriesKernel()
     {
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, ActiveStateBufferId, _activeStateBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, DeathStateBufferId, _deathStateBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, GridCounterBufferId, _gridCounterBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, GridOccupantBufferId, _gridOccupantBuffer);
-        BindSpatialElementBuffers(_resolveSpatialQueriesKernel);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, SpatialQueryBufferId, _spatialQueryBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, SpatialQueryResultBufferId, _spatialQueryResultBuffer);
-        _updateCompute.SetBuffer(_resolveSpatialQueriesKernel, SpatialQueryHitBufferId, _spatialQueryHitBuffer);
+        SetGpuPassBuffer(_resolveSpatialQueriesKernel, PhysicsActiveStateBufferId, "_PhysicsActiveStateBuffer", "physicsActiveState", _physicsActiveStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveSpatialQueriesKernel, DeathStateBufferId, "_DeathStateBuffer", "deathState", _deathStateBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveSpatialQueriesKernel, GridCounterBufferId, "_GridCounterBuffer", "gridCounter", _gridCounterBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveSpatialQueriesKernel, GridOccupantBufferId, "_GridOccupantBuffer", "gridOccupant", _gridOccupantBuffer, GpuPassBindingAccess.Srv);
+        BindSpatialElementBuffers(_resolveSpatialQueriesKernel, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveSpatialQueriesKernel, SpatialQueryBufferId, "_SpatialQueryBuffer", "spatialQuery", _spatialQueryBuffer, GpuPassBindingAccess.Srv);
+        SetGpuPassBuffer(_resolveSpatialQueriesKernel, SpatialQueryResultBufferId, "_SpatialQueryResultBuffer", "spatialQueryResult", _spatialQueryResultBuffer, GpuPassBindingAccess.Uav);
+        SetGpuPassBuffer(_resolveSpatialQueriesKernel, SpatialQueryHitBufferId, "_SpatialQueryHitBuffer", "spatialQueryHit", _spatialQueryHitBuffer, GpuPassBindingAccess.Uav);
     }
 
     private int UploadInteractionSpheres()
@@ -732,6 +1122,52 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         EnsureRuntimeAgentSquadDataBuffer();
         EnsureRuntimeFormationSlotBuffer();
         EnsureRuntimeSquadVisibilityMaskBuffer();
+        EnsureRuntimeSquadBoundsBuffer();
+        EnsureCombatSquadCandidateBuffers();
+    }
+
+    private void EnsureCombatSquadCandidateBuffers()
+    {
+        int squadCount = Mathf.Max(1, _activeSquadStateCount);
+        int candidateCapacity = Mathf.Clamp(_combatCandidateCapacityPerSquad, 1, CombatCandidateCapacityPerSquadMax);
+        int requiredCandidateCount = Mathf.Max(1, squadCount * candidateCapacity);
+
+        if (_combatSquadCandidateBuffer == null || _combatSquadCandidateBuffer.count < requiredCandidateCount)
+        {
+            ReleaseBuffer(ref _combatSquadCandidateBuffer);
+            _combatSquadCandidateBuffer = new ComputeBuffer(requiredCandidateCount, Marshal.SizeOf<CombatSquadCandidateData>());
+        }
+
+        if (_combatSquadCandidateCounterBuffer == null || _combatSquadCandidateCounterBuffer.count < squadCount)
+        {
+            ReleaseBuffer(ref _combatSquadCandidateCounterBuffer);
+            _combatSquadCandidateCounterBuffer = new ComputeBuffer(squadCount, sizeof(uint));
+            _combatSquadCandidateCounterBuffer.SetData(new uint[squadCount]);
+        }
+
+        EnsureCombatCandidateClusterWorksetBuffers(1);
+    }
+
+    private void EnsureCombatCandidateClusterWorksetBuffers(int requiredWorkItemCount)
+    {
+        int requiredCount = Mathf.Max(1, requiredWorkItemCount);
+        if (_combatCandidateClusterWorkItemBuffer == null ||
+            _combatCandidateClusterWorkItemBuffer.count < requiredCount)
+        {
+            ReleaseBuffer(ref _combatCandidateClusterWorkItemBuffer);
+            _combatCandidateClusterWorkItemBuffer = new ComputeBuffer(
+                requiredCount,
+                Marshal.SizeOf<CombatCandidateClusterWorkItemData>());
+        }
+
+        if (_combatCandidateClusterDispatchArgsBuffer == null)
+        {
+            _combatCandidateClusterDispatchArgsBuffer = new ComputeBuffer(
+                3,
+                sizeof(uint),
+                ComputeBufferType.IndirectArguments);
+            _combatCandidateClusterDispatchArgsBuffer.SetData(EmptyDispatchArgsResetData);
+        }
     }
 
     private void EnsureRuntimeSquadStateBuffer()
@@ -803,6 +1239,16 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             _visibleRuntimeSquadMaskUploadCache = new uint[_visibleRuntimeSquadMaskBuffer.count];
     }
 
+    private void EnsureRuntimeSquadBoundsBuffer()
+    {
+        int requiredCount = Mathf.Max(1, _activeSquadStateCount);
+        if (_runtimeSquadBoundsBuffer == null || _runtimeSquadBoundsBuffer.count < requiredCount)
+        {
+            ReleaseBuffer(ref _runtimeSquadBoundsBuffer);
+            _runtimeSquadBoundsBuffer = new ComputeBuffer(requiredCount, Marshal.SizeOf<RuntimeSquadBoundsGpuData>());
+        }
+    }
+
     private void UploadRuntimeSquadStates()
     {
         if (_squadStateBuffer == null)
@@ -871,6 +1317,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             return;
 
         RuntimeAgentSquadDataGpuData invalidEntry = CreateInvalidRuntimeAgentSquadData();
+        bool hasUnassignedInstances = _activeAgentSquadDataCount < _instanceCount;
         for (int cacheIndex = 0; cacheIndex < _agentSquadUploadCache.Length; cacheIndex++)
             _agentSquadUploadCache[cacheIndex] = invalidEntry;
 
@@ -881,6 +1328,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             if ((assignment.flags & CrowdVatSquadMemberFlags.Unassigned) != 0)
             {
                 _agentSquadUploadCache[instanceIndex] = invalidEntry;
+                hasUnassignedInstances = true;
                 continue;
             }
 
@@ -900,6 +1348,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         }
 
         _agentSquadDataBuffer.SetData(_agentSquadUploadCache, 0, 0, _agentSquadUploadCache.Length);
+        _hasUnassignedRuntimeInstances = hasUnassignedInstances;
         _runtimeAgentSquadDataDirty = false;
     }
 
@@ -1080,24 +1529,10 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         activeCount++;
     }
 
-    private bool TryGetActiveBubbleLocalCenter(out Vector3 localCenter)
-    {
-        RefreshRuntimeTargets();
-
-        if (_resolvedActiveBubbleTarget != null)
-        {
-            localCenter = transform.InverseTransformPoint(_resolvedActiveBubbleTarget.position);
-            return true;
-        }
-
-        localCenter = default;
-        return false;
-    }
-
     private void DispatchAllInstances(int kernel)
     {
         int threadGroupCount = Mathf.CeilToInt(_instanceCount / (float)ThreadGroupSize);
-        _updateCompute.Dispatch(kernel, threadGroupCount, 1, 1);
+        DispatchGpuPass(kernel, threadGroupCount, 1, 1);
     }
 
     private void DispatchAliveInstancesIndirect(int kernel)
@@ -1105,27 +1540,88 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         if (_aliveInstanceDispatchArgsBuffer == null)
             return;
 
-        _updateCompute.DispatchIndirect(kernel, _aliveInstanceDispatchArgsBuffer, 0);
+        DispatchGpuPassIndirect(kernel, _aliveInstanceDispatchArgsBuffer);
     }
 
-    private void DispatchActiveInstancesIndirect(int kernel)
+    private void DispatchPhysicsActiveInstancesIndirect(int kernel)
     {
-        if (_activeInstanceDispatchArgsBuffer == null)
+        if (_physicsActiveInstanceDispatchArgsBuffer == null)
             return;
 
-        _updateCompute.DispatchIndirect(kernel, _activeInstanceDispatchArgsBuffer, 0);
+        DispatchGpuPassIndirect(kernel, _physicsActiveInstanceDispatchArgsBuffer);
     }
 
-    private void DispatchGrid(int kernel)
+    private void DispatchCombatActiveInstancesIndirect(int kernel)
     {
-        int threadGroupCount = Mathf.CeilToInt(_gridCellCount / (float)ThreadGroupSize);
-        _updateCompute.Dispatch(kernel, threadGroupCount, 1, 1);
+        if (_combatActiveInstanceDispatchArgsBuffer == null)
+            return;
+
+        DispatchGpuPassIndirect(kernel, _combatActiveInstanceDispatchArgsBuffer);
+    }
+
+    private void DispatchTargetAcquisitionLosQueriesIndirect(int kernel)
+    {
+        if (_targetAcquisitionLosDispatchArgsBuffer == null)
+            return;
+
+        DispatchGpuPassIndirect(kernel, _targetAcquisitionLosDispatchArgsBuffer);
+    }
+
+    private void DispatchSquadAcquisitionIndirect(int kernel)
+    {
+        if (_squadAcquisitionDispatchArgsBuffer == null)
+            return;
+
+        DispatchGpuPassIndirect(kernel, _squadAcquisitionDispatchArgsBuffer);
+    }
+
+    private void DispatchCombatCandidateClustersIndirect(int kernel)
+    {
+        if (_combatCandidateClusterDispatchArgsBuffer == null)
+            return;
+
+        DispatchGpuPassIndirect(kernel, _combatCandidateClusterDispatchArgsBuffer);
+    }
+
+    private void DispatchSquads(int kernel, int squadCount)
+    {
+        if (squadCount <= 0)
+            return;
+
+        int threadGroupCount = Mathf.Max(1, Mathf.CeilToInt(squadCount / (float)ThreadGroupSize));
+        DispatchGpuPass(kernel, threadGroupCount, 1, 1);
+    }
+
+    private void ClearGridForRebuild()
+    {
+        if (_gridClearDispatchArgsBuffer == null)
+            return;
+
+        BindBuildGridClearDispatchArgsKernel();
+        DispatchGpuPass(_buildGridClearDispatchArgsKernel, 1, 1, 1);
+
+        BindClearGridKernel();
+        DispatchGridClearTouchedCells();
+    }
+
+    private void DispatchGridClearTouchedCells()
+    {
+        if (_gridClearDispatchArgsBuffer == null)
+            return;
+
+        DispatchGpuPassIndirect(_clearGridKernel, _gridClearDispatchArgsBuffer);
+    }
+
+    private void DispatchWakeGrid(int kernel)
+    {
+        int threadGroupCount = Mathf.CeilToInt(_wakeGridCellCount / (float)ThreadGroupSize);
+        DispatchGpuPass(kernel, threadGroupCount, 1, 1);
     }
 
     private void DispatchSpatialQueries(int kernel, int queryCount)
     {
         int threadGroupCount = Mathf.CeilToInt(queryCount / (float)SpatialQueryThreadGroupSize);
-        _updateCompute.Dispatch(kernel, threadGroupCount, 1, 1);
+        DispatchGpuPass(kernel, threadGroupCount, 1, 1);
     }
 
     private void SwapSimulationBuffers()
@@ -1141,6 +1637,17 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         buffer = _simulationVelocityReadBuffer;
         _simulationVelocityReadBuffer = _simulationVelocityWriteBuffer;
         _simulationVelocityWriteBuffer = buffer;
+    }
+
+    private void SwapGridTouchedBuffers()
+    {
+        ComputeBuffer buffer = _gridPrevTouchedCellBuffer;
+        _gridPrevTouchedCellBuffer = _gridCurrTouchedCellBuffer;
+        _gridCurrTouchedCellBuffer = buffer;
+
+        buffer = _gridPrevTouchedCounterBuffer;
+        _gridPrevTouchedCounterBuffer = _gridCurrTouchedCounterBuffer;
+        _gridCurrTouchedCounterBuffer = buffer;
     }
 
 }

@@ -398,7 +398,7 @@ public class CrowdVatIndirectSpatialQueryTests
         SetField(renderer, "_maxHitsPerSpatialQuery", 8);
         SetField(renderer, "_solverIterations", 1);
         SetField(renderer, "_selfCollisionStrength", 1.0f);
-        SetField(renderer, "_anchorStiffness", 0.0f);
+        SetField(renderer, "_goalStiffness", 0.0f);
         SetField(renderer, "_velocityDamping", 0.2f);
         SetField(renderer, "_maxPushPerStep", 0.2f);
         SetField(renderer, "_maxDisplacementFromSpawn", 0.25f);

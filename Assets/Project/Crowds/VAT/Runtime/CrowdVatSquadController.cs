@@ -131,7 +131,7 @@ public sealed partial class CrowdVatSquadController : MonoBehaviour
     [Tooltip("启用后，按小队实际移动速度在 idle 和 walk 之间自动切换成员动画。")]
     [SerializeField] private bool _enableMovementAnimationBlending = true;
     [Tooltip("静止时切回的 clip 名称。留空时会尝试自动匹配包含 Idle 的 clip。")]
-    [SerializeField] private string _idleClipName = "Ch36_nonPBR@Zombie Idle";
+    [SerializeField] private string _idleClipName = "";
     [Tooltip("移动时切到的 clip 名称。留空时会尝试自动匹配包含 Walk 的 clip。")]
     [SerializeField] private string _walkClipName = "Qianxia_Walk_Slow";
     [Tooltip("速度达到这个阈值后，从 idle 混到 walk。")]
@@ -144,8 +144,12 @@ public sealed partial class CrowdVatSquadController : MonoBehaviour
     [Header("场景预览")]
     [Tooltip("选中 controller 时，是否绘制小队中心、朝向和目标线。")]
     [SerializeField] private bool _showFormationPreview = true;
+    [Tooltip("选中 controller 时，是否绘制每支小队的 combat squad 候选半径。该半径是 squad broadphase 保守超集，不代表单个 agent 的最终索敌结果。")]
+    [SerializeField] private bool _showCombatCandidateRadius = true;
     [Tooltip("场景预览最多绘制多少个小队，避免 Scene 视图太吵。")]
     [SerializeField] [Min(1)] private int _maxPreviewSlots = 96;
+
+    public bool ShowCombatCandidateRadiusPreview => _showCombatCandidateRadius;
 
     [Header("选择辅助")]
     [Tooltip("运行时瞄准选择时，给每个小队补上的竖向高度。")]

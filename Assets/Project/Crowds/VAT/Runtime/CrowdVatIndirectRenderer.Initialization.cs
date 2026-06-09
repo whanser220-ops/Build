@@ -17,7 +17,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         if (needsRebuild)
             ReleaseResources();
 
-        if (!ResolveRuntimeRenderResource(out CrowdVatAnimationAsset primaryAnimationAsset))
+        if (!ResolveRuntimeRenderResources(out CrowdVatAnimationAsset primaryAnimationAsset))
             return false;
 
         if (_updateCompute == null)
@@ -29,8 +29,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         if (!AreKernelHandlesResolved())
             return false;
 
-        Shader shader = ResolveIndirectShader();
-        if (shader == null)
+        if (!TryResolveRuntimeShaders(out Shader shader, out Shader tertiaryLodShader))
             return false;
 
         if (!TryResolveActiveClip(primaryAnimationAsset))
@@ -38,7 +37,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
         if (needsRebuild)
         {
-            BuildRuntimeMaterials(shader);
+            BuildRuntimeMaterials(shader, tertiaryLodShader);
             BuildInstanceBuffers();
             BuildIndirectArgsBuffers();
             BuildCombatTracerResources();
@@ -49,7 +48,9 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         return _hasRuntimeRenderResource &&
             _hasClip &&
             _visibleInstanceIndexBuffer != null &&
-            _indirectArgsBuffers.Length > 0 &&
+            _visibleLod1InstanceIndexBuffer != null &&
+            _visibleLod2InstanceIndexBuffer != null &&
+            AreActiveVisibleLodArgsReady() &&
             AreKernelHandlesResolved();
     }
 
@@ -62,7 +63,56 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         return _indirectShader;
     }
 
-    private bool ResolveRuntimeRenderResource(out CrowdVatAnimationAsset primaryAnimationAsset)
+    private bool TryResolveRuntimeShaders(out Shader shader, out Shader tertiaryLodShader)
+    {
+        shader = ResolveIndirectShader();
+        if (shader == null)
+        {
+            tertiaryLodShader = null;
+            return false;
+        }
+
+        tertiaryLodShader = _hasTertiaryRuntimeRenderResource
+            ? ResolveTertiaryLodIndirectShader(shader)
+            : shader;
+        return tertiaryLodShader != null;
+    }
+
+    private Shader ResolveTertiaryLodIndirectShader(Shader fallbackShader)
+    {
+        if (_tertiaryLodIndirectShader != null)
+            return _tertiaryLodIndirectShader;
+
+        _tertiaryLodIndirectShader = Shader.Find(DefaultTertiaryLodShaderName);
+        if (_tertiaryLodIndirectShader != null)
+            return _tertiaryLodIndirectShader;
+
+        Debug.LogWarning(
+            $"Crowd VAT 未找到第三档 LOD shader `{DefaultTertiaryLodShaderName}`，LOD2 将回退到 `{fallbackShader.name}`。");
+        return fallbackShader;
+    }
+
+    private bool AreActiveVisibleLodArgsReady()
+    {
+        if (_activeVisibleLodRenderResources == null ||
+            _activeVisibleLodArgsBuffers == null ||
+            _activeVisibleLodRenderResources.Length == 0 ||
+            _activeVisibleLodArgsBuffers.Length != _activeVisibleLodRenderResources.Length)
+        {
+            return false;
+        }
+
+        for (int tierIndex = 0; tierIndex < _activeVisibleLodArgsBuffers.Length; tierIndex++)
+        {
+            GraphicsBuffer[] argsBuffers = _activeVisibleLodArgsBuffers[tierIndex];
+            if (argsBuffers == null || argsBuffers.Length == 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    private bool ResolveRuntimeRenderResources(out CrowdVatAnimationAsset primaryAnimationAsset)
     {
         CrowdVatAnimationAsset animationAsset = ResolveConfiguredAnimationAsset();
         CrowdVatPlayer templatePrefab = ResolveConfiguredTemplatePrefab();
@@ -70,11 +120,81 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         {
             primaryAnimationAsset = null;
             _runtimeRenderResource = default;
+            _secondaryRuntimeRenderResource = default;
+            _tertiaryRuntimeRenderResource = default;
+            _activeVisibleLodRenderResources = Array.Empty<RuntimeRenderResource>();
             _hasRuntimeRenderResource = false;
+            _hasSecondaryRuntimeRenderResource = false;
+            _hasTertiaryRuntimeRenderResource = false;
             return false;
         }
 
-        RuntimeRenderResource previousResource = _runtimeRenderResource;
+        _runtimeRenderResource = BuildRuntimeRenderResource(_runtimeRenderResource, templatePrefab, animationAsset);
+        _hasRuntimeRenderResource = true;
+
+        _hasSecondaryRuntimeRenderResource = TryResolveOptionalRuntimeRenderResource(
+            _secondaryLodTemplatePrefab,
+            _secondaryLodAnimationAsset,
+            animationAsset,
+            ref _secondaryRuntimeRenderResource);
+        _hasTertiaryRuntimeRenderResource = TryResolveOptionalRuntimeRenderResource(
+            _tertiaryLodTemplatePrefab,
+            _tertiaryLodAnimationAsset,
+            animationAsset,
+            ref _tertiaryRuntimeRenderResource);
+
+        RebuildActiveVisibleLodResourceViews();
+        primaryAnimationAsset = animationAsset;
+        return true;
+    }
+
+    private Bounds ResolveGroundingMeshBounds(CrowdVatAnimationAsset animationAsset)
+    {
+        if (animationAsset == null)
+            return new Bounds(Vector3.zero, Vector3.one);
+
+        if (_currentClipIndex != InvalidClipIndex &&
+            animationAsset.TryGetClip(_currentClipIndex, out CrowdVatAnimationAsset.ClipInfo currentClip) &&
+            currentClip.HasBounds)
+        {
+            return currentClip.Bounds;
+        }
+
+        if (animationAsset.TryGetClipIndex(_clipName, out int configuredClipIndex) &&
+            animationAsset.TryGetClip(configuredClipIndex, out CrowdVatAnimationAsset.ClipInfo configuredClip) &&
+            configuredClip.HasBounds)
+        {
+            return configuredClip.Bounds;
+        }
+
+        return animationAsset.MeshBounds;
+    }
+
+    private CrowdVatPlayer ResolveConfiguredTemplatePrefab()
+    {
+        return _templatePrefab;
+    }
+
+    private CrowdVatAnimationAsset ResolveConfiguredAnimationAsset()
+    {
+        return ResolveConfiguredAnimationAsset(_templatePrefab, _animationAsset);
+    }
+
+    private static CrowdVatAnimationAsset ResolveConfiguredAnimationAsset(
+        CrowdVatPlayer templatePrefab,
+        CrowdVatAnimationAsset animationAsset)
+    {
+        if (templatePrefab != null && templatePrefab.AnimationAsset != null)
+            return templatePrefab.AnimationAsset;
+
+        return animationAsset;
+    }
+
+    private RuntimeRenderResource BuildRuntimeRenderResource(
+        RuntimeRenderResource previousResource,
+        CrowdVatPlayer templatePrefab,
+        CrowdVatAnimationAsset animationAsset)
+    {
         Material[] preservedRuntimeMaterials =
             previousResource.animationAsset == animationAsset &&
             previousResource.mesh == animationAsset.Mesh &&
@@ -82,8 +202,15 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
                 ? previousResource.runtimeMaterials
                 : null;
 
-        ResolveCrowdRootRows(templatePrefab, out Vector4 row0, out Vector4 row1, out Vector4 row2, out Matrix4x4 rootLocalMatrix);
-        _runtimeRenderResource = new RuntimeRenderResource
+        ResolveCrowdRootRows(
+            templatePrefab,
+            ResolveGroundingMeshBounds(animationAsset),
+            out Vector4 row0,
+            out Vector4 row1,
+            out Vector4 row2,
+            out Matrix4x4 rootLocalMatrix);
+
+        return new RuntimeRenderResource
         {
             animationAsset = animationAsset,
             templatePrefab = templatePrefab,
@@ -94,26 +221,86 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             crowdRootRow2 = row2,
             agentLocalBounds = TransformBounds(rootLocalMatrix, animationAsset.MeshBounds)
         };
-        _hasRuntimeRenderResource = true;
-        primaryAnimationAsset = animationAsset;
+    }
+
+    private bool TryResolveOptionalRuntimeRenderResource(
+        CrowdVatPlayer templatePrefab,
+        CrowdVatAnimationAsset animationAsset,
+        CrowdVatAnimationAsset primaryAnimationAsset,
+        ref RuntimeRenderResource runtimeRenderResource)
+    {
+        CrowdVatAnimationAsset resolvedAnimationAsset = ResolveConfiguredAnimationAsset(templatePrefab, animationAsset);
+        if (resolvedAnimationAsset == null || resolvedAnimationAsset.Mesh == null)
+        {
+            runtimeRenderResource = default;
+            return false;
+        }
+
+        if (!HasCompatibleRenderLodClips(primaryAnimationAsset, resolvedAnimationAsset))
+        {
+            Debug.LogWarning(
+                $"Crowd VAT LOD `{resolvedAnimationAsset.name}` 与主动画资产 `{primaryAnimationAsset.name}` 的 clip 布局不一致，已跳过该 LOD。");
+            runtimeRenderResource = default;
+            return false;
+        }
+
+        runtimeRenderResource = BuildRuntimeRenderResource(runtimeRenderResource, templatePrefab, resolvedAnimationAsset);
         return true;
     }
 
-    private CrowdVatPlayer ResolveConfiguredTemplatePrefab()
+    private static bool HasCompatibleRenderLodClips(
+        CrowdVatAnimationAsset primaryAnimationAsset,
+        CrowdVatAnimationAsset lodAnimationAsset)
     {
-        return _templatePrefab;
+        if (primaryAnimationAsset == null || lodAnimationAsset == null)
+            return false;
+
+        if (ReferenceEquals(primaryAnimationAsset, lodAnimationAsset))
+            return true;
+
+        if (primaryAnimationAsset.ClipCount != lodAnimationAsset.ClipCount)
+            return false;
+
+        for (int clipIndex = 0; clipIndex < primaryAnimationAsset.ClipCount; clipIndex++)
+        {
+            if (!primaryAnimationAsset.TryGetClip(clipIndex, out CrowdVatAnimationAsset.ClipInfo primaryClip) ||
+                !lodAnimationAsset.TryGetClip(clipIndex, out CrowdVatAnimationAsset.ClipInfo lodClip))
+            {
+                return false;
+            }
+
+            if (!string.Equals(primaryClip.Name, lodClip.Name, StringComparison.Ordinal) ||
+                primaryClip.StartFrame != lodClip.StartFrame ||
+                primaryClip.FrameCount != lodClip.FrameCount ||
+                !Mathf.Approximately(primaryClip.LengthSeconds, lodClip.LengthSeconds))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
-    private CrowdVatAnimationAsset ResolveConfiguredAnimationAsset()
+    private void RebuildActiveVisibleLodResourceViews()
     {
-        if (_templatePrefab != null && _templatePrefab.AnimationAsset != null)
-            return _templatePrefab.AnimationAsset;
+        List<RuntimeRenderResource> resources = new List<RuntimeRenderResource>(3);
+        if (_hasRuntimeRenderResource)
+            resources.Add(_runtimeRenderResource);
 
-        return _animationAsset;
+        if (_hasSecondaryRuntimeRenderResource)
+            resources.Add(_secondaryRuntimeRenderResource);
+        else if (_hasTertiaryRuntimeRenderResource)
+            resources.Add(_tertiaryRuntimeRenderResource);
+
+        if (_hasSecondaryRuntimeRenderResource && _hasTertiaryRuntimeRenderResource)
+            resources.Add(_tertiaryRuntimeRenderResource);
+
+        _activeVisibleLodRenderResources = resources.ToArray();
     }
 
     private void ResolveCrowdRootRows(
         CrowdVatPlayer templatePrefab,
+        Bounds meshBounds,
         out Vector4 row0,
         out Vector4 row1,
         out Vector4 row2,
@@ -131,7 +318,15 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             localScale = renderRoot.localScale;
         }
 
-        rootLocalMatrix = Matrix4x4.TRS(localPosition, Quaternion.Euler(localEulerAngles), localScale);
+        Quaternion localRotation = Quaternion.Euler(localEulerAngles);
+        rootLocalMatrix = Matrix4x4.TRS(localPosition, localRotation, localScale);
+        Bounds agentLocalBounds = TransformBounds(rootLocalMatrix, meshBounds);
+        if (agentLocalBounds.size.sqrMagnitude > 1e-8f)
+        {
+            localPosition.y -= agentLocalBounds.min.y;
+            rootLocalMatrix = Matrix4x4.TRS(localPosition, localRotation, localScale);
+        }
+
         row0 = new Vector4(rootLocalMatrix.m00, rootLocalMatrix.m10, rootLocalMatrix.m20, rootLocalMatrix.m03);
         row1 = new Vector4(rootLocalMatrix.m01, rootLocalMatrix.m11, rootLocalMatrix.m21, rootLocalMatrix.m13);
         row2 = new Vector4(rootLocalMatrix.m02, rootLocalMatrix.m12, rootLocalMatrix.m22, rootLocalMatrix.m23);
@@ -141,17 +336,34 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     {
         _buildAliveInstanceListKernel = _updateCompute.FindKernel(BuildAliveInstanceListKernelName);
         _buildAliveDispatchArgsKernel = _updateCompute.FindKernel(BuildAliveDispatchArgsKernelName);
-        _buildActiveInstanceListKernel = _updateCompute.FindKernel(BuildActiveInstanceListKernelName);
-        _buildActiveDispatchArgsKernel = _updateCompute.FindKernel(BuildActiveDispatchArgsKernelName);
+        _clearWakeGridKernel = _updateCompute.FindKernel(ClearWakeGridKernelName);
+        _buildWakeGridKernel = _updateCompute.FindKernel(BuildWakeGridKernelName);
+        _evaluatePhysicsActiveKernel = _updateCompute.FindKernel(EvaluatePhysicsActiveKernelName);
+        _buildPhysicsActiveInstanceListKernel = _updateCompute.FindKernel(BuildPhysicsActiveInstanceListKernelName);
+        _buildPhysicsActiveDispatchArgsKernel = _updateCompute.FindKernel(BuildPhysicsActiveDispatchArgsKernelName);
+        _evaluateCombatActiveKernel = _updateCompute.FindKernel(EvaluateCombatActiveKernelName);
+        _buildCombatActiveInstanceListKernel = _updateCompute.FindKernel(BuildCombatActiveInstanceListKernelName);
+        _compactCombatActiveInstanceListKernel = _updateCompute.FindKernel(CompactCombatActiveInstanceListKernelName);
+        _buildCombatActiveDispatchArgsKernel = _updateCompute.FindKernel(BuildCombatActiveDispatchArgsKernelName);
+        _clearCombatSquadCandidateCountersKernel = _updateCompute.FindKernel(ClearCombatSquadCandidateCountersKernelName);
+        _clearVisibleRuntimeSquadBoundsKernel = _updateCompute.FindKernel(ClearVisibleRuntimeSquadBoundsKernelName);
+        _buildVisibleRuntimeSquadBoundsKernel = _updateCompute.FindKernel(BuildVisibleRuntimeSquadBoundsKernelName);
+        _cullVisibleRuntimeSquadsKernel = _updateCompute.FindKernel(CullVisibleRuntimeSquadsKernelName);
         _buildVisibleRuntimeInstanceListKernel = _updateCompute.FindKernel(BuildVisibleRuntimeInstanceListKernelName);
-        _buildVisibleChunkInstanceListKernel = _updateCompute.FindKernel(BuildVisibleChunkInstanceListKernelName);
         _buildVisibleIndirectArgsKernel = _updateCompute.FindKernel(BuildVisibleIndirectArgsKernelName);
         _predictKernel = _updateCompute.FindKernel(PredictKernelName);
+        _buildGridClearDispatchArgsKernel = _updateCompute.FindKernel(BuildGridClearDispatchArgsKernelName);
         _clearGridKernel = _updateCompute.FindKernel(ClearGridKernelName);
         _buildGridKernel = _updateCompute.FindKernel(BuildGridKernelName);
         _buildSpatialElementsKernel = _updateCompute.FindKernel(BuildSpatialElementsKernelName);
         _solveCrowdKernel = _updateCompute.FindKernel(SolveCrowdKernelName);
+        _buildCombatCandidateClustersKernel = _updateCompute.FindKernel(BuildCombatCandidateClustersKernelName);
         _resolveTargetAcquisitionKernel = _updateCompute.FindKernel(ResolveTargetAcquisitionKernelName);
+        _buildTargetAcquisitionLosDispatchArgsKernel = _updateCompute.FindKernel(BuildTargetAcquisitionLosDispatchArgsKernelName);
+        _resolveTargetAcquisitionLineOfSightKernel = _updateCompute.FindKernel(ResolveTargetAcquisitionLineOfSightKernelName);
+        _buildSquadAcquisitionDispatchArgsKernel = _updateCompute.FindKernel(BuildSquadAcquisitionDispatchArgsKernelName);
+        _evaluateSquadAcquisitionCandidatesKernel = _updateCompute.FindKernel(EvaluateSquadAcquisitionCandidatesKernelName);
+        _finalizeTargetAcquisitionKernel = _updateCompute.FindKernel(FinalizeTargetAcquisitionKernelName);
         _resolveInstanceCombatKernel = _updateCompute.FindKernel(ResolveInstanceCombatKernelName);
         _clearSpatialQueriesKernel = _updateCompute.FindKernel(ClearSpatialQueriesKernelName);
         _resolveSpatialQueriesKernel = _updateCompute.FindKernel(ResolveSpatialQueriesKernelName);
@@ -164,17 +376,34 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     {
         return _buildAliveInstanceListKernel >= 0 &&
             _buildAliveDispatchArgsKernel >= 0 &&
-            _buildActiveInstanceListKernel >= 0 &&
-            _buildActiveDispatchArgsKernel >= 0 &&
+            _clearWakeGridKernel >= 0 &&
+            _buildWakeGridKernel >= 0 &&
+            _evaluatePhysicsActiveKernel >= 0 &&
+            _buildPhysicsActiveInstanceListKernel >= 0 &&
+            _buildPhysicsActiveDispatchArgsKernel >= 0 &&
+            _evaluateCombatActiveKernel >= 0 &&
+            _buildCombatActiveInstanceListKernel >= 0 &&
+            _compactCombatActiveInstanceListKernel >= 0 &&
+            _buildCombatActiveDispatchArgsKernel >= 0 &&
+            _clearCombatSquadCandidateCountersKernel >= 0 &&
+            _clearVisibleRuntimeSquadBoundsKernel >= 0 &&
+            _buildVisibleRuntimeSquadBoundsKernel >= 0 &&
+            _cullVisibleRuntimeSquadsKernel >= 0 &&
             _buildVisibleRuntimeInstanceListKernel >= 0 &&
-            _buildVisibleChunkInstanceListKernel >= 0 &&
             _buildVisibleIndirectArgsKernel >= 0 &&
             _predictKernel >= 0 &&
+            _buildGridClearDispatchArgsKernel >= 0 &&
             _clearGridKernel >= 0 &&
             _buildGridKernel >= 0 &&
             _buildSpatialElementsKernel >= 0 &&
             _solveCrowdKernel >= 0 &&
+            _buildCombatCandidateClustersKernel >= 0 &&
             _resolveTargetAcquisitionKernel >= 0 &&
+            _buildTargetAcquisitionLosDispatchArgsKernel >= 0 &&
+            _resolveTargetAcquisitionLineOfSightKernel >= 0 &&
+            _buildSquadAcquisitionDispatchArgsKernel >= 0 &&
+            _evaluateSquadAcquisitionCandidatesKernel >= 0 &&
+            _finalizeTargetAcquisitionKernel >= 0 &&
             _resolveInstanceCombatKernel >= 0 &&
             _clearSpatialQueriesKernel >= 0 &&
             _resolveSpatialQueriesKernel >= 0 &&
@@ -198,16 +427,24 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             _simulationVelocityBufferB != null &&
             _simulationVelocityReadBuffer != null &&
             _simulationVelocityWriteBuffer != null &&
-            _activeStateBuffer != null &&
             _deathStateBuffer != null &&
             _aliveInstanceIndexBuffer != null &&
             _aliveInstanceCounterBuffer != null &&
             _aliveInstanceDispatchArgsBuffer != null &&
-            _activeInstanceIndexBuffer != null &&
-            _activeInstanceCounterBuffer != null &&
-            _activeInstanceDispatchArgsBuffer != null &&
+            _physicsActiveStateBuffer != null &&
+            _physicsActivationMetaBuffer != null &&
+            _physicsActiveInstanceIndexBuffer != null &&
+            _physicsActiveInstanceCounterBuffer != null &&
+            _physicsActiveInstanceDispatchArgsBuffer != null &&
+            _wakeGridCounterBuffer != null &&
+            _wakeGridOccupantBuffer != null &&
             _gridCounterBuffer != null &&
             _gridOccupantBuffer != null &&
+            _gridPrevTouchedCellBuffer != null &&
+            _gridCurrTouchedCellBuffer != null &&
+            _gridPrevTouchedCounterBuffer != null &&
+            _gridCurrTouchedCounterBuffer != null &&
+            _gridClearDispatchArgsBuffer != null &&
             _spatialCapsuleStartRadiusBuffer != null &&
             _spatialCapsuleEndHeightBuffer != null &&
             _spatialOwnerIndexBuffer != null &&
@@ -220,6 +457,18 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             _interactionSphereBuffer != null &&
             _combatStateBuffer != null &&
             _targetAcquisitionStateBuffer != null &&
+            _targetAcquisitionCandidateBuffer != null &&
+            _targetAcquisitionLosDispatchArgsBuffer != null &&
+            _squadAcquisitionDispatchArgsBuffer != null &&
+            _combatActiveStateBuffer != null &&
+            _combatActivationMetaBuffer != null &&
+            _combatActiveInstanceIndexBuffer != null &&
+            _combatActiveInstanceCounterBuffer != null &&
+            _combatActiveInstanceDispatchArgsBuffer != null &&
+            _combatSquadCandidateBuffer != null &&
+            _combatSquadCandidateCounterBuffer != null &&
+            _combatCandidateClusterWorkItemBuffer != null &&
+            _combatCandidateClusterDispatchArgsBuffer != null &&
             _squadStateBuffer != null &&
             _squadAliveCountBuffer != null &&
             _agentSquadDataBuffer != null &&
@@ -233,8 +482,14 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             _instanceFrameBlendDataBuffer != null &&
             _visibleInstanceIndexBuffer != null &&
             _visibleInstanceCounterBuffer != null &&
+            _visibleLod1InstanceIndexBuffer != null &&
+            _visibleLod1InstanceCounterBuffer != null &&
+            _visibleLod2InstanceIndexBuffer != null &&
+            _visibleLod2InstanceCounterBuffer != null &&
             _visibleRuntimeSquadMaskBuffer != null &&
-            _indirectArgsBuffers.Length > 0;
+            _runtimeSquadBoundsBuffer != null &&
+            _indirectArgsBuffers.Length > 0 &&
+            AreActiveVisibleLodArgsReady();
     }
 
     private void SyncTemplateBindings()
@@ -252,15 +507,16 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _meshRootLocalPosition = renderRoot.localPosition;
         _meshRootLocalEulerAngles = renderRoot.localEulerAngles;
         _meshRootLocalScale = renderRoot.localScale;
+
+        if (_secondaryLodTemplatePrefab != null && _secondaryLodTemplatePrefab.AnimationAsset != null)
+            _secondaryLodAnimationAsset = _secondaryLodTemplatePrefab.AnimationAsset;
+
+        if (_tertiaryLodTemplatePrefab != null && _tertiaryLodTemplatePrefab.AnimationAsset != null)
+            _tertiaryLodAnimationAsset = _tertiaryLodTemplatePrefab.AnimationAsset;
     }
 
     private void RefreshRuntimeTargets()
     {
-        if (_activeBubbleTarget != null && _activeBubbleTarget.gameObject.activeInHierarchy)
-            _resolvedActiveBubbleTarget = _activeBubbleTarget;
-        else
-            _resolvedActiveBubbleTarget = null;
-
         if (_characterController != null && !_characterController.gameObject.activeInHierarchy)
             _characterController = null;
 
@@ -385,12 +641,25 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         return false;
     }
 
-    private void BuildRuntimeMaterials(Shader shader)
+    private void BuildRuntimeMaterials(Shader shader, Shader tertiaryLodShader)
     {
-        if (!_hasRuntimeRenderResource)
-            return;
+        if (_hasRuntimeRenderResource)
+            _runtimeRenderResource = BuildRuntimeMaterialsForResource(_runtimeRenderResource, shader, _indirectMaterialTemplate);
 
-        RuntimeRenderResource resource = _runtimeRenderResource;
+        if (_hasSecondaryRuntimeRenderResource)
+            _secondaryRuntimeRenderResource = BuildRuntimeMaterialsForResource(_secondaryRuntimeRenderResource, shader, _indirectMaterialTemplate);
+
+        if (_hasTertiaryRuntimeRenderResource)
+            _tertiaryRuntimeRenderResource = BuildRuntimeMaterialsForResource(_tertiaryRuntimeRenderResource, tertiaryLodShader, _indirectMaterialTemplate);
+
+        RebuildActiveVisibleLodResourceViews();
+    }
+
+    private RuntimeRenderResource BuildRuntimeMaterialsForResource(
+        RuntimeRenderResource resource,
+        Shader shader,
+        Material materialTemplate)
+    {
         Material[] sourceMaterials = ResolveSourceMaterials(resource.templatePrefab, resource.animationAsset);
         int subMeshCount = Mathf.Max(1, resource.mesh.subMeshCount);
         int materialCount = Mathf.Max(1, Mathf.Min(subMeshCount, sourceMaterials.Length > 0 ? sourceMaterials.Length : subMeshCount));
@@ -398,9 +667,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
         for (int materialIndex = 0; materialIndex < materialCount; materialIndex++)
         {
-            Material runtimeMaterial = _indirectMaterialTemplate != null
-                ? new Material(_indirectMaterialTemplate)
-                : new Material(shader);
+            Material runtimeMaterial = CreateRuntimeMaterial(shader, materialTemplate);
 
             runtimeMaterial.name = $"{resource.animationAsset.name}_Indirect_{materialIndex:00}";
             runtimeMaterial.hideFlags = HideFlags.HideAndDontSave;
@@ -413,7 +680,19 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
             resource.runtimeMaterials[materialIndex] = runtimeMaterial;
         }
 
-        _runtimeRenderResource = resource;
+        return resource;
+    }
+
+    private static Material CreateRuntimeMaterial(Shader shader, Material materialTemplate)
+    {
+        Material runtimeMaterial = materialTemplate != null
+            ? new Material(materialTemplate)
+            : new Material(shader);
+
+        if (runtimeMaterial.shader != shader)
+            runtimeMaterial.shader = shader;
+
+        return runtimeMaterial;
     }
 
     private Material[] ResolveSourceMaterials(CrowdVatPlayer templatePrefab, CrowdVatAnimationAsset animationAsset)
@@ -431,6 +710,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     private void BuildInstanceBuffers()
     {
         InstanceSpawnData[] spawnData = BuildSpawnData();
+        _spawnDataCache = spawnData;
         InstanceSimulationState[] simulationState = BuildInitialSimulationState(spawnData);
         Vector4[] simulationPositionYaw = BuildInitialSimulationPositionYawData(simulationState);
         float[] simulationScale = BuildInitialSimulationScaleData(simulationState);
@@ -460,29 +740,45 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _simulationVelocityBufferB.SetData(simulationVelocity);
         _simulationVelocityReadBuffer = _simulationVelocityBufferA;
         _simulationVelocityWriteBuffer = _simulationVelocityBufferB;
-        _activeStateBuffer = new ComputeBuffer(_instanceCount, sizeof(uint));
         _deathStateBuffer = new ComputeBuffer(_instanceCount, sizeof(uint));
-        uint[] activeState = new uint[_instanceCount];
-        for (int instanceIndex = 0; instanceIndex < activeState.Length; instanceIndex++)
-            activeState[instanceIndex] = 1u;
-        _activeStateBuffer.SetData(activeState);
         _deathStateBuffer.SetData(new uint[_instanceCount]);
         _aliveInstanceIndexBuffer = new ComputeBuffer(_instanceCount, sizeof(uint));
         _aliveInstanceCounterBuffer = new ComputeBuffer(1, sizeof(uint));
         _aliveInstanceCounterBuffer.SetData(AliveInstanceCounterResetData);
         _aliveInstanceDispatchArgsBuffer = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
         _aliveInstanceDispatchArgsBuffer.SetData(AliveInstanceDispatchArgsResetData);
-        _activeInstanceIndexBuffer = new ComputeBuffer(_instanceCount, sizeof(uint));
-        _activeInstanceCounterBuffer = new ComputeBuffer(1, sizeof(uint));
-        _activeInstanceCounterBuffer.SetData(ActiveInstanceCounterResetData);
-        _activeInstanceDispatchArgsBuffer = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
-        _activeInstanceDispatchArgsBuffer.SetData(ActiveInstanceDispatchArgsResetData);
+        _physicsActiveStateBuffer = new ComputeBuffer(_instanceCount, sizeof(uint));
+        _physicsActivationMetaBuffer = new ComputeBuffer(_instanceCount, Marshal.SizeOf<Vector4>());
+        _physicsActiveStateBuffer.SetData(new uint[_instanceCount]);
+        _physicsActivationMetaBuffer.SetData(new Vector4[_instanceCount]);
+        _physicsActiveInstanceIndexBuffer = new ComputeBuffer(_instanceCount, sizeof(uint));
+        _physicsActiveInstanceCounterBuffer = new ComputeBuffer(1, sizeof(uint));
+        _physicsActiveInstanceCounterBuffer.SetData(AliveInstanceCounterResetData);
+        _physicsActiveInstanceDispatchArgsBuffer = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
+        _physicsActiveInstanceDispatchArgsBuffer.SetData(AliveInstanceDispatchArgsResetData);
 
         _combatStateBuffer = new ComputeBuffer(_instanceCount, Marshal.SizeOf<InstanceCombatStateData>());
         _combatStateReadbackCache = BuildInitialCombatStates(spawnData, simulationState);
         _combatStateBuffer.SetData(_combatStateReadbackCache);
         _targetAcquisitionStateBuffer = new ComputeBuffer(_instanceCount, Marshal.SizeOf<TargetAcquisitionStateData>());
         _targetAcquisitionStateBuffer.SetData(BuildInitialTargetAcquisitionStates(spawnData, simulationState));
+        _targetAcquisitionCandidateBuffer = new ComputeBuffer(
+            Mathf.Max(1, _instanceCount * TargetAcquisitionCandidateSlots),
+            Marshal.SizeOf<TargetAcquisitionCandidateData>());
+        _targetAcquisitionLosDispatchArgsBuffer = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
+        _targetAcquisitionLosDispatchArgsBuffer.SetData(AliveInstanceDispatchArgsResetData);
+        _squadAcquisitionDispatchArgsBuffer = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
+        _squadAcquisitionDispatchArgsBuffer.SetData(AliveInstanceDispatchArgsResetData);
+        _combatActiveStateBuffer = new ComputeBuffer(_instanceCount, sizeof(uint));
+        _combatActiveStateBuffer.SetData(new uint[_instanceCount]);
+        _combatActivationMetaBuffer = new ComputeBuffer(_instanceCount, Marshal.SizeOf<Vector4>());
+        _combatActivationMetaBuffer.SetData(new Vector4[_instanceCount]);
+        _combatActiveInstanceIndexBuffer = new ComputeBuffer(_instanceCount, sizeof(uint));
+        _combatActiveInstanceCounterBuffer = new ComputeBuffer(2, sizeof(uint));
+        _combatActiveInstanceCounterBuffer.SetData(CombatActiveInstanceCounterResetData);
+        _combatActiveInstanceDispatchArgsBuffer = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
+        _combatActiveInstanceDispatchArgsBuffer.SetData(AliveInstanceDispatchArgsResetData);
+        EnsureCombatSquadCandidateBuffers();
         _lastCombatStateReadbackFrame = -1;
 
         int clipCount = Mathf.Max(1, _animationClipGpuCache.Length);
@@ -497,6 +793,21 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         BuildSimulationGridLayout(spawnData);
         _gridCounterBuffer = new ComputeBuffer(_gridCellCount, sizeof(uint));
         _gridOccupantBuffer = new ComputeBuffer(_gridCellCount * _maxCellOccupancy, sizeof(uint));
+        _gridCounterBuffer.SetData(new uint[_gridCellCount]);
+        _gridTouchedCellBufferA = new ComputeBuffer(_gridCellCount, sizeof(uint));
+        _gridTouchedCellBufferB = new ComputeBuffer(_gridCellCount, sizeof(uint));
+        _gridPrevTouchedCellBuffer = _gridTouchedCellBufferA;
+        _gridCurrTouchedCellBuffer = _gridTouchedCellBufferB;
+        _gridTouchedCounterBufferA = new ComputeBuffer(1, sizeof(uint));
+        _gridTouchedCounterBufferB = new ComputeBuffer(1, sizeof(uint));
+        _gridTouchedCounterBufferA.SetData(AliveInstanceCounterResetData);
+        _gridTouchedCounterBufferB.SetData(AliveInstanceCounterResetData);
+        _gridPrevTouchedCounterBuffer = _gridTouchedCounterBufferA;
+        _gridCurrTouchedCounterBuffer = _gridTouchedCounterBufferB;
+        _gridClearDispatchArgsBuffer = new ComputeBuffer(3, sizeof(uint), ComputeBufferType.IndirectArguments);
+        _gridClearDispatchArgsBuffer.SetData(AliveInstanceDispatchArgsResetData);
+        _wakeGridCounterBuffer = new ComputeBuffer(_wakeGridCellCount, sizeof(uint));
+        _wakeGridOccupantBuffer = new ComputeBuffer(_wakeGridCellCount * _maxCellOccupancy, sizeof(uint));
         _spatialCapsuleStartRadiusBuffer = new ComputeBuffer(_instanceCount, Marshal.SizeOf<Vector4>());
         _spatialCapsuleEndHeightBuffer = new ComputeBuffer(_instanceCount, Marshal.SizeOf<Vector4>());
         _spatialOwnerIndexBuffer = new ComputeBuffer(_instanceCount, sizeof(uint));
@@ -521,7 +832,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
         Bounds referenceAgentLocalBounds = ResolveReferenceAgentLocalBounds();
         _localCrowdBounds = BuildLocalCrowdBounds(spawnData, referenceAgentLocalBounds);
-        _renderChunks = Array.Empty<RenderChunk>();
     }
 
     private void BuildAnimationStateCaches(InstanceSpawnData[] spawnData)
@@ -729,6 +1039,14 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         _gridMinXZ = paddedCenter - actualSize * 0.5f;
         _gridMaxXZ = _gridMinXZ + actualSize;
         _gridCellCount = Mathf.Max(1, _gridDimensions.x * _gridDimensions.y);
+
+        _resolvedWakeGridCellSize = Mathf.Max(
+            Mathf.Max(0.05f, _queryCellSize),
+            Mathf.Max(_collisionRadius * 4.0f, _physicsWakeGridCellSize));
+        _wakeGridDimensions = new Vector2Int(
+            Mathf.Max(1, Mathf.CeilToInt(actualSize.x / _resolvedWakeGridCellSize)),
+            Mathf.Max(1, Mathf.CeilToInt(actualSize.y / _resolvedWakeGridCellSize)));
+        _wakeGridCellCount = Mathf.Max(1, _wakeGridDimensions.x * _wakeGridDimensions.y);
     }
 
     private InstanceSpawnData[] BuildSpawnData()
@@ -1273,8 +1591,9 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
                 healthAndHitFeedback = new Vector4(maxHealth, 0.0f, 0.0f, 1.0f),
                 muzzleFlash = 0.0f,
                 targetIndex = -1,
-                flags = _enableGpuInstanceCombat ? InstanceCombatFlagActive : 0u,
-                debugShotInfoPacked = 0u
+                flags = 0u,
+                debugShotInfoPacked = 0u,
+                debugShotTraceMeta = new Vector4(-1.0f, 0.0f, 0.0f, 0.0f)
             };
         }
 
@@ -1289,6 +1608,7 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         TargetAcquisitionStateData[] targetStates = new TargetAcquisitionStateData[Mathf.Max(count, _instanceCount)];
         float searchIntervalMin = Mathf.Max(0.02f, _targetAcquisitionSearchIntervalMin);
         float searchIntervalMax = Mathf.Max(searchIntervalMin, _targetAcquisitionSearchIntervalMax);
+        float lineOfSightRecheckInterval = Mathf.Max(0.0f, _targetAcquisitionLineOfSightRecheckInterval);
 
         for (int instanceIndex = 0; instanceIndex < count; instanceIndex++)
         {
@@ -1298,11 +1618,13 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
                 searchIntervalMax,
                 ComputeStableRandom01(unchecked((uint)instanceIndex) ^ 0x5A17C0DEu));
             float initialSearchTimer = searchInterval * ComputeStableRandom01(unchecked((uint)instanceIndex) ^ 0xC0FFEE31u);
+            float initialLineOfSightRecheckTimer = lineOfSightRecheckInterval *
+                ComputeStableRandom01(unchecked((uint)instanceIndex) ^ 0x8E3779B9u);
 
             targetStates[instanceIndex] = new TargetAcquisitionStateData
             {
                 lastKnownTargetAndScore = new Vector4(localPositionAndYaw.x, localPositionAndYaw.y, localPositionAndYaw.z, 0.0f),
-                timers = new Vector4(initialSearchTimer, 0.0f, 0.0f, 0.0f),
+                timers = new Vector4(initialSearchTimer, 0.0f, 0.0f, initialLineOfSightRecheckTimer),
                 debugRejectCounts0 = Vector4.zero,
                 debugRejectCounts1 = Vector4.zero,
                 currentTargetIndex = -1,
@@ -1373,47 +1695,88 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         if (!_hasRuntimeRenderResource)
         {
             _indirectArgsBuffers = Array.Empty<GraphicsBuffer>();
+            _visibleLod1IndirectArgsBuffers = Array.Empty<GraphicsBuffer>();
+            _visibleLod2IndirectArgsBuffers = Array.Empty<GraphicsBuffer>();
             _indirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+            _visibleLod1IndirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+            _visibleLod2IndirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
             _visibleInstanceIndexCache = Array.Empty<uint>();
+            _visibleLod1InstanceIndexCache = Array.Empty<uint>();
+            _visibleLod2InstanceIndexCache = Array.Empty<uint>();
+            _activeVisibleLodArgsBuffers = Array.Empty<GraphicsBuffer[]>();
             return;
         }
 
-        RuntimeRenderResource resource = _runtimeRenderResource;
-        int subMeshCount = resource.runtimeMaterials != null
-            ? Mathf.Min(resource.mesh.subMeshCount, resource.runtimeMaterials.Length)
-            : 0;
-        _indirectArgsBuffers = new GraphicsBuffer[subMeshCount];
-        _indirectArgsCache = new GraphicsBuffer.IndirectDrawIndexedArgs[subMeshCount];
-
-        for (int subMeshIndex = 0; subMeshIndex < subMeshCount; subMeshIndex++)
+        BuildIndirectArgsBufferSet(_runtimeRenderResource, out _indirectArgsBuffers, out _indirectArgsCache);
+        if (_hasSecondaryRuntimeRenderResource)
+            BuildIndirectArgsBufferSet(_secondaryRuntimeRenderResource, out _visibleLod1IndirectArgsBuffers, out _visibleLod1IndirectArgsCache);
+        else if (_hasTertiaryRuntimeRenderResource)
+            BuildIndirectArgsBufferSet(_tertiaryRuntimeRenderResource, out _visibleLod1IndirectArgsBuffers, out _visibleLod1IndirectArgsCache);
+        else
         {
-            GraphicsBuffer buffer = new GraphicsBuffer(
-                GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured,
-                1,
-                GraphicsBuffer.IndirectDrawIndexedArgs.size);
-            GraphicsBuffer.IndirectDrawIndexedArgs args = BuildIndirectArgs(resource.mesh, subMeshIndex, 0u);
-            buffer.SetData(new[] { args });
-            _indirectArgsBuffers[subMeshIndex] = buffer;
-            _indirectArgsCache[subMeshIndex] = args;
+            _visibleLod1IndirectArgsBuffers = Array.Empty<GraphicsBuffer>();
+            _visibleLod1IndirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
+        }
+
+        if (_hasSecondaryRuntimeRenderResource && _hasTertiaryRuntimeRenderResource)
+            BuildIndirectArgsBufferSet(_tertiaryRuntimeRenderResource, out _visibleLod2IndirectArgsBuffers, out _visibleLod2IndirectArgsCache);
+        else
+        {
+            _visibleLod2IndirectArgsBuffers = Array.Empty<GraphicsBuffer>();
+            _visibleLod2IndirectArgsCache = Array.Empty<GraphicsBuffer.IndirectDrawIndexedArgs>();
         }
 
         _visibleInstanceIndexBuffer = new ComputeBuffer(Mathf.Max(1, _instanceCount), sizeof(uint));
         _visibleInstanceCounterBuffer = new ComputeBuffer(1, sizeof(uint));
         _visibleInstanceCounterBuffer.SetData(VisibleInstanceCounterResetData);
+        _visibleLod1InstanceIndexBuffer = new ComputeBuffer(Mathf.Max(1, _instanceCount), sizeof(uint));
+        _visibleLod1InstanceCounterBuffer = new ComputeBuffer(1, sizeof(uint));
+        _visibleLod1InstanceCounterBuffer.SetData(VisibleInstanceCounterResetData);
+        _visibleLod2InstanceIndexBuffer = new ComputeBuffer(Mathf.Max(1, _instanceCount), sizeof(uint));
+        _visibleLod2InstanceCounterBuffer = new ComputeBuffer(1, sizeof(uint));
+        _visibleLod2InstanceCounterBuffer.SetData(VisibleInstanceCounterResetData);
         _visibleInstanceIndexCache = new uint[Mathf.Max(1, _instanceCount)];
+        _visibleLod1InstanceIndexCache = new uint[Mathf.Max(1, _instanceCount)];
+        _visibleLod2InstanceIndexCache = new uint[Mathf.Max(1, _instanceCount)];
         _allInstanceIndicesCache = new uint[Mathf.Max(1, _instanceCount)];
         for (uint instanceIndex = 0; instanceIndex < _allInstanceIndicesCache.Length; instanceIndex++)
             _allInstanceIndicesCache[instanceIndex] = instanceIndex;
+
+        List<GraphicsBuffer[]> activeArgs = new List<GraphicsBuffer[]>(3) { _indirectArgsBuffers };
+        if (_visibleLod1IndirectArgsBuffers.Length > 0)
+            activeArgs.Add(_visibleLod1IndirectArgsBuffers);
+        if (_visibleLod2IndirectArgsBuffers.Length > 0)
+            activeArgs.Add(_visibleLod2IndirectArgsBuffers);
+        _activeVisibleLodArgsBuffers = activeArgs.ToArray();
+    }
+
+    private static void BuildIndirectArgsBufferSet(
+        RuntimeRenderResource resource,
+        out GraphicsBuffer[] argsBuffers,
+        out GraphicsBuffer.IndirectDrawIndexedArgs[] argsCache)
+    {
+        int subMeshCount = resource.runtimeMaterials != null
+            ? Mathf.Min(resource.mesh.subMeshCount, resource.runtimeMaterials.Length)
+            : 0;
+        argsBuffers = new GraphicsBuffer[subMeshCount];
+        argsCache = new GraphicsBuffer.IndirectDrawIndexedArgs[subMeshCount];
+
+        for (int subMeshIndex = 0; subMeshIndex < subMeshCount; subMeshIndex++)
+        {
+            GraphicsBuffer argsBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured,
+                1,
+                GraphicsBuffer.IndirectDrawIndexedArgs.size);
+            GraphicsBuffer.IndirectDrawIndexedArgs args = BuildIndirectArgs(resource.mesh, subMeshIndex, 0u);
+            argsBuffer.SetData(new[] { args });
+            argsBuffers[subMeshIndex] = argsBuffer;
+            argsCache[subMeshIndex] = args;
+        }
     }
 
     private void BuildCombatTracerResources()
     {
-        ReleaseBuffer(ref _combatTracerArgsBuffer);
-        if (_combatTracerMaterial != null)
-        {
-            DestroyRuntimeMaterial(_combatTracerMaterial);
-            _combatTracerMaterial = null;
-        }
+        ReleaseCombatTracerDrawResources();
 
         if (!_enableCombatTracer || !_enableGpuInstanceCombat)
             return;
@@ -1429,19 +1792,31 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         if (_combatTracerMesh == null)
             _combatTracerMesh = CreateCombatTracerMesh();
 
-        _combatTracerMaterial = new Material(tracerShader);
-        if (_combatTracerMaterialTemplate != null)
-            _combatTracerMaterial.CopyPropertiesFromMaterial(_combatTracerMaterialTemplate);
-        _combatTracerMaterial.name = $"{_runtimeRenderResource.animationAsset.name}_CombatTracer";
-        _combatTracerMaterial.hideFlags = HideFlags.HideAndDontSave;
-        _combatTracerMaterial.enableInstancing = true;
+        int tracerTierCount = Mathf.Clamp(_activeVisibleLodRenderResources != null ? _activeVisibleLodRenderResources.Length : 1, 1, 3);
+        _combatTracerMaterials = new Material[tracerTierCount];
+        _combatTracerArgsBuffers = new GraphicsBuffer[tracerTierCount];
+        _combatTracerArgsCache = new GraphicsBuffer.IndirectDrawIndexedArgs[tracerTierCount];
 
-        _combatTracerArgsBuffer = new GraphicsBuffer(
-            GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured,
-            1,
-            GraphicsBuffer.IndirectDrawIndexedArgs.size);
         GraphicsBuffer.IndirectDrawIndexedArgs args = BuildIndirectArgs(_combatTracerMesh, 0, 0u);
-        _combatTracerArgsBuffer.SetData(new[] { args });
+        for (int tierIndex = 0; tierIndex < tracerTierCount; tierIndex++)
+        {
+            Material tracerMaterial = new Material(tracerShader);
+            if (_combatTracerMaterialTemplate != null)
+                tracerMaterial.CopyPropertiesFromMaterial(_combatTracerMaterialTemplate);
+            tracerMaterial.name = $"{_runtimeRenderResource.animationAsset.name}_CombatTracer_Lod{tierIndex}";
+            tracerMaterial.hideFlags = HideFlags.HideAndDontSave;
+            tracerMaterial.enableInstancing = true;
+            _combatTracerMaterials[tierIndex] = tracerMaterial;
+
+            GraphicsBuffer argsBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.IndirectArguments | GraphicsBuffer.Target.Structured,
+                1,
+                GraphicsBuffer.IndirectDrawIndexedArgs.size);
+            argsBuffer.SetData(new[] { args });
+            _combatTracerArgsBuffers[tierIndex] = argsBuffer;
+            _combatTracerArgsCache[tierIndex] = args;
+        }
+
         UpdateCombatTracerMaterialParameters();
     }
 
@@ -1489,85 +1864,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
     }
 #endif
 
-    private void BuildRenderChunks(InstanceSpawnData[] spawnData, Bounds agentLocalBounds)
-    {
-        uint[] instanceRenderChunkIndices = new uint[Mathf.Max(1, _instanceCount)];
-        if (spawnData == null || spawnData.Length == 0)
-        {
-            _renderChunks = Array.Empty<RenderChunk>();
-            EnsureRenderChunkVisibilityBuffers();
-            if (_instanceRenderChunkBuffer != null)
-                _instanceRenderChunkBuffer.SetData(instanceRenderChunkIndices, 0, 0, Mathf.Min(instanceRenderChunkIndices.Length, _instanceRenderChunkBuffer.count));
-            return;
-        }
-
-        float chunkSize = Mathf.Max(0.5f, _renderChunkWorldSize);
-        Vector2 origin = new Vector2(_localCrowdBounds.min.x, _localCrowdBounds.min.z);
-        Dictionary<Vector2Int, List<int>> chunkInstanceLookup = new Dictionary<Vector2Int, List<int>>();
-        List<Vector2Int> chunkOrder = new List<Vector2Int>();
-
-        for (int instanceIndex = 0; instanceIndex < spawnData.Length; instanceIndex++)
-        {
-            Vector2 localXZ = new Vector2(spawnData[instanceIndex].localPosition.x, spawnData[instanceIndex].localPosition.z);
-            Vector2Int chunkCoord = new Vector2Int(
-                Mathf.FloorToInt((localXZ.x - origin.x) / chunkSize),
-                Mathf.FloorToInt((localXZ.y - origin.y) / chunkSize));
-
-            if (!chunkInstanceLookup.TryGetValue(chunkCoord, out List<int> indices))
-            {
-                indices = new List<int>();
-                chunkInstanceLookup.Add(chunkCoord, indices);
-                chunkOrder.Add(chunkCoord);
-            }
-
-            indices.Add(instanceIndex);
-        }
-
-        _renderChunks = new RenderChunk[chunkOrder.Count];
-        for (int chunkIndex = 0; chunkIndex < chunkOrder.Count; chunkIndex++)
-        {
-            List<int> indices = chunkInstanceLookup[chunkOrder[chunkIndex]];
-            uint[] instanceIndices = new uint[indices.Count];
-            for (int index = 0; index < indices.Count; index++)
-            {
-                int instanceIndex = indices[index];
-                instanceIndices[index] = (uint)instanceIndex;
-                if ((uint)instanceIndex < (uint)instanceRenderChunkIndices.Length)
-                    instanceRenderChunkIndices[instanceIndex] = (uint)chunkIndex;
-            }
-
-            _renderChunks[chunkIndex] = new RenderChunk
-            {
-                instanceIndices = instanceIndices,
-                localBounds = BuildLocalBoundsForIndices(spawnData, indices, agentLocalBounds)
-            };
-        }
-
-        EnsureRenderChunkVisibilityBuffers();
-        if (_instanceRenderChunkBuffer != null)
-            _instanceRenderChunkBuffer.SetData(instanceRenderChunkIndices, 0, 0, Mathf.Min(instanceRenderChunkIndices.Length, _instanceRenderChunkBuffer.count));
-    }
-
-    private void EnsureRenderChunkVisibilityBuffers()
-    {
-        int requiredChunkCount = Mathf.Max(1, _renderChunks != null ? _renderChunks.Length : 0);
-        if (_visibleRenderChunkMaskBuffer == null || _visibleRenderChunkMaskBuffer.count != requiredChunkCount)
-        {
-            ReleaseBuffer(ref _visibleRenderChunkMaskBuffer);
-            _visibleRenderChunkMaskBuffer = new ComputeBuffer(requiredChunkCount, sizeof(uint));
-        }
-
-        if (_visibleRenderChunkMaskUploadCache == null || _visibleRenderChunkMaskUploadCache.Length != _visibleRenderChunkMaskBuffer.count)
-            _visibleRenderChunkMaskUploadCache = new uint[_visibleRenderChunkMaskBuffer.count];
-
-        int requiredInstanceCount = Mathf.Max(1, _instanceCount);
-        if (_instanceRenderChunkBuffer == null || _instanceRenderChunkBuffer.count != requiredInstanceCount)
-        {
-            ReleaseBuffer(ref _instanceRenderChunkBuffer);
-            _instanceRenderChunkBuffer = new ComputeBuffer(requiredInstanceCount, sizeof(uint));
-        }
-    }
-
     private Bounds BuildLocalBoundsForRange(InstanceSpawnData[] spawnData, int startInstance, int instanceCount, Bounds agentLocalBounds)
     {
         bool hasBounds = false;
@@ -1599,36 +1895,6 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
         return ExpandRenderBounds(bounds);
     }
 
-    private Bounds BuildLocalBoundsForIndices(InstanceSpawnData[] spawnData, IReadOnlyList<int> indices, Bounds agentLocalBounds)
-    {
-        if (indices == null || indices.Count == 0)
-            return new Bounds(agentLocalBounds.center, agentLocalBounds.size);
-
-        bool hasBounds = false;
-        Bounds bounds = default;
-
-        for (int i = 0; i < indices.Count; i++)
-        {
-            InstanceSpawnData instance = spawnData[indices[i]];
-            Matrix4x4 instanceMatrix = Matrix4x4.TRS(
-                instance.localPosition,
-                Quaternion.Euler(0.0f, instance.yawRadians * Mathf.Rad2Deg, 0.0f),
-                Vector3.one * instance.uniformScale);
-            Bounds instanceBounds = TransformBounds(instanceMatrix, agentLocalBounds);
-            if (!hasBounds)
-            {
-                bounds = instanceBounds;
-                hasBounds = true;
-                continue;
-            }
-
-            bounds.Encapsulate(instanceBounds.min);
-            bounds.Encapsulate(instanceBounds.max);
-        }
-
-        return ExpandRenderBounds(bounds);
-    }
-
     private Bounds ExpandRenderBounds(Bounds bounds)
     {
         float dynamicPadding = _boundsPadding + (_enableApproximateCollision ? _maxDisplacementFromSpawn : 0.0f);
@@ -1650,23 +1916,33 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
     private void BindStaticResources()
     {
-        if (!_hasRuntimeRenderResource || _runtimeRenderResource.runtimeMaterials == null)
+        if (_activeVisibleLodRenderResources == null || _activeVisibleLodRenderResources.Length == 0)
             return;
 
-        RuntimeRenderResource resource = _runtimeRenderResource;
-        Texture2D boneTexture = resource.animationAsset.BoneAnimationTexture;
-
-        for (int materialIndex = 0; materialIndex < resource.runtimeMaterials.Length; materialIndex++)
+        for (int tierIndex = 0; tierIndex < _activeVisibleLodRenderResources.Length; tierIndex++)
         {
-            Material runtimeMaterial = resource.runtimeMaterials[materialIndex];
-            runtimeMaterial.SetTexture(BoneAnimationTextureId, boneTexture);
-            runtimeMaterial.SetBuffer(InstanceTransformsId, _instanceTransformBuffer);
-            runtimeMaterial.SetBuffer(InstanceFrameDataId, _instanceFrameDataBuffer);
-            runtimeMaterial.SetBuffer(InstanceFrameBlendDataId, _instanceFrameBlendDataBuffer);
-            runtimeMaterial.SetBuffer(VisibleInstanceIndicesId, _visibleInstanceIndexBuffer);
-            runtimeMaterial.SetVector(CrowdRootLocalRow0Id, resource.crowdRootRow0);
-            runtimeMaterial.SetVector(CrowdRootLocalRow1Id, resource.crowdRootRow1);
-            runtimeMaterial.SetVector(CrowdRootLocalRow2Id, resource.crowdRootRow2);
+            RuntimeRenderResource resource = _activeVisibleLodRenderResources[tierIndex];
+            ComputeBuffer visibleInstanceIndexBuffer = ResolveVisibleInstanceIndexBufferForTier(tierIndex);
+            if (resource.runtimeMaterials == null || visibleInstanceIndexBuffer == null)
+                continue;
+
+            Texture2D boneTexture = resource.animationAsset.BoneAnimationTexture;
+            for (int materialIndex = 0; materialIndex < resource.runtimeMaterials.Length; materialIndex++)
+            {
+                Material runtimeMaterial = resource.runtimeMaterials[materialIndex];
+                if (runtimeMaterial == null)
+                    continue;
+
+                runtimeMaterial.SetTexture(BoneAnimationTextureId, boneTexture);
+                string gpuPassName = ResolveCrowdRenderSkinnedMeshPassName(tierIndex);
+                SetGpuPassMaterialBuffer(runtimeMaterial, gpuPassName, InstanceTransformsId, "_InstanceTransforms", "instanceTransforms", _instanceTransformBuffer, GpuPassBindingAccess.Srv);
+                SetGpuPassMaterialBuffer(runtimeMaterial, gpuPassName, InstanceFrameDataId, "_InstanceFrameData", "instanceFrameData", _instanceFrameDataBuffer, GpuPassBindingAccess.Srv);
+                SetGpuPassMaterialBuffer(runtimeMaterial, gpuPassName, InstanceFrameBlendDataId, "_InstanceFrameBlendData", "instanceFrameBlendData", _instanceFrameBlendDataBuffer, GpuPassBindingAccess.Srv);
+                SetGpuPassMaterialBuffer(runtimeMaterial, gpuPassName, VisibleInstanceIndicesId, "_VisibleInstanceIndices", $"visibleInstanceIndex.lod{tierIndex}", visibleInstanceIndexBuffer, GpuPassBindingAccess.Srv);
+                runtimeMaterial.SetVector(CrowdRootLocalRow0Id, resource.crowdRootRow0);
+                runtimeMaterial.SetVector(CrowdRootLocalRow1Id, resource.crowdRootRow1);
+                runtimeMaterial.SetVector(CrowdRootLocalRow2Id, resource.crowdRootRow2);
+            }
         }
 
         BindCombatTracerMaterial();
@@ -1674,53 +1950,80 @@ public sealed partial class CrowdVatIndirectRenderer : MonoBehaviour
 
     private void BindCombatTracerMaterial()
     {
-        if (_combatTracerMaterial == null)
+        if (_combatTracerMaterials == null || _combatTracerMaterials.Length == 0)
             return;
 
-        _combatTracerMaterial.SetBuffer(SpawnDataId, _spawnDataBuffer);
-        _combatTracerMaterial.SetBuffer(CombatStateBufferId, _combatStateBuffer);
-        _combatTracerMaterial.SetBuffer(VisibleInstanceIndicesId, _visibleInstanceIndexBuffer);
+        for (int tierIndex = 0; tierIndex < _combatTracerMaterials.Length; tierIndex++)
+        {
+            Material combatTracerMaterial = _combatTracerMaterials[tierIndex];
+            ComputeBuffer visibleInstanceIndexBuffer = ResolveVisibleInstanceIndexBufferForTier(tierIndex);
+            if (combatTracerMaterial == null || visibleInstanceIndexBuffer == null)
+                continue;
+
+            SetGpuPassMaterialBuffer(combatTracerMaterial, GpuPassRenderCombatTracer, SpawnDataId, "_SpawnData", $"spawnData.combatTracer.lod{tierIndex}", _spawnDataBuffer, GpuPassBindingAccess.Srv);
+            SetGpuPassMaterialBuffer(combatTracerMaterial, GpuPassRenderCombatTracer, CombatStateBufferId, "_CombatStateBuffer", $"combatState.combatTracer.lod{tierIndex}", _combatStateBuffer, GpuPassBindingAccess.Srv);
+            SetGpuPassMaterialBuffer(combatTracerMaterial, GpuPassRenderCombatTracer, VisibleInstanceIndicesId, "_VisibleInstanceIndices", $"visibleInstanceIndex.combatTracer.lod{tierIndex}", visibleInstanceIndexBuffer, GpuPassBindingAccess.Srv);
+        }
+
         UpdateCombatTracerMaterialParameters();
+    }
+
+    private ComputeBuffer ResolveVisibleInstanceIndexBufferForTier(int tierIndex)
+    {
+        return tierIndex switch
+        {
+            0 => _visibleInstanceIndexBuffer,
+            1 => _visibleLod1InstanceIndexBuffer,
+            2 => _visibleLod2InstanceIndexBuffer,
+            _ => null
+        };
     }
 
     private void UpdateCombatTracerMaterialParameters()
     {
-        if (_combatTracerMaterial == null)
+        if (_combatTracerMaterials == null || _combatTracerMaterials.Length == 0)
             return;
 
         Matrix4x4 localToWorld = transform.localToWorldMatrix;
-        _combatTracerMaterial.SetColor(TracerColorCampAId, _combatTracerColorCampA);
-        _combatTracerMaterial.SetColor(TracerColorCampBId, _combatTracerColorCampB);
-        _combatTracerMaterial.SetTexture(MuzzleFlashTexId, _combatMuzzleFlashTexture != null ? _combatMuzzleFlashTexture : Texture2D.blackTexture);
-        _combatTracerMaterial.SetTexture(TracerTexId, _combatTracerTexture != null ? _combatTracerTexture : Texture2D.whiteTexture);
-        _combatTracerMaterial.SetTexture(ImpactTexId, _combatImpactTexture != null ? _combatImpactTexture : Texture2D.blackTexture);
-        _combatTracerMaterial.SetFloat(TracerWidthId, Mathf.Max(0.001f, _combatTracerWidth));
-        _combatTracerMaterial.SetFloat(TracerBrightnessId, Mathf.Max(0.0f, _combatTracerBrightness));
-        _combatTracerMaterial.SetFloat(TracerMinFlashId, Mathf.Clamp01(_combatTracerMinFlash));
-        _combatTracerMaterial.SetFloat(CombatRangeId, Mathf.Max(0.1f, _combatRange));
-        _combatTracerMaterial.SetFloat(MuzzleFlashSizeId, Mathf.Max(0.001f, _combatMuzzleFlashSize));
-        _combatTracerMaterial.SetFloat(ImpactFlashSizeId, Mathf.Max(0.001f, _combatImpactFlashSize));
-        _combatTracerMaterial.SetFloat(ImpactPointOffsetId, Mathf.Max(0.0f, _combatImpactPointOffset));
-        _combatTracerMaterial.SetFloat(MuzzleFlashBrightnessId, Mathf.Max(0.0f, _combatMuzzleFlashBrightness));
-        _combatTracerMaterial.SetFloat(ImpactFlashBrightnessId, Mathf.Max(0.0f, _combatImpactFlashBrightness));
-        _combatTracerMaterial.SetVector(
-            MuzzleFlashFlipbookId,
-            new Vector4(
-                Mathf.Max(1, _combatMuzzleFlashFlipbookColumns),
-                Mathf.Max(1, _combatMuzzleFlashFlipbookRows),
-                0.0f,
-                0.0f));
-        _combatTracerMaterial.SetVector(
-            ImpactFlashFlipbookId,
-            new Vector4(
-                Mathf.Max(1, _combatImpactFlashFlipbookColumns),
-                Mathf.Max(1, _combatImpactFlashFlipbookRows),
-                0.0f,
-                0.0f));
-        _combatTracerMaterial.SetVector(RootPositionId, new Vector4(localToWorld.m03, localToWorld.m13, localToWorld.m23, 0.0f));
-        _combatTracerMaterial.SetVector(RootRightId, new Vector4(localToWorld.m00, localToWorld.m10, localToWorld.m20, 0.0f));
-        _combatTracerMaterial.SetVector(RootUpId, new Vector4(localToWorld.m01, localToWorld.m11, localToWorld.m21, 0.0f));
-        _combatTracerMaterial.SetVector(RootForwardId, new Vector4(localToWorld.m02, localToWorld.m12, localToWorld.m22, 0.0f));
+        for (int materialIndex = 0; materialIndex < _combatTracerMaterials.Length; materialIndex++)
+        {
+            Material combatTracerMaterial = _combatTracerMaterials[materialIndex];
+            if (combatTracerMaterial == null)
+                continue;
+
+            combatTracerMaterial.SetColor(TracerColorCampAId, _combatTracerColorCampA);
+            combatTracerMaterial.SetColor(TracerColorCampBId, _combatTracerColorCampB);
+            combatTracerMaterial.SetTexture(MuzzleFlashTexId, _combatMuzzleFlashTexture != null ? _combatMuzzleFlashTexture : Texture2D.blackTexture);
+            combatTracerMaterial.SetTexture(TracerTexId, _combatTracerTexture != null ? _combatTracerTexture : Texture2D.whiteTexture);
+            combatTracerMaterial.SetTexture(ImpactTexId, _combatImpactTexture != null ? _combatImpactTexture : Texture2D.blackTexture);
+            combatTracerMaterial.SetFloat(TracerWidthId, Mathf.Max(0.001f, _combatTracerWidth));
+            combatTracerMaterial.SetFloat(TracerBrightnessId, Mathf.Max(0.0f, _combatTracerBrightness));
+            combatTracerMaterial.SetFloat(TracerMinFlashId, Mathf.Clamp01(_combatTracerMinFlash));
+            combatTracerMaterial.SetFloat(CombatRangeId, Mathf.Max(0.1f, _combatRange));
+            combatTracerMaterial.SetFloat(MuzzleFlashSizeId, Mathf.Max(0.001f, _combatMuzzleFlashSize));
+            combatTracerMaterial.SetFloat(ImpactFlashSizeId, Mathf.Max(0.001f, _combatImpactFlashSize));
+            combatTracerMaterial.SetFloat(ImpactPointOffsetId, Mathf.Max(0.0f, _combatImpactPointOffset));
+            combatTracerMaterial.SetFloat(MuzzleFlashBrightnessId, Mathf.Max(0.0f, _combatMuzzleFlashBrightness));
+            combatTracerMaterial.SetFloat(ImpactFlashBrightnessId, Mathf.Max(0.0f, _combatImpactFlashBrightness));
+            combatTracerMaterial.SetVector(
+                MuzzleFlashFlipbookId,
+                new Vector4(
+                    Mathf.Max(1, _combatMuzzleFlashFlipbookColumns),
+                    Mathf.Max(1, _combatMuzzleFlashFlipbookRows),
+                    0.0f,
+                    0.0f));
+            combatTracerMaterial.SetVector(
+                ImpactFlashFlipbookId,
+                new Vector4(
+                    Mathf.Max(1, _combatImpactFlashFlipbookColumns),
+                    Mathf.Max(1, _combatImpactFlashFlipbookRows),
+                    0.0f,
+                    0.0f));
+            combatTracerMaterial.SetVector(RootPositionId, new Vector4(localToWorld.m03, localToWorld.m13, localToWorld.m23, 0.0f));
+            combatTracerMaterial.SetVector(RootRightId, new Vector4(localToWorld.m00, localToWorld.m10, localToWorld.m20, 0.0f));
+            combatTracerMaterial.SetVector(RootUpId, new Vector4(localToWorld.m01, localToWorld.m11, localToWorld.m21, 0.0f));
+            combatTracerMaterial.SetVector(RootForwardId, new Vector4(localToWorld.m02, localToWorld.m12, localToWorld.m22, 0.0f));
+        }
     }
 
 }

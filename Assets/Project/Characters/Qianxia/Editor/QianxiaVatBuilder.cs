@@ -7,18 +7,38 @@ using UnityEngine;
 
 public static class QianxiaVatBuilder
 {
-    private const string SourceModelAssetPath = "Assets/Project/Characters/Qianxia/SourceModels/LOD2.fbx";
-    private const string SourceAnimationsRoot = "Assets/Project/Characters/Qianxia/SourceAnimations";
+    private const string WalkClipAssetPath = "Assets/Project/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
+    private const string WalkClipName = "Qianxia_Walk_Slow";
+    private const string IdleClipAssetPath = "Assets/Project/Characters/Qianxia/SourceAnimations/Idle/Ch36_nonPBR@Zombie Idle.fbx";
+    private const string IdleClipName = "Ch36_nonPBR@Zombie Idle";
     private const string OutputFolder = "Assets/Project/Characters/Qianxia/Generated/VAT";
-    private const string OutputName = "QianxiaCrowdLod2Vat";
     private const string ShaderPath = "Assets/Project/Crowds/VAT/Shader/CrowdVatLit.shader";
     private const string BuildRequestFile = ".workspace/artifacts/qianxia-vat-build.request";
     private const string BuildResultFile = ".workspace/artifacts/qianxia-vat-build.result.txt";
 
+    private readonly struct VatBuildConfig
+    {
+        public VatBuildConfig(string sourceModelAssetPath, string outputName)
+        {
+            SourceModelAssetPath = sourceModelAssetPath;
+            OutputName = outputName;
+        }
+
+        public string SourceModelAssetPath { get; }
+        public string OutputName { get; }
+    }
+
+    private static readonly VatBuildConfig[] BuildConfigs =
+    {
+        new VatBuildConfig(QianxiaLodPrefabBuilder.Lod0AssetPath, "QianxiaCrowdLod0Vat"),
+        new VatBuildConfig(QianxiaLodPrefabBuilder.Lod1AssetPath, "QianxiaCrowdLod1Vat"),
+        new VatBuildConfig(QianxiaLodPrefabBuilder.Lod2AssetPath, "QianxiaCrowdLod2Vat")
+    };
+
     [MenuItem("Tools/Qianxia/Create Or Replace Crowd VAT")]
     public static void CreateOrReplaceCrowdVat()
     {
-        CreateOrReplaceCrowdVatInternal(true);
+        CreateOrReplaceCrowdVatSetInternal(true);
     }
 
     public static string GetBuildRequestPath()
@@ -31,21 +51,35 @@ public static class QianxiaVatBuilder
         return Path.Combine(GetProjectRoot(), BuildResultFile);
     }
 
-    public static CrowdVatBaker.BakeResult CreateOrReplaceCrowdVatInternal(bool logToConsole)
+    public static IReadOnlyList<CrowdVatBaker.BakeResult> CreateOrReplaceCrowdVatSetInternal(bool logToConsole)
     {
-        CrowdVatBaker.BakeResult result = BuildCrowdVat(SourceModelAssetPath, OutputName);
+        List<CrowdVatBaker.BakeResult> results = new List<CrowdVatBaker.BakeResult>(BuildConfigs.Length);
+        for (int configIndex = 0; configIndex < BuildConfigs.Length; configIndex++)
+        {
+            VatBuildConfig config = BuildConfigs[configIndex];
+            results.Add(BuildCrowdVat(config.SourceModelAssetPath, config.OutputName));
+        }
 
         if (logToConsole)
         {
-            Debug.Log(
-                $"Qianxia crowd VAT created.\n" +
-                $"Asset: {AssetDatabase.GetAssetPath(result.AnimationAsset)}\n" +
-                $"Prefab: {AssetDatabase.GetAssetPath(result.Prefab)}\n" +
-                $"Mesh: {AssetDatabase.GetAssetPath(result.Mesh)}\n" +
-                $"Texture: {AssetDatabase.GetAssetPath(result.BoneTexture)}");
+            List<string> lines = new List<string>(results.Count * 5 + 1)
+            {
+                "Qianxia crowd VAT set created."
+            };
+
+            for (int resultIndex = 0; resultIndex < results.Count; resultIndex++)
+            {
+                CrowdVatBaker.BakeResult result = results[resultIndex];
+                lines.Add($"[{resultIndex}] Asset: {AssetDatabase.GetAssetPath(result.AnimationAsset)}");
+                lines.Add($"[{resultIndex}] Prefab: {AssetDatabase.GetAssetPath(result.Prefab)}");
+                lines.Add($"[{resultIndex}] Mesh: {AssetDatabase.GetAssetPath(result.Mesh)}");
+                lines.Add($"[{resultIndex}] Texture: {AssetDatabase.GetAssetPath(result.BoneTexture)}");
+            }
+
+            Debug.Log(string.Join(Environment.NewLine, lines));
         }
 
-        return result;
+        return results;
     }
 
     private static CrowdVatBaker.BakeResult BuildCrowdVat(string sourceModelAssetPath, string outputName)
@@ -58,9 +92,9 @@ public static class QianxiaVatBuilder
         if (shader == null)
             throw new InvalidOperationException($"VAT shader was not found at `{ShaderPath}`.");
 
-        List<CrowdVatBaker.ClipSource> clipSources = LoadClipSources(SourceAnimationsRoot);
+        List<CrowdVatBaker.ClipSource> clipSources = LoadLocomotionClipSources();
         if (clipSources.Count == 0)
-            throw new InvalidOperationException($"No valid animation clips were found under `{SourceAnimationsRoot}`.");
+            throw new InvalidOperationException("No valid locomotion clips were found for Qianxia VAT baking.");
 
         CrowdVatBaker.BakeResult result = CrowdVatBaker.BakeSkinnedMeshToVat(
             sourceModelAsset,
@@ -73,40 +107,38 @@ public static class QianxiaVatBuilder
         return result;
     }
 
-    private static List<CrowdVatBaker.ClipSource> LoadClipSources(string rootFolder)
+    private static List<CrowdVatBaker.ClipSource> LoadLocomotionClipSources()
     {
-        string[] guids = AssetDatabase.FindAssets("t:Model", new[] { rootFolder });
-        List<string> assetPaths = guids
-            .Select(AssetDatabase.GUIDToAssetPath)
-            .Where(path => !string.IsNullOrWhiteSpace(path) && path.EndsWith(".fbx", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        List<CrowdVatBaker.ClipSource> clipSources = new List<CrowdVatBaker.ClipSource>();
-        for (int pathIndex = 0; pathIndex < assetPaths.Count; pathIndex++)
+        return new List<CrowdVatBaker.ClipSource>
         {
-            string assetPath = assetPaths[pathIndex];
-            GameObject motionSourceAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-            if (motionSourceAsset == null)
-                continue;
+            LoadClipSource(WalkClipAssetPath, WalkClipName, "walk"),
+            LoadClipSource(IdleClipAssetPath, IdleClipName, "idle")
+        };
+    }
 
-            List<AnimationClip> clips = LoadClips(assetPath);
-            for (int clipIndex = 0; clipIndex < clips.Count; clipIndex++)
-            {
-                AnimationClip clip = clips[clipIndex];
-                if (clip == null)
-                    continue;
+    private static CrowdVatBaker.ClipSource LoadClipSource(string assetPath, string preferredClipName, string label)
+    {
+        GameObject motionSourceAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+        if (motionSourceAsset == null)
+            throw new InvalidOperationException($"{label} motion source was not found at `{assetPath}`.");
 
-                clipSources.Add(new CrowdVatBaker.ClipSource
-                {
-                    Clip = clip,
-                    MotionSourceAsset = motionSourceAsset,
-                    ClipNameOverride = BuildClipName(assetPath, clips.Count, clip)
-                });
-            }
+        List<AnimationClip> clips = LoadClips(assetPath);
+        AnimationClip clip = clips.FirstOrDefault(candidate => candidate != null && string.Equals(candidate.name, preferredClipName, StringComparison.Ordinal));
+        if (clip == null && clips.Count == 1)
+            clip = clips[0];
+
+        if (clip == null)
+        {
+            throw new InvalidOperationException(
+                $"{label} clip `{preferredClipName}` was not found at `{assetPath}`. Available clips: {string.Join(", ", clips.Select(candidate => candidate != null ? candidate.name : "<null>"))}");
         }
 
-        return clipSources;
+        return new CrowdVatBaker.ClipSource
+        {
+            Clip = clip,
+            MotionSourceAsset = motionSourceAsset,
+            ClipNameOverride = preferredClipName
+        };
     }
 
     private static List<AnimationClip> LoadClips(string assetPath)
@@ -115,18 +147,6 @@ public static class QianxiaVatBuilder
             .OfType<AnimationClip>()
             .Where(clip => clip != null && !IsPreviewClip(clip))
             .ToList();
-    }
-
-    private static string BuildClipName(string assetPath, int clipCountInAsset, AnimationClip clip)
-    {
-        string fileName = Path.GetFileNameWithoutExtension(assetPath);
-        if (clip == null)
-            return fileName;
-
-        if (clipCountInAsset <= 1 || string.Equals(fileName, clip.name, StringComparison.OrdinalIgnoreCase))
-            return fileName;
-
-        return $"{fileName}_{clip.name}";
     }
 
     private static string GetProjectRoot()
@@ -174,15 +194,23 @@ public static class QianxiaVatBuildBootstrap
         try
         {
             File.Delete(requestPath);
-            CrowdVatBaker.BakeResult result = QianxiaVatBuilder.CreateOrReplaceCrowdVatInternal(false);
-            File.WriteAllText(
-                resultPath,
-                $"SUCCESS{Environment.NewLine}" +
-                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}" +
-                $"{AssetDatabase.GetAssetPath(result.AnimationAsset)}{Environment.NewLine}" +
-                $"{AssetDatabase.GetAssetPath(result.Prefab)}{Environment.NewLine}" +
-                $"{AssetDatabase.GetAssetPath(result.Mesh)}{Environment.NewLine}" +
-                $"{AssetDatabase.GetAssetPath(result.BoneTexture)}");
+            IReadOnlyList<CrowdVatBaker.BakeResult> results = QianxiaVatBuilder.CreateOrReplaceCrowdVatSetInternal(false);
+            List<string> lines = new List<string>(results.Count * 4 + 2)
+            {
+                "SUCCESS",
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}"
+            };
+
+            for (int resultIndex = 0; resultIndex < results.Count; resultIndex++)
+            {
+                CrowdVatBaker.BakeResult result = results[resultIndex];
+                lines.Add(AssetDatabase.GetAssetPath(result.AnimationAsset));
+                lines.Add(AssetDatabase.GetAssetPath(result.Prefab));
+                lines.Add(AssetDatabase.GetAssetPath(result.Mesh));
+                lines.Add(AssetDatabase.GetAssetPath(result.BoneTexture));
+            }
+
+            File.WriteAllText(resultPath, string.Join(Environment.NewLine, lines));
 
             AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
         }
