@@ -41,15 +41,28 @@ Assets/GameAssets
 ├── Textures/
 ├── Prefabs/
 │   ├── Hero/
-│   ├── Monster/
-│   ├── Meadow Environment/
-│   └── Meadow Terrain Details/
+│   └── Monster/
+├── Worlds/
+│   └── Meadow/
+│       ├── Shared/
+│       │   ├── Materials/
+│       │   ├── Prefabs/
+│       │   └── Configs/
+│       ├── Seasons/
+│       │   ├── Autumn/
+│       │   ├── Summer/
+│       │   └── Winter/
+│       ├── Chunks/
+│       │   ├── Chunk_000_000/
+│       │   ├── Chunk_000_001/
+│       │   └── Chunk_001_000/
+│       └── Scenes/
 └── UIModules/
     ├── UILogin/
     └── UIMain/
 ```
 
-打包脚本默认扫描 `Assets/GameAssets`，并按叶子目录或包含直接资源文件的中间目录生成 `angrymesh.gameassets.<relative.path>` 业务组。源素材、PSD/FBX 原始制作文件和导入中间态不要放进这里。
+打包脚本默认扫描 `Assets/GameAssets`。`Common/`、`Worlds/` 和共享 shader / texture 有显式分组规则；其他目录继续按叶子目录或包含直接资源文件的中间目录生成 `angrymesh.gameassets.<relative.path>` 业务组。源素材、PSD/FBX 原始制作文件和导入中间态不要放进这里。
 
 ## `Assets/GameResources/` 源产区
 
@@ -68,10 +81,12 @@ Assets/GameResources/Stylized Pack - Meadow Environment/Sources
 Assets/GameAssets/Common/ASP Global Settings
 Assets/GameAssets/Common/Functions
 Assets/GameAssets/Common/Shaders
-Assets/GameAssets/Configs/Post Processing/Meadow Environment
-Assets/GameAssets/Prefabs/Meadow Environment
-Assets/GameAssets/Prefabs/Meadow Terrain Details
-Assets/GameAssets/Scenes/Meadow Environment
+Assets/GameAssets/Worlds/Meadow/Shared
+Assets/GameAssets/Worlds/Meadow/Seasons/Autumn
+Assets/GameAssets/Worlds/Meadow/Seasons/Summer
+Assets/GameAssets/Worlds/Meadow/Seasons/Winter
+Assets/GameAssets/Worlds/Meadow/Chunks
+Assets/GameAssets/Worlds/Meadow/Scenes
 ```
 
 ## `Assets/Project/` 历史目录
@@ -94,7 +109,7 @@ Assets/GameAssets/Scenes/Meadow Environment
 
 - `Textures/`、`Models/`、`Audio/` 的三级目录优先按子类型或导入策略划分，例如 `Textures/Grass/`、`Models/StaticModels/`、`Audio/Streaming/`。
 - 其他资源类型可以在三级目录按功能域划分，但不要让功能域回到二级目录。
-- 生命周期目录少用。确实需要临时资源时，优先放 `.workspace/`；必须进 Unity 导入链路时再建立明确的 `Generated/` 或 `Experimental/` 子目录。
+- 生命周期目录少用；大世界运行时资源例外，`Worlds/<World>/Shared + Seasons + Chunks` 是 Addressables 加载/卸载边界。确实需要临时资源时，优先放 `.workspace/`；必须进 Unity 导入链路时再建立明确的 `Generated/` 或 `Experimental/` 子目录。
 - 目录命名应能服务自动化导入规则和资产检查。例如同类 Terrain 数据放在 `Configs/Terrain/`，Terrain Layer 放在 `Materials/Terrain/`。
 
 ## 本次整理后的关键落点

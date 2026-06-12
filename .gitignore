@@ -6,8 +6,8 @@ Logs/
 UserSettings/
 
 # Build output
-Build/
-Builds/
+/Build/
+/Builds/
 
 # Codex workspace artifacts
 .workspace/

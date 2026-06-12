@@ -52,6 +52,7 @@
     <Compile Include="Assets\Project\CS\CokeBottlePbd\Editor\BottlePileSceneAutomation.cs" />
     <Compile Include="Assets\Project\Characters\Qianxia\Editor\RenTextureApplyUtility.cs" />
     <Compile Include="Assets\Project\Characters\Qianxia\Editor\QianxiaVatBuilder.cs" />
+    <Compile Include="Assets\Project\Tools\Build\Editor\ProjectPlayerBuild.cs" />
     <Compile Include="Assets\Project\Characters\Qianxia\Editor\QianxiaRigDiagnostics.cs" />
     <Compile Include="Assets\Project\Tools\AngryMeshSourcesImport\Editor\AngryMeshSourcesImportCli.cs" />
     <Compile Include="Assets\Project\Tools\AngryMeshSourcesImport\Editor\AngryMeshSourcesImportWorkflow.cs" />

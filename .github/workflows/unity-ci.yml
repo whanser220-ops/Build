@@ -1,0 +1,106 @@
+name: Unity CI
+
+"on":
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/111
+
+concurrency:
+  group: unity6-player-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Android and Windows
+    runs-on:
+      - self-hosted
+      - Windows
+      - unity6
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Clean previous CI outputs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (Test-Path ".workspace/builds") {
+            Remove-Item -LiteralPath ".workspace/builds" -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force -Path ".workspace/builds/android" | Out-Null
+          New-Item -ItemType Directory -Force -Path ".workspace/builds/windows" | Out-Null
+          New-Item -ItemType Directory -Force -Path "Logs" | Out-Null
+          Remove-Item -LiteralPath "Logs/EditMode.xml" -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath "Logs/EditMode.log" -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath "Logs/build-android.log" -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath "Logs/build-windows.log" -Force -ErrorAction SilentlyContinue
+
+      - name: Run EditMode tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode `
+            -runTests -testPlatform EditMode `
+            -testResults Logs/EditMode.xml `
+            -logFile Logs/EditMode.log
+
+      - name: Build Android development APK
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
+            -executeMethod ProjectPlayerBuild.BuildAndroidDevelopment `
+            -logFile Logs/build-android.log `
+            --ci-output .workspace/builds/android/Unity6-Android-Development.apk
+
+      - name: Build Windows development player
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
+            -executeMethod ProjectPlayerBuild.BuildWindowsDevelopment `
+            -logFile Logs/build-windows.log `
+            --ci-output .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe
+
+      - name: Package Windows player
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $source = ".workspace/builds/windows/Unity6-Windows-Development"
+          $archive = ".workspace/builds/windows/Unity6-Windows-Development.zip"
+          if (-not (Test-Path "$source/Unity6.exe")) {
+            throw "Windows player executable was not found: $source/Unity6.exe"
+          }
+          if (Test-Path $archive) {
+            Remove-Item -LiteralPath $archive -Force
+          }
+          Compress-Archive -Path "$source/*" -DestinationPath $archive -Force
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: Unity6-Android-Development
+          path: .workspace/builds/android/Unity6-Android-Development.apk
+          if-no-files-found: error
+
+      - name: Upload Windows player
+        uses: actions/upload-artifact@v7
+        with:
+          name: Unity6-Windows-Development
+          path: .workspace/builds/windows/Unity6-Windows-Development.zip
+          if-no-files-found: error
+
+      - name: Upload logs and test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Unity6-CI-Logs
+          path: |
+            Logs/EditMode.xml
+            Logs/EditMode.log
+            Logs/build-android.log
+            Logs/build-windows.log
+          if-no-files-found: warn

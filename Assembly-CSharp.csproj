@@ -163,6 +163,7 @@
     <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSquadTypes.cs" />
     <None Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\package.json" />
     <None Include="Assets\GameAssets\Common\Shaders\S_Tree_Bark.shader" />
+    <None Include="Assets\GameAssets\Worlds\Meadow\Chunks\Chunk_000_001\chunk_manifest.json" />
     <None Include="Assets\Project\CS\caroon_Tree\Shader\StylizedTreeCrownIndirect.shader" />
     <None Include="Assets\Project\CS\New_Grass\shader\NewGrassScatter.compute" />
     <None Include="Assets\Project\CS\New_Tree\Shader\NewTreeLeafBillboard.shader" />
@@ -178,6 +179,7 @@
     <None Include="Assets\Project\CS\New_Grass\shader\NewGrassBezierBlade.shader" />
     <None Include="Assets\ThirdParty\QianxiaMmdSource\readme【一定要看】.txt" />
     <None Include="Assets\Project\Tools\Templates\LegacyRenderTemplates\Shader\GPUInstance.shader" />
+    <None Include="Assets\GameAssets\Worlds\Meadow\Chunks\Chunk_000_000\chunk_manifest.json" />
     <None Include="Assets\Project\CS\Star\Shader\Star.compute" />
     <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectCulling.hlsl" />
     <None Include="Assets\Project\Tools\Templates\LegacyRenderTemplates\Shader\geometryShader.shader" />
@@ -222,6 +224,7 @@
     <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectLit.shader" />
     <None Include="Assets\GameAssets\Common\Shaders\ASE_Template_URPLit.shader" />
     <None Include="Assets\Project\Shaders\Includes\NoiseSampler.hlsl" />
+    <None Include="Assets\GameAssets\Worlds\Meadow\Chunks\Chunk_001_000\chunk_manifest.json" />
     <None Include="Assets\ThirdParty\Shop\Suntail Village\Shaders\Suntail_Foliage.shader" />
     <None Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\FramebufferFetch\FrameBufferFetch.shader" />
     <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectCombat.hlsl" />

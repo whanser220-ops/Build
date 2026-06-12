@@ -47,8 +47,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\Runtime\Overrides\ColorAdjustments.cs" />
-    <Compile Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\Runtime\Passes\ScreenSpaceAmbientOcclusionPass.cs" />
     <Compile Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\Runtime\Decal\Entities\DecalEntityManager.cs" />
+    <Compile Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\Runtime\Passes\ScreenSpaceAmbientOcclusionPass.cs" />
     <Compile Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\Runtime\Overrides\ScreenSpaceLensFlare.cs" />
     <Compile Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\Runtime\History\RawColorHistory.cs" />
     <Compile Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\Runtime\RTHandleUtils.cs" />

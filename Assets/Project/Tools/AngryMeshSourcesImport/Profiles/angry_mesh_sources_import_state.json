@@ -8,10 +8,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 313272,
-            "sourceLastWriteUtcTicks": 638786822200000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164290582017260,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736448031273,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617513603192,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_MudSnow_01_A.tif",
@@ -20,10 +20,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 14603536,
-            "sourceLastWriteUtcTicks": 638786824950000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164290585159636,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736434258710,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617513633321,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_OakTree_Bark_01_N.tif",
@@ -32,10 +32,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 23760012,
-            "sourceLastWriteUtcTicks": 638786823250000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164290612276407,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736444202157,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617513648363,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_04_SMA.tif",
@@ -44,10 +44,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 18755352,
-            "sourceLastWriteUtcTicks": 638786822650000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164290681760377,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736417271999,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617513658662,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Mushrooms/T_Mushroom_Brown_01_A.tif",
@@ -56,10 +56,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 14199624,
-            "sourceLastWriteUtcTicks": 638786819790000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164290720566163,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736388035472,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617513825435,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Stump_01_SMA.tif",
@@ -68,10 +68,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 10579264,
-            "sourceLastWriteUtcTicks": 638786820220000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164290755804217,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736398479047,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617513835597,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/RoadDecals/T_RoadDecal_ME_Mud_02_S.tif",
@@ -80,10 +80,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 5455988,
-            "sourceLastWriteUtcTicks": 638786820070000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164290782646426,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736403852000,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617513855601,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Log_01_N.tif",
@@ -92,10 +92,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 12750180,
-            "sourceLastWriteUtcTicks": 638786822930000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164290792468096,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736393584342,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617513875839,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Snow_01_H.tif",
@@ -104,10 +104,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 3753468,
-            "sourceLastWriteUtcTicks": 638786824510000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164290842054690,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736436821898,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617513900396,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_02_A.tif",
@@ -116,10 +116,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 21410334,
-            "sourceLastWriteUtcTicks": 638786819850000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164290849564092,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736380078892,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617513910443,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_06_A.tif",
@@ -128,10 +128,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 15665410,
-            "sourceLastWriteUtcTicks": 638786820190000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164290887439751,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736420891780,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617514010953,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Stump_02_N.tif",
@@ -140,10 +140,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 13466980,
-            "sourceLastWriteUtcTicks": 638786824590000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164290912981303,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736399525216,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617514042436,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/RoadDecals/T_RoadDecal_ME_Mud_01_H.tif",
@@ -152,10 +152,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 5561576,
-            "sourceLastWriteUtcTicks": 638786824110000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164290956022746,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736400603547,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617514056794,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Mushrooms/T_Mushroom_Brown_01_N.tif",
@@ -164,10 +164,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 12635764,
-            "sourceLastWriteUtcTicks": 638786820740000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164290964561196,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736388446732,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617521779476,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_04_N.tif",
@@ -176,10 +176,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 33410496,
-            "sourceLastWriteUtcTicks": 638786819810000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164291002209762,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736385512781,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617521784684,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/VFX/T_VFX_OakTree_Leaf_01_A.tif",
@@ -188,10 +188,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 38860,
-            "sourceLastWriteUtcTicks": 638786825120000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291073536291,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736448884734,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617521804969,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Grass_01_H.tif",
@@ -200,10 +200,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 6921960,
-            "sourceLastWriteUtcTicks": 638786820170000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164291075019967,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736430142500,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617521868601,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Cliffs_01_A.tif",
@@ -212,10 +212,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 22803298,
-            "sourceLastWriteUtcTicks": 638786820090000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291090890752,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736424375260,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617521979805,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Skybox/T_Skybox_Summer_01.HDR",
@@ -224,10 +224,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-skybox-hdr",
             "sourceLength": 6058270,
-            "sourceLastWriteUtcTicks": 638786822890000000,
-            "settingsHash": "e3525c0a07374d4ba4784441446586cfd2b0da0174aece3c4c0fb6b965631665",
-            "appliedUtcTicks": 639164291125303584,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736423513909,
+            "settingsHash": "41e4aea2a332a9f2c584c550e1cf0e58ac8b2acc745ae5de06986ce3595a3f88",
+            "appliedUtcTicks": 639168617522138025,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_05_SMA.tif",
@@ -236,10 +236,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 20371532,
-            "sourceLastWriteUtcTicks": 638786825090000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164291140753805,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736420351987,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617522163099,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Grass_01_A.tif",
@@ -248,10 +248,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 18200583,
-            "sourceLastWriteUtcTicks": 638786825140000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291179151737,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736429481581,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617522207021,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_03_SMA.tif",
@@ -260,10 +260,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 18991232,
-            "sourceLastWriteUtcTicks": 638786820480000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164291221911548,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736414829229,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617522239844,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Grass/T_Grass_01_A.tif",
@@ -272,10 +272,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 289876,
-            "sourceLastWriteUtcTicks": 638786821260000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291261541059,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736387131628,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617522259557,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Snow_01_Mask.tif",
@@ -284,10 +284,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 18680236,
-            "sourceLastWriteUtcTicks": 638786824710000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164291264002495,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736437479348,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617522300177,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_OakTree_Bark_01_SMA.tif",
@@ -296,10 +296,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 20212692,
-            "sourceLastWriteUtcTicks": 638786825160000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164291291800995,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736444806411,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617522330676,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_02_N.tif",
@@ -308,10 +308,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 30283436,
-            "sourceLastWriteUtcTicks": 638786821490000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164291331842175,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736380983858,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617522405003,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Plants/T_Plants_01_A.tif",
@@ -320,10 +320,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 440540,
-            "sourceLastWriteUtcTicks": 638786823970000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291399046237,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736391110980,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617522458447,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_02_SMA.tif",
@@ -332,10 +332,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 19075064,
-            "sourceLastWriteUtcTicks": 638786820340000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164291403872300,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736411953424,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617522538949,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Log_02_N.tif",
@@ -344,10 +344,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 12050524,
-            "sourceLastWriteUtcTicks": 638786824420000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164291443828872,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736395225147,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617522564022,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_03_SMA.tif",
@@ -356,10 +356,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 27307952,
-            "sourceLastWriteUtcTicks": 638786821610000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164291492340529,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736384090887,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617522618898,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_BirchTree_Bark_02_A.tif",
@@ -368,10 +368,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 12658864,
-            "sourceLastWriteUtcTicks": 638786824990000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291547583026,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736440740503,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617522716044,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Grass/T_Grass_02_A.tif",
@@ -380,10 +380,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 235064,
-            "sourceLastWriteUtcTicks": 638786823540000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291582259583,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736387296322,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617522736997,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/VFX/T_VFX_BirchTree_Leaf_01_A.tif",
@@ -392,10 +392,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 26492,
-            "sourceLastWriteUtcTicks": 638786822620000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291584458016,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736447828695,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617522792457,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/VFX/T_VFX_ButterflyWings_02_A.tif",
@@ -404,10 +404,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 599900,
-            "sourceLastWriteUtcTicks": 638786820040000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291585865853,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736448544874,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617522809992,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_02_A.tif",
@@ -416,10 +416,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 17721401,
-            "sourceLastWriteUtcTicks": 638786819530000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291590212844,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736410089134,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617522851498,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_DryGrass_01_A.tif",
@@ -428,10 +428,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 12199948,
-            "sourceLastWriteUtcTicks": 638786824810000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291617577474,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736428934326,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617522950771,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Cliffs_01_Mask.tif",
@@ -440,10 +440,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 20716716,
-            "sourceLastWriteUtcTicks": 638786824920000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164291659855611,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736426778720,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617522969518,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_03_A.tif",
@@ -452,10 +452,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 17907653,
-            "sourceLastWriteUtcTicks": 638786820140000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291690945743,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736412950572,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523010589,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Leaves/T_Leaves_01_A.tif",
@@ -464,10 +464,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 68320,
-            "sourceLastWriteUtcTicks": 638786824340000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291718288457,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736387619467,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523054414,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Flowers/T_Flowers_01_A.tif",
@@ -476,10 +476,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 803789,
-            "sourceLastWriteUtcTicks": 638786824870000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291719754343,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736386604959,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523064439,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_OakTree_Bark_02_N.tif",
@@ -488,10 +488,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 21902848,
-            "sourceLastWriteUtcTicks": 638786820580000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164291724978147,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736446769781,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617523074444,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Snow_01_A.tif",
@@ -500,10 +500,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 970604,
-            "sourceLastWriteUtcTicks": 638786821100000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291778537337,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736436484455,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523143327,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Plank_01_N.tif",
@@ -512,10 +512,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 3471460,
-            "sourceLastWriteUtcTicks": 638786822150000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164291783597280,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736396162111,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617523160379,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Skybox/T_Skybox_Winter_01.HDR",
@@ -524,10 +524,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-skybox-hdr",
             "sourceLength": 3642352,
-            "sourceLastWriteUtcTicks": 638786823990000000,
-            "settingsHash": "e3525c0a07374d4ba4784441446586cfd2b0da0174aece3c4c0fb6b965631665",
-            "appliedUtcTicks": 639164291833239803,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736423769612,
+            "settingsHash": "41e4aea2a332a9f2c584c550e1cf0e58ac8b2acc745ae5de06986ce3595a3f88",
+            "appliedUtcTicks": 639168617523287164,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_02_N.tif",
@@ -536,10 +536,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 24821428,
-            "sourceLastWriteUtcTicks": 638786820290000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164291847859915,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736410862973,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617523165420,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_01_A.tif",
@@ -548,10 +548,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 19255864,
-            "sourceLastWriteUtcTicks": 638786823830000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164291911902034,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736377536118,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523318674,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Grass_01_N.tif",
@@ -560,10 +560,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 19240872,
-            "sourceLastWriteUtcTicks": 638786824140000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164291947685423,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736433416781,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617523328672,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_03_A.tif",
@@ -572,10 +572,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 26953887,
-            "sourceLastWriteUtcTicks": 638786824690000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164292017519871,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736382364391,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523343720,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_RockDetail_01_N.tif",
@@ -584,10 +584,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 32262140,
-            "sourceLastWriteUtcTicks": 638786824490000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164292054424157,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736405937944,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617523343720,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/VFX/T_VFX_ButterflyWings_03_A.tif",
@@ -596,10 +596,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 593153,
-            "sourceLastWriteUtcTicks": 638786821240000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164292130975468,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736448732732,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523364065,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Mud_01_N.tif",
@@ -608,10 +608,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 13475148,
-            "sourceLastWriteUtcTicks": 638786821540000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164292134984877,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736435795894,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617523374334,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Mushrooms/T_Mushroom_Red_01_SMA.tif",
@@ -620,10 +620,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 12064948,
-            "sourceLastWriteUtcTicks": 638786821580000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164292202974626,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736390880027,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617523413686,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_BirchTree_Bark_02_SMA.tif",
@@ -632,10 +632,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 15514588,
-            "sourceLastWriteUtcTicks": 638786823910000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164292230693167,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736442443859,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617523439303,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_BirchTree_Bark_01_A.tif",
@@ -644,10 +644,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 13066128,
-            "sourceLastWriteUtcTicks": 638786820820000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164292271323117,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736439326202,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523485684,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/RoadDecals/T_RoadDecal_ME_Mud_02_N.tif",
@@ -656,10 +656,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 15777344,
-            "sourceLastWriteUtcTicks": 638786823330000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164292310754740,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736403597258,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617523519181,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Cliffs_01_H.tif",
@@ -668,10 +668,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 4620604,
-            "sourceLastWriteUtcTicks": 638786823020000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164292383165277,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736424633663,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617523529261,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_OakTree_Bark_01_A.tif",
@@ -680,10 +680,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 20365576,
-            "sourceLastWriteUtcTicks": 638786823880000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164292392412628,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736443533728,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523559840,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_BirchTree_Leaf_01_A.tif",
@@ -692,10 +692,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 836060,
-            "sourceLastWriteUtcTicks": 638786821530000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164292443987364,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736442637774,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523539506,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Snow_01_N.tif",
@@ -704,10 +704,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 18140876,
-            "sourceLastWriteUtcTicks": 638786823640000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164292449782719,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736438518737,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617523570098,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/RoadDecals/T_RoadDecal_ME_Mud_02_H.tif",
@@ -716,10 +716,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 5468936,
-            "sourceLastWriteUtcTicks": 638786820120000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164292542051799,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736402634123,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617523617937,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Mushrooms/T_Mushroom_Brown_01_SMA.tif",
@@ -728,10 +728,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 12052948,
-            "sourceLastWriteUtcTicks": 638786821450000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164292551131709,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736389033021,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617523663724,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_01_N.tif",
@@ -740,10 +740,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 32115016,
-            "sourceLastWriteUtcTicks": 638786820640000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164292574695107,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736378394849,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617523699261,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_AMStatue_ME_01_N.tif",
@@ -752,10 +752,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 22675648,
-            "sourceLastWriteUtcTicks": 638786823800000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164292654615859,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736392248657,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617523715656,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Mud_01_A.tif",
@@ -764,10 +764,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 9831492,
-            "sourceLastWriteUtcTicks": 638786822630000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164292735525510,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736434593401,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523747702,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Stump_01_A.tif",
@@ -776,10 +776,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 11725936,
-            "sourceLastWriteUtcTicks": 638786822350000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164292758985818,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736397083852,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523757675,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/VFX/T_VFX_ButterflyGradient_01_O.tif",
@@ -788,10 +788,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 123372,
-            "sourceLastWriteUtcTicks": 638786823760000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164292790092925,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736448199241,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617523795172,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_05_A.tif",
@@ -800,10 +800,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 18768160,
-            "sourceLastWriteUtcTicks": 638786822860000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164292792571995,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736418509595,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523836452,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_RockDetail_01_A.tif",
@@ -812,10 +812,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 30565973,
-            "sourceLastWriteUtcTicks": 638786820930000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164292825531017,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736405089302,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523846743,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Mud_01_Mask.tif",
@@ -824,10 +824,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 14920036,
-            "sourceLastWriteUtcTicks": 638786821650000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164292866658245,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736435285990,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617523893820,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/RoadDecals/T_RoadDecal_ME_Mud_01_A.tif",
@@ -836,10 +836,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 14621760,
-            "sourceLastWriteUtcTicks": 638786819610000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164292899105616,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736400326931,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617527369126,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Stump_01_N.tif",
@@ -848,10 +848,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 13366020,
-            "sourceLastWriteUtcTicks": 638786821860000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164292925900012,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736398109336,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617527384225,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Plank_01_SMA.tif",
@@ -860,10 +860,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 3079164,
-            "sourceLastWriteUtcTicks": 638786820770000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164292976911500,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736396430855,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617527394481,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Mushrooms/T_Mushroom_Red_01_N.tif",
@@ -872,10 +872,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 12635764,
-            "sourceLastWriteUtcTicks": 638786823720000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164293002263509,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736390394834,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617527409573,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Mud_01_S.tif",
@@ -884,10 +884,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 5449360,
-            "sourceLastWriteUtcTicks": 638786825240000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293046034212,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736436301506,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617527447885,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_06_N.tif",
@@ -896,10 +896,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 22567524,
-            "sourceLastWriteUtcTicks": 638786822970000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164293058127712,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736421522258,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617527479202,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_Ivy_01_A.tif",
@@ -908,10 +908,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 2004697,
-            "sourceLastWriteUtcTicks": 638786822520000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293136034397,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736442839632,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617527535357,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Snow_01_S.tif",
@@ -920,10 +920,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 8172680,
-            "sourceLastWriteUtcTicks": 638786820240000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293146848833,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736438881126,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617527489714,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_04_N.tif",
@@ -932,10 +932,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 24411796,
-            "sourceLastWriteUtcTicks": 638786825030000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164293177226687,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736416199034,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617527514809,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Grass/T_Grass_03_A.tif",
@@ -944,10 +944,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 323032,
-            "sourceLastWriteUtcTicks": 638786822120000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293261240073,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736387456096,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617527553691,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Log_02_A.tif",
@@ -956,10 +956,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 11060188,
-            "sourceLastWriteUtcTicks": 638786824790000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293264709718,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736394746575,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617527577077,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Cliffs_01_S.tif",
@@ -968,10 +968,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 9245208,
-            "sourceLastWriteUtcTicks": 638786823930000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293296959260,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736428474252,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617527591431,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_OakTree_Leaf_01_A.tif",
@@ -980,10 +980,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 889176,
-            "sourceLastWriteUtcTicks": 638786820020000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293315597482,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736447661717,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617527611471,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_01_N.tif",
@@ -992,10 +992,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 24903824,
-            "sourceLastWriteUtcTicks": 638786823050000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164293323796138,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736407921477,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617527626528,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_BirchTree_Bark_02_N.tif",
@@ -1004,10 +1004,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 17164392,
-            "sourceLastWriteUtcTicks": 638786821560000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164293407383651,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736441670703,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617533720932,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Stump_02_A.tif",
@@ -1016,10 +1016,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 11915264,
-            "sourceLastWriteUtcTicks": 638786824220000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293486810676,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736398911649,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617533776377,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Flowers/T_Flowers_02_A.tif",
@@ -1028,10 +1028,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 823657,
-            "sourceLastWriteUtcTicks": 638786823780000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293519429909,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736386781060,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617533776377,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/RoadDecals/T_RoadDecal_ME_Mud_02_A.tif",
@@ -1040,10 +1040,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 13356104,
-            "sourceLastWriteUtcTicks": 638786821930000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293526499132,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736402335374,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617533850150,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/CoverPlants/T_CoverPlants_01_A.tif",
@@ -1052,10 +1052,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 2656394,
-            "sourceLastWriteUtcTicks": 638786823930000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293556941553,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736386427070,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617533901387,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_01_A.tif",
@@ -1064,10 +1064,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 18182015,
-            "sourceLastWriteUtcTicks": 638786823360000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293572368796,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736406725261,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617533941835,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Mushrooms/T_Mushroom_Red_01_A.tif",
@@ -1076,10 +1076,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 13487100,
-            "sourceLastWriteUtcTicks": 638786824390000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293607864753,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736389868255,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617533951830,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Log_02_SMA.tif",
@@ -1088,10 +1088,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 10520280,
-            "sourceLastWriteUtcTicks": 638786823450000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164293647170085,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736395617540,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617534004623,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Mud_01_H.tif",
@@ -1100,10 +1100,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 5031676,
-            "sourceLastWriteUtcTicks": 638786819940000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164293677031539,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736434842989,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617534054980,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Log_01_A.tif",
@@ -1112,10 +1112,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 10425732,
-            "sourceLastWriteUtcTicks": 638786821150000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293687008449,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736393187306,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617534064987,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/RoadDecals/T_RoadDecal_ME_Mud_01_S.tif",
@@ -1124,10 +1124,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 8216448,
-            "sourceLastWriteUtcTicks": 638786821730000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293717388092,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736401580891,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617534097464,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Log_01_SMA.tif",
@@ -1136,10 +1136,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 10514200,
-            "sourceLastWriteUtcTicks": 638786825010000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164293729324509,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736394336629,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617534172927,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Flowers/T_Flowers_03_A.tif",
@@ -1148,10 +1148,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 604598,
-            "sourceLastWriteUtcTicks": 638786823130000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164293762246847,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736386968677,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617534186640,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_02_SMA.tif",
@@ -1160,10 +1160,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 20977344,
-            "sourceLastWriteUtcTicks": 638786821210000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164293768899938,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736381646426,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617534206785,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Grass_01_Mask.tif",
@@ -1172,10 +1172,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 22312144,
-            "sourceLastWriteUtcTicks": 638786825180000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164293835334709,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736432881917,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617534225099,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_01_SMA.tif",
@@ -1184,10 +1184,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 22233248,
-            "sourceLastWriteUtcTicks": 638786821970000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164293907761482,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736379294918,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617534225099,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_Ivy_01_N.tif",
@@ -1196,10 +1196,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 1112540,
-            "sourceLastWriteUtcTicks": 638786823680000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164293976105669,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736443024740,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617534255212,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_03_N.tif",
@@ -1208,10 +1208,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 33433592,
-            "sourceLastWriteUtcTicks": 638786821740000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164293997503917,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736383213112,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617534277800,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_04_SMA.tif",
@@ -1220,10 +1220,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 25069572,
-            "sourceLastWriteUtcTicks": 638786822540000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164294086265315,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736386212803,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617534302953,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Grass_01_S.tif",
@@ -1232,10 +1232,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 11821024,
-            "sourceLastWriteUtcTicks": 638786822690000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164294156776606,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736433802387,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617534359642,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/RoadDecals/T_RoadDecal_ME_Mud_01_N.tif",
@@ -1244,10 +1244,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 24632720,
-            "sourceLastWriteUtcTicks": 638786822470000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164294183692848,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736401272816,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617534379659,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/VFX/T_VFX_Snowflake_01_O.tif",
@@ -1256,10 +1256,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 35160,
-            "sourceLastWriteUtcTicks": 638786824660000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164294275201731,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736449054086,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617534399668,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_OakTree_Bark_02_SMA.tif",
@@ -1268,10 +1268,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 15819684,
-            "sourceLastWriteUtcTicks": 638786822800000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164294277109316,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736447484407,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617534439895,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Terrain/T_Terrain_Cliffs_01_N.tif",
@@ -1280,10 +1280,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 34483708,
-            "sourceLastWriteUtcTicks": 638786825340000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164294311213890,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736428102406,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617534444953,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_BirchTree_Bark_01_N.tif",
@@ -1292,10 +1292,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 18084968,
-            "sourceLastWriteUtcTicks": 638786820530000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164294408724592,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736439867381,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617534462973,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_04_A.tif",
@@ -1304,10 +1304,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 17283636,
-            "sourceLastWriteUtcTicks": 638786821440000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164294484569636,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736415446061,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617534476892,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_BirchTree_Bark_01_SMA.tif",
@@ -1316,10 +1316,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 15496196,
-            "sourceLastWriteUtcTicks": 638786825050000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164294516655876,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736440360847,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617536283897,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_AMStatue_ME_01_SMA.tif",
@@ -1328,10 +1328,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 17113448,
-            "sourceLastWriteUtcTicks": 638786820620000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164294556689000,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736392800927,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617536288944,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_01_SMA.tif",
@@ -1340,10 +1340,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 19675252,
-            "sourceLastWriteUtcTicks": 638786819760000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164294593660030,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736409568949,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617536298980,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Stump_02_SMA.tif",
@@ -1352,10 +1352,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 10153904,
-            "sourceLastWriteUtcTicks": 638786822950000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164294642901041,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736399895853,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617536324034,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/VFX/T_VFX_ButterflyWings_01_A.tif",
@@ -1364,10 +1364,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 888425,
-            "sourceLastWriteUtcTicks": 638786820250000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164294672660278,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736448373778,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617536324034,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_05_N.tif",
@@ -1376,10 +1376,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 24931356,
-            "sourceLastWriteUtcTicks": 638786819630000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164294679076228,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736419679396,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617536344054,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Trees/T_OakTree_Bark_02_A.tif",
@@ -1388,10 +1388,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 17421412,
-            "sourceLastWriteUtcTicks": 638786821690000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164294765469240,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736445762737,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617536405646,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Background/T_Mountain_04_A.tif",
@@ -1400,10 +1400,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 24669226,
-            "sourceLastWriteUtcTicks": 638786821060000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164294818538841,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736384763626,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617536430845,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_06_SMA.tif",
@@ -1412,10 +1412,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-linear-mask",
             "sourceLength": 16182800,
-            "sourceLastWriteUtcTicks": 638786820980000000,
-            "settingsHash": "bcc4336b8de85e99c38133f193efdd28774feb10fe54d8997496f5139730aa2f",
-            "appliedUtcTicks": 639164294860362359,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736423163493,
+            "settingsHash": "d146b5c174715ffd6c8a814d482b432a2017ea70577f95bd8152e1df9b4d6c8d",
+            "appliedUtcTicks": 639168617536395523,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_Plank_01_A.tif",
@@ -1424,10 +1424,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 3908736,
-            "sourceLastWriteUtcTicks": 638786824480000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164294897161648,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736395912978,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617536440843,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Rocks/T_Rock_03_N.tif",
@@ -1436,10 +1436,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-normal",
             "sourceLength": 24572756,
-            "sourceLastWriteUtcTicks": 638786822240000000,
-            "settingsHash": "e7b06efdfa749cd1734afe7874ea32690d9d513ac6cac0ab71270d29fc5386c1",
-            "appliedUtcTicks": 639164294942771832,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736414197214,
+            "settingsHash": "24651e2e07aeb7877657e90e9308722c09647d418d8bc68829478cb71afe85cd",
+            "appliedUtcTicks": 639168617536471072,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Textures/Props/T_AMStatue_ME_01_A.tif",
@@ -1448,10 +1448,10 @@
             "assetKind": "Texture",
             "ruleId": "texture-color-default",
             "sourceLength": 16404765,
-            "sourceLastWriteUtcTicks": 638786821020000000,
-            "settingsHash": "02d2d71ee7de88c8d8d49643ac8a24770f29ed05d2088eba951107f070f6371f",
-            "appliedUtcTicks": 639164295035961563,
-            "applyCount": 1
+            "sourceLastWriteUtcTicks": 639167736391566502,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617536476204,
+            "applyCount": 2
         },
         {
             "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Rocks/SM_RockGroup_03.fbx",
@@ -3252,6 +3252,1794 @@
             "settingsHash": "023d5b8c2bdc1fe6a50d458f7c8692f49fbf180eebf0d6335ae1180ef5ceaf5f",
             "appliedUtcTicks": 639165285071490264,
             "applyCount": 1
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/CoverPlants/M_CoverPlants_01_Summer.mat",
+            "guid": "7cd6f1bc4bff41444afbc3134837099d",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11425,
+            "sourceLastWriteUtcTicks": 639168617716852351,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737854124,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_OakTree_Leaf_01_Autumn.mat",
+            "guid": "53352d95bdf584149aa45a1cc8ef3c3e",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11649,
+            "sourceLastWriteUtcTicks": 639168617717623735,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737869426,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_04_Autumn.mat",
+            "guid": "ac1f1a49594b2794083e371ba2f5612d",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7402,
+            "sourceLastWriteUtcTicks": 639168617717890581,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737879532,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Log_01_Winter.mat",
+            "guid": "e9cdff465eb521842848a8d58469acae",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7441,
+            "sourceLastWriteUtcTicks": 639168617718224888,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737879532,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Leaves/M_Leaves_OakTree_01_Summer.mat",
+            "guid": "e010af382a8fc69459f8e7672dbb9d36",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9976,
+            "sourceLastWriteUtcTicks": 639168617720612550,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737945066,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_03_Autumn.mat",
+            "guid": "28e3e7732eaf46f4db63be1b3bb90a1e",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7403,
+            "sourceLastWriteUtcTicks": 639168617723099578,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738029066,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/RoadDecals/M_RoadDecal_02.mat",
+            "guid": "d61944cbedbdd8c468d544e173b3b80b",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 6106,
+            "sourceLastWriteUtcTicks": 639168617724750713,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738074498,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_04_Winter.mat",
+            "guid": "fc113841c3794cb4992357e290a817b7",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617726078562,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738109650,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Grass_03_Example_04.mat",
+            "guid": "10cfb74fae0245a408ed76f822f13ebf",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8445,
+            "sourceLastWriteUtcTicks": 639168617725849152,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738099635,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Stump_01_Summer.mat",
+            "guid": "c0926719e8ead834f8752b00495f2fec",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7251,
+            "sourceLastWriteUtcTicks": 639168617726902091,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738124686,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Flowers/M_Flowers_03.mat",
+            "guid": "897d9233609c3be4986ae8e74b5961d2",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8504,
+            "sourceLastWriteUtcTicks": 639168617727091311,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738139800,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_01_Winter.mat",
+            "guid": "5ec8133e2c0748945b89a94018abfe70",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617727062795,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738139800,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_OakTree_Leaf_01_Winter.mat",
+            "guid": "fc5695a8beaa9a341abbc654e67f0350",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11636,
+            "sourceLastWriteUtcTicks": 639168617714426535,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737823435,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_04_Winter.mat",
+            "guid": "9b275e44e94820c438f0e1b1c901108f",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7402,
+            "sourceLastWriteUtcTicks": 639168617714926239,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737823435,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_BirchTree_Leaf_01_Summer_Example_03.mat",
+            "guid": "ab2d3f453039ed64ab0be6d6d6ad7e4c",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 13217,
+            "sourceLastWriteUtcTicks": 639168617718912849,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737889635,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_05_Summer.mat",
+            "guid": "af36e2f2eeecd1e4d8013f0d6e0e470b",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617721456574,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737978440,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Mushrooms/M_Mushroom_Brown_01_Summer.mat",
+            "guid": "bc29c392f53174e4fafe8e35fc80dbb0",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7486,
+            "sourceLastWriteUtcTicks": 639168617723033696,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738029066,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Common/Sources/Textures/T_Noise_03_M.tif",
+            "guid": "79f93c0234c3cce4fb58d70a7b884f2e",
+            "profileVersion": 1,
+            "assetKind": "Texture",
+            "ruleId": "texture-color-default",
+            "sourceLength": 329097,
+            "sourceLastWriteUtcTicks": 639167736350086115,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617514118843,
+            "applyCount": 1
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_06_Autumn.mat",
+            "guid": "7f28d987d70f4fd4a935402b8526311f",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617726333724,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738109650,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_04_Autumn.mat",
+            "guid": "e1e648dc766837947ad6c62836512760",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617727916872,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738159918,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Log_02_Winter.mat",
+            "guid": "c7db9735f71a8c247bc7df00a09a3a4d",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7441,
+            "sourceLastWriteUtcTicks": 639168617713880071,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737823435,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Plank_01_Summer.mat",
+            "guid": "62426c9d22bdd7e4ca5373806a69833b",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7251,
+            "sourceLastWriteUtcTicks": 639168617714014992,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737805493,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_06_Winter.mat",
+            "guid": "d72640d765f22244eb6733d57e66048b",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617713953171,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737805493,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Stump_02_Winter.mat",
+            "guid": "77a47bba7f76eae4ea121c04e8127376",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7443,
+            "sourceLastWriteUtcTicks": 639168617716058162,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737833605,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_01_Autumn.mat",
+            "guid": "cf557d82201cd934fb25ba3171496fdc",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617716167105,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737848715,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_01_Summer.mat",
+            "guid": "e8b5740fa3d1c0f44833d267d506d664",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9005,
+            "sourceLastWriteUtcTicks": 639168617716433522,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737854124,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Flowers/M_Flowers_01.mat",
+            "guid": "f5064f6309f60e04c97c60270bcea780",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8504,
+            "sourceLastWriteUtcTicks": 639168617717136408,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737864328,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_OakTree_IvyLeaf_01_Winter.mat",
+            "guid": "cf2f5c223791c55419bd3e4f035d6111",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11656,
+            "sourceLastWriteUtcTicks": 639168617717343732,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737869426,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Terrain/M_TerrainLit_URP.mat",
+            "guid": "72a1dec5f9bda244e8323e28acf7e7a0",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 5497,
+            "sourceLastWriteUtcTicks": 639168617717560373,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737869426,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_01_Summer.mat",
+            "guid": "3ce400ec3e5bc474488eb1e91a0e0bb4",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617717818759,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737869426,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_RockGroup_01_Summer.mat",
+            "guid": "bdd0694a56e292a4ab2ba262680effec",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7636,
+            "sourceLastWriteUtcTicks": 639168617720562313,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737950110,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_06_Summer.mat",
+            "guid": "368ceeda8344fdb489ea1df373e61283",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617721031188,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737968202,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_03_DrySummer.mat",
+            "guid": "1cf0638742447ab42994b75c2852858b",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8723,
+            "sourceLastWriteUtcTicks": 639168617724329762,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738059452,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_03_Autumn.mat",
+            "guid": "d95793331d884db41b66fa083eab6fc1",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7628,
+            "sourceLastWriteUtcTicks": 639168617726505587,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738109650,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_01_Winter.mat",
+            "guid": "a6fd8091415ad6442ac187eb02055966",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8914,
+            "sourceLastWriteUtcTicks": 639168617714127299,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737818360,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Common/Sources/Materials/M_ASP_Global_Settings.mat",
+            "guid": "3b70cc752a6d09345bf5538d50bca867",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 3745,
+            "sourceLastWriteUtcTicks": 639168617715630682,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737833605,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_OakTree_Leaf_01_Summer.mat",
+            "guid": "cdb7b830729a1744681f81d810dd1acb",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11664,
+            "sourceLastWriteUtcTicks": 639168617715731410,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737833605,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_Snow_01.mat",
+            "guid": "277fcdba66430f543ace9aff2522a85c",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 5002,
+            "sourceLastWriteUtcTicks": 639168617719680648,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737914994,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/RoadDecals/M_RoadDecal_02_Bend_01.mat",
+            "guid": "3cc4f40d800bc4744b779cfe0b2ff667",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 6095,
+            "sourceLastWriteUtcTicks": 639168617720315831,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737945066,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_04_Summer.mat",
+            "guid": "09ab0976de192124c9ffd560631c8aac",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7671,
+            "sourceLastWriteUtcTicks": 639168617720786382,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737950110,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_OakTree_Bark_02_Winter.mat",
+            "guid": "be0192254a428a244851499ff4ca30bd",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9312,
+            "sourceLastWriteUtcTicks": 639168617721200962,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737978440,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_01_Autumn.mat",
+            "guid": "c1761883967f5854583349e849ff75c9",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7402,
+            "sourceLastWriteUtcTicks": 639168617724058173,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738049334,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_FenceIvy_01_Winter.mat",
+            "guid": "1f85ac1cd583d7143afb1dbe75cec1c2",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11525,
+            "sourceLastWriteUtcTicks": 639168617713614973,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737793564,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Leaves/M_Leaves_OakTree_01_Autumn.mat",
+            "guid": "bf32575e69c25b54fb3a1297bebbac5a",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9878,
+            "sourceLastWriteUtcTicks": 639168617719063289,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737904715,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Plants/M_Plants_01_Winter.mat",
+            "guid": "a12f880b9612da34eb25f178d35e8fe1",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8418,
+            "sourceLastWriteUtcTicks": 639168617723488621,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738044202,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_OakTree_Bark_01_Summer.mat",
+            "guid": "676d716c0dd73fa44ab8edfec517507f",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9412,
+            "sourceLastWriteUtcTicks": 639168617724786829,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738074498,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_FenceIvy_01_Autumn.mat",
+            "guid": "941f9349882287040b2a98a864319f1a",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11483,
+            "sourceLastWriteUtcTicks": 639168617726604040,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738124686,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Leaves/M_Leaves_BirchTree_01_Winter.mat",
+            "guid": "3321fab1a4cdad14ebd586ff6ad250eb",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9879,
+            "sourceLastWriteUtcTicks": 639168617727471569,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738139800,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Leaves_BirchTree_01_Summer_Example_03.mat",
+            "guid": "cb08fe032c6c3534987b4301e0c89b86",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9828,
+            "sourceLastWriteUtcTicks": 639168617727809956,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738159918,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/RoadDecals/M_RoadDecal_01.mat",
+            "guid": "a7039b237b1577e489894f07ed9a3751",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 6096,
+            "sourceLastWriteUtcTicks": 639168617713814308,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737805493,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_02_Summer.mat",
+            "guid": "4660957bc07eb2546a6ba16b2657062f",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617717065265,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737864328,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_RockGroup_01_Winter.mat",
+            "guid": "ba39029a8390d324ea73e8c6ebf9ae85",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7658,
+            "sourceLastWriteUtcTicks": 639168617718285591,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737879532,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_AMStatue_ME_01_Winter.mat",
+            "guid": "1db47cfea2539bf4784a000f37ee3656",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7498,
+            "sourceLastWriteUtcTicks": 639168617721078877,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737968202,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_02_Autumn.mat",
+            "guid": "dfd807f995c3b85469dc230d0d65a280",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7403,
+            "sourceLastWriteUtcTicks": 639168617721165794,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737968202,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Helper_Floor_02.mat",
+            "guid": "b716b1c620dfa464980a155328224512",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 3714,
+            "sourceLastWriteUtcTicks": 639168617721371671,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737978440,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_BirchTree_Leaf_01_Summer.mat",
+            "guid": "6c176979d7b053a4fbf6f36036fcda01",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 13202,
+            "sourceLastWriteUtcTicks": 639168617721572236,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737988544,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_01_DrySummer.mat",
+            "guid": "443b1c4fb33974c4c829fbe673c0bc98",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8954,
+            "sourceLastWriteUtcTicks": 639168617721742635,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737988544,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Hill_01_Autumn.mat",
+            "guid": "2ada44ea9c0acbe48b4b08df14d4c2aa",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7357,
+            "sourceLastWriteUtcTicks": 639168617722049378,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738029066,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Mushrooms/M_Mushroom_Brown_01_Winter.mat",
+            "guid": "6eff01b8024a43a4ca345a458b45c0f7",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7670,
+            "sourceLastWriteUtcTicks": 639168617723069074,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738049334,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Hill_02_Winter.mat",
+            "guid": "baa3d31f08732a042988b2b1bf1b779e",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7407,
+            "sourceLastWriteUtcTicks": 639168617723627328,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738044202,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/CoverPlants/M_CoverPlants_01_Winter.mat",
+            "guid": "e902776568154d24a90545bfc07746b0",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11383,
+            "sourceLastWriteUtcTicks": 639168617724484421,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738059452,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Leaves/M_Leaves_BirchTree_01_Summer.mat",
+            "guid": "6fa928c6403996145884b2d4376775ff",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9976,
+            "sourceLastWriteUtcTicks": 639168617725205621,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738084593,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_OakTree_Bark_01_Winter.mat",
+            "guid": "5b7ba419065ee9844b1dcdeed5992fc1",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9309,
+            "sourceLastWriteUtcTicks": 639168617727234744,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738149918,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_FallLeaves_OakTree_01_Summer.mat",
+            "guid": "90c5257283e79ea43bfe699a0417e92c",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 3403,
+            "sourceLastWriteUtcTicks": 639168617726866855,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738124686,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Skybox/M_Skybox_Diorama_01.mat",
+            "guid": "74ffd251a8a7965499cadd6387a62423",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 4266,
+            "sourceLastWriteUtcTicks": 639168617713471971,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737793564,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_Butterfly_03.mat",
+            "guid": "430867384a003e044a740301612524ad",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 4288,
+            "sourceLastWriteUtcTicks": 639168617718877266,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737889635,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_FenceIvy_01_Summer.mat",
+            "guid": "e22d16f1f77d7e744b73eb8402a86b46",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11501,
+            "sourceLastWriteUtcTicks": 639168617718588154,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737889635,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_Butterfly_04.mat",
+            "guid": "5822cbf0b1371f24dac208181b46503d",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 4271,
+            "sourceLastWriteUtcTicks": 639168617718825617,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737889635,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Flowers/M_Flowers_02.mat",
+            "guid": "a036d4fb5e091194ba4b7554e52612b7",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8505,
+            "sourceLastWriteUtcTicks": 639168617720166957,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737935069,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_03_Winter.mat",
+            "guid": "619d52be644b4dc4292e853d712bbd2a",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7403,
+            "sourceLastWriteUtcTicks": 639168617721496683,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737988544,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Grass_01_Example_02.mat",
+            "guid": "23701be03682c1041a3227d8980ba92f",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8699,
+            "sourceLastWriteUtcTicks": 639168617718404445,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737889635,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_01_Summer.mat",
+            "guid": "a0526e6290505d241aae326a409abdf6",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7402,
+            "sourceLastWriteUtcTicks": 639168617719314611,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737904715,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_BirchTree_Leaf_01_Summer_Example_01.mat",
+            "guid": "1a0a1576fee68ae42894e357c5a718fa",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 13210,
+            "sourceLastWriteUtcTicks": 639168617719377807,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737914994,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_AMStatue_ME_01_Autumn.mat",
+            "guid": "6d08c13f226efa841a117d98e91924c2",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7498,
+            "sourceLastWriteUtcTicks": 639168617721873300,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737998510,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Leaves_BirchTree_01_Summer_Example_02.mat",
+            "guid": "30c9b3710fb531049a3ce080171d9c40",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9831,
+            "sourceLastWriteUtcTicks": 639168617722825781,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738014011,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_BirchTree_Bark_02_Winter.mat",
+            "guid": "5ebfdb001860da34591871bb4e883d01",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9642,
+            "sourceLastWriteUtcTicks": 639168617726128352,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738109650,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_BirchTree_Bark_01_Winter.mat",
+            "guid": "6e98d80fa8dba664391c93def8c7217f",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9364,
+            "sourceLastWriteUtcTicks": 639168617716225121,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737854124,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Hill_01_Winter.mat",
+            "guid": "f7ed2950f8980324f8910a5d5c124544",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7384,
+            "sourceLastWriteUtcTicks": 639168617721125703,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737968202,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_BirchTree_Leaf_01_Summer_Example_02.mat",
+            "guid": "86736878a01160a4e96723b4d95beca4",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 13215,
+            "sourceLastWriteUtcTicks": 639168617722500019,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738014011,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Log_01_Summer.mat",
+            "guid": "22f9bc1f7e676c04b8428f29ff1938e3",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7247,
+            "sourceLastWriteUtcTicks": 639168617724921510,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738014011,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Hill_02_Autumn.mat",
+            "guid": "041db6bb36568864a876991c39448147",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7379,
+            "sourceLastWriteUtcTicks": 639168617724142664,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738059452,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_03_Summer.mat",
+            "guid": "9bff8531dc7dad84cbf099f8a03c3f77",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8713,
+            "sourceLastWriteUtcTicks": 639168617725074923,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738074498,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_Wind_01.mat",
+            "guid": "da0aadb488896b542bbc6312970ac388",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 4978,
+            "sourceLastWriteUtcTicks": 639168617726036055,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738109650,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_02_Autumn.mat",
+            "guid": "0151e594cefd2274e8370ac1305830fc",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8653,
+            "sourceLastWriteUtcTicks": 639168617726371498,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738109650,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_04_Summer.mat",
+            "guid": "1ce1c0d168447214098f2c9896ee0d09",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7402,
+            "sourceLastWriteUtcTicks": 639168617727615322,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738149918,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_05_Winter.mat",
+            "guid": "0858caa9e4d44fd4cb3d7ab9c7ca5483",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617718340544,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737889635,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_05_Autumn.mat",
+            "guid": "76a06ec10549f7d48bc641fb96ec09b6",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617719730958,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737914994,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_OakTree_IvyLeaf_01_Autumn.mat",
+            "guid": "70aed9c062157bb4ab622e069475940e",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11614,
+            "sourceLastWriteUtcTicks": 639168617720392792,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737950110,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_Butterfly_01.mat",
+            "guid": "1ad8141a18f26c24e9604e3d4564dc8e",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 4288,
+            "sourceLastWriteUtcTicks": 639168617722992928,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738014011,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_03_Winter.mat",
+            "guid": "ca4b8d594ec11eb4d8d26f2bc2c7bbb0",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7628,
+            "sourceLastWriteUtcTicks": 639168617725423171,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738084593,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_02_DrySummer.mat",
+            "guid": "6b10443f75dcb0a49a47dbd81d9f61fa",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8723,
+            "sourceLastWriteUtcTicks": 639168617726724783,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738124686,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Common/Sources/Textures/T_Noise_02_M.tif",
+            "guid": "cc460be3665e70d4f8672bdb3bbf6b9a",
+            "profileVersion": 1,
+            "assetKind": "Texture",
+            "ruleId": "texture-color-default",
+            "sourceLength": 933312,
+            "sourceLastWriteUtcTicks": 639167736349871293,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617523911846,
+            "applyCount": 1
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_02_Winter.mat",
+            "guid": "8b0af9dfb93cba246bd5b8550b7e95ac",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617714354880,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737818360,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_OakTree_IvyLeaf_01_Summer.mat",
+            "guid": "5347e2179d89fda4a937a24d95c99484",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11669,
+            "sourceLastWriteUtcTicks": 639168617719885257,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737935069,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/RoadDecals/M_RoadDecal_02_Bend_02.mat",
+            "guid": "76ae09d6446fc014faed664f7c55a7da",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 6155,
+            "sourceLastWriteUtcTicks": 639168617720347731,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737950110,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Terrain/M_TerrainLit_Standard.mat",
+            "guid": "b63ea432833aece47965f5bae4504cb6",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 5500,
+            "sourceLastWriteUtcTicks": 639168617721516689,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737988544,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Log_02_Summer.mat",
+            "guid": "1f7731fac5df6ee40982bcb3ade384f1",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7247,
+            "sourceLastWriteUtcTicks": 639168617723292106,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738049334,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_OakTree_Bark_02_Summer.mat",
+            "guid": "008e1dcbeff438248ab926f3ddc37cba",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9280,
+            "sourceLastWriteUtcTicks": 639168617723906685,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738049334,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Common/Sources/Textures/T_Noise_01_M.tif",
+            "guid": "e93d8f0da5bea8144ad9925e81909be8",
+            "profileVersion": 1,
+            "assetKind": "Texture",
+            "ruleId": "texture-color-default",
+            "sourceLength": 1424177,
+            "sourceLastWriteUtcTicks": 639167736349651161,
+            "settingsHash": "8bb6349c636824a8d71761f6f5305a32dec6e2cd2a4325d0b15eb850b4f71ca0",
+            "appliedUtcTicks": 639168617527636578,
+            "applyCount": 1
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Skybox/M_Skybox_Summer_01.mat",
+            "guid": "af44d84b4ae79804784229526a73eb87",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 2573,
+            "sourceLastWriteUtcTicks": 639168617727580165,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738159918,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Stump_02_Summer.mat",
+            "guid": "2702424abe89f5d4782e3b0a0d209df9",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7249,
+            "sourceLastWriteUtcTicks": 639168617714640930,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737823435,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_FallLeaves_BirchTree_01_Summer.mat",
+            "guid": "cd2a3353b5910d34eaf755c1dda399aa",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 3405,
+            "sourceLastWriteUtcTicks": 639168617719268605,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737904715,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Grass_03_Example_01.mat",
+            "guid": "7a74f6108acaf884d8275ec5cce9c7f4",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8444,
+            "sourceLastWriteUtcTicks": 639168617718008595,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737879532,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_02_Summer.mat",
+            "guid": "50a830b913c70764c9f9b057a84b0713",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7403,
+            "sourceLastWriteUtcTicks": 639168617719782049,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737925095,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_01_Autumn.mat",
+            "guid": "9d4c9d15ccb0dbb4988ff9c40dcf2bb3",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8917,
+            "sourceLastWriteUtcTicks": 639168617720021518,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737950110,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Leaves_BirchTree_01_Summer_Example_01.mat",
+            "guid": "0b891066eaaf00547ba6e4b9ebb8d160",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9822,
+            "sourceLastWriteUtcTicks": 639168617722211598,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738003578,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Hill_01_Summer.mat",
+            "guid": "fc9ec95f2dd20104f91547452dbac8f8",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7359,
+            "sourceLastWriteUtcTicks": 639168617722338006,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738003578,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_03_Winter.mat",
+            "guid": "1935117094d3a014d8460fa812d0bf9e",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8655,
+            "sourceLastWriteUtcTicks": 639168617722373453,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738014011,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_BirchTree_Leaf_01_Summer_Example_04.mat",
+            "guid": "5cf16da7ce5236a42ba6de5eacb960a1",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 13231,
+            "sourceLastWriteUtcTicks": 639168617722629128,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738029066,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Stump_01_Winter.mat",
+            "guid": "df7edb2f319d29a4ea167a500e03cadf",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7443,
+            "sourceLastWriteUtcTicks": 639168617725386273,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738094598,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_Butterfly_02.mat",
+            "guid": "184e72ac51b1e41458c58e5b40e763c0",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 4288,
+            "sourceLastWriteUtcTicks": 639168617725345127,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738084593,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_Bird_01.mat",
+            "guid": "f74b0f28bbe5ee645b43ae0214362441",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 4300,
+            "sourceLastWriteUtcTicks": 639168617725487332,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738094598,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Plank_02_Winter.mat",
+            "guid": "c9fbde7e0c96845499eb97280ef55bd4",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7473,
+            "sourceLastWriteUtcTicks": 639168617715221356,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737833605,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/RoadDecals/M_RoadDecal_01_Bend_02.mat",
+            "guid": "da6143acc3c247f42ad3d43a15b47364",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 6119,
+            "sourceLastWriteUtcTicks": 639168617718769983,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737889635,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Grass_01_Example_01.mat",
+            "guid": "20c0ac829c29b5546af01a77f0fb49ca",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8710,
+            "sourceLastWriteUtcTicks": 639168617720826762,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737963146,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Mushrooms/M_Mushroom_Red_01_Winter.mat",
+            "guid": "600bd71fa27a3ea498fd6384ee92108c",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7778,
+            "sourceLastWriteUtcTicks": 639168617720993777,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737963146,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Leaves_BirchTree_01_Summer_Example_04.mat",
+            "guid": "05b2f1c0a015c4d488603f0e5866c76a",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 10402,
+            "sourceLastWriteUtcTicks": 639168617723147426,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738029066,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Leaves/M_Leaves_BirchTree_01_Autumn.mat",
+            "guid": "edacaaae0d4266948acb2904edeec257",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 10009,
+            "sourceLastWriteUtcTicks": 639168617723347478,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738049334,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/CoverPlants/M_CoverPlants_01_Autumn.mat",
+            "guid": "7ca3747d8b929594381f8e0334a1a3fe",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 11379,
+            "sourceLastWriteUtcTicks": 639168617724626613,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738059452,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Grass_03_Example_03.mat",
+            "guid": "33014c9ecc3947443bc8034830695f54",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8442,
+            "sourceLastWriteUtcTicks": 639168617725525806,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738099635,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_FallLeaves_BirchTree_01_Autumn.mat",
+            "guid": "379f3056f1004b4479ef21ed3ce250ec",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 3381,
+            "sourceLastWriteUtcTicks": 639168617726283106,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738109650,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Helper_Floor_01.mat",
+            "guid": "c857c04d8df5d5c46a71871280e89668",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 3712,
+            "sourceLastWriteUtcTicks": 639168617727647743,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738149918,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_03_Autumn.mat",
+            "guid": "318b420bba7e8dc4d8a33b327c3db891",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8686,
+            "sourceLastWriteUtcTicks": 639168617714713669,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737805493,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Plants/M_Plants_01_Summer.mat",
+            "guid": "0714d887651eda94cb2e5e6b0912b5c1",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8512,
+            "sourceLastWriteUtcTicks": 639168617714996726,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737833605,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_02_Autumn.mat",
+            "guid": "4337404b10b78df409516895dd74a055",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7599,
+            "sourceLastWriteUtcTicks": 639168617723702708,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738003578,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_BirchTree_Leaf_01_Winter.mat",
+            "guid": "07872840369b4024191068773109cb97",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 12957,
+            "sourceLastWriteUtcTicks": 639168617723747923,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738014011,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Rocks/M_Rock_03_Summer.mat",
+            "guid": "d2ebfc1d1d249d045967dc4ab9ccf2a7",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7628,
+            "sourceLastWriteUtcTicks": 639168617724268414,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738059452,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/RoadDecals/M_RoadDecal_01_Bend_01.mat",
+            "guid": "f5e2bc6d9d3359e41b9f92cada52eeb6",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 6085,
+            "sourceLastWriteUtcTicks": 639168617725991694,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738099635,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_Firefly_01.mat",
+            "guid": "1bf273600084cb24ca5f9cf05acedd38",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 4880,
+            "sourceLastWriteUtcTicks": 639168617726557522,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738124686,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_BirchTree_Bark_01_Summer.mat",
+            "guid": "27387ac825f450244aefc90f2a12dc1c",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9533,
+            "sourceLastWriteUtcTicks": 639168617726943283,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738124686,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Grass_01_Example_03.mat",
+            "guid": "235e31bef712a464983e10d2221b9b49",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8709,
+            "sourceLastWriteUtcTicks": 639168617727682788,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738139800,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Grass_01_Example_04.mat",
+            "guid": "3af36c793c0394b4fa00ffe9b266b6ed",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8712,
+            "sourceLastWriteUtcTicks": 639168617727349902,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738139800,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_02_Winter.mat",
+            "guid": "fc95c79a1360be845845c29e28e7678a",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7403,
+            "sourceLastWriteUtcTicks": 639168617713544877,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737793564,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Leaves/M_Leaves_OakTree_01_Winter.mat",
+            "guid": "491269fc7feeb7e49b50945b7939c270",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9877,
+            "sourceLastWriteUtcTicks": 639168617715297850,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737833605,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_AMStatue_ME_01_Summer.mat",
+            "guid": "f3eecfe453f804947bcfb93816c76df6",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7498,
+            "sourceLastWriteUtcTicks": 639168617719223868,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737904715,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_02_Winter.mat",
+            "guid": "f4c6feb6e3830e04e9fa5ef177c3bda3",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8648,
+            "sourceLastWriteUtcTicks": 639168617719516127,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737914994,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Hill_02_Summer.mat",
+            "guid": "effab2405d4262f48985ca90f3da9a42",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7379,
+            "sourceLastWriteUtcTicks": 639168617719824918,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737925095,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_03_Summer.mat",
+            "guid": "613de01063496d64389e7a158dba6984",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7403,
+            "sourceLastWriteUtcTicks": 639168617721416025,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737978440,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Skybox/M_Skybox_Winter_01.mat",
+            "guid": "fef756c30b643b94eae2a9ea9640b889",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 2574,
+            "sourceLastWriteUtcTicks": 639168617724173033,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738059452,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Mushrooms/M_Mushroom_Red_01_Summer.mat",
+            "guid": "2b208bb86d6f81040b98ff60ce530a7c",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7594,
+            "sourceLastWriteUtcTicks": 639168617724231907,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738059452,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Common/Sources/Meshes/SM_ASP_Global_Settings.fbx",
+            "guid": "ca43dcf5d53e90549ab77427d3ac3776",
+            "profileVersion": 1,
+            "assetKind": "Model",
+            "ruleId": "model-static-default",
+            "sourceLength": 111744,
+            "sourceLastWriteUtcTicks": 639167736349394692,
+            "settingsHash": "33d6d29cc7f87db0a55125640f4221573afdb5a672f0cd06b95ba3f88172078f",
+            "appliedUtcTicks": 639168617534587721,
+            "applyCount": 1
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/DioramaExamples/M_Grass_03_Example_02.mat",
+            "guid": "603c99694657ac4488626ae0fc35fba7",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8439,
+            "sourceLastWriteUtcTicks": 639168617716648819,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737854124,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_BirchTree_Leaf_01_Autumn.mat",
+            "guid": "faf51912130b175449f51517e8fad89f",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 12983,
+            "sourceLastWriteUtcTicks": 639168617721911700,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617737998510,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Plants/M_Plants_01_Autumn.mat",
+            "guid": "04296551ab07ee84bbbbef05476f4baa",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8421,
+            "sourceLastWriteUtcTicks": 639168617722090035,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738003578,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Background/M_Mountain_01_Winter.mat",
+            "guid": "430b1b507185616458ae6f0c1c467170",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7402,
+            "sourceLastWriteUtcTicks": 639168617722771323,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738014011,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/VFX/M_VFX_FallLeaves_OakTree_01_Autumn.mat",
+            "guid": "a54bcfdcd6e3f364b87b56183c08c185",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 3379,
+            "sourceLastWriteUtcTicks": 639168617724101670,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738029066,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Grass/M_Grass_02_Summer.mat",
+            "guid": "a97c087238515ea4498ceaa6ec2e1e81",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 8712,
+            "sourceLastWriteUtcTicks": 639168617724954849,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738074498,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Props/M_Plank_01_Winter.mat",
+            "guid": "7ada8b2013ff43e42ab9f390f8a8c70b",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 7443,
+            "sourceLastWriteUtcTicks": 639168617725461537,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738094598,
+            "applyCount": 7
+        },
+        {
+            "assetPath": "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Materials/Trees/M_BirchTree_Bark_02_Summer.mat",
+            "guid": "8b7fe93875448ff4bb66295959e213f5",
+            "profileVersion": 1,
+            "assetKind": "Material",
+            "ruleId": "material-default",
+            "sourceLength": 9635,
+            "sourceLastWriteUtcTicks": 639168617727952048,
+            "settingsHash": "57823f678afb55dea4aba547fef61397d8e65e67fbba8ff8c9f22703a36ae88b",
+            "appliedUtcTicks": 639168617738149918,
+            "applyCount": 7
         }
     ]
 }
