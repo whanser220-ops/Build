@@ -1,0 +1,6 @@
+﻿{
+    "chunkId":  "Chunk_000_000",
+    "world":  "Meadow",
+    "purpose":  "Runtime placement, terrain tile, proxy loader, and light probe data for this world chunk.",
+    "seasonIndependent":  true
+}

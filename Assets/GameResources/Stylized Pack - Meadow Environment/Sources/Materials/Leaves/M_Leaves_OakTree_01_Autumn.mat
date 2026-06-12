@@ -304,3 +304,4 @@ Material:
     - _TopLayerColor: {r: 0.7758225, g: 0.8387992, b: 0.9473069, a: 1}
     - _TopLayerSSSColor: {r: 0.783538, g: 0.921582, b: 1, a: 1}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1

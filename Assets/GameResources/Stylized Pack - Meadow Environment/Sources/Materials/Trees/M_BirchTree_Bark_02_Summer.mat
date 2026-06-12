@@ -299,3 +299,4 @@ Material:
     - _TopLayerAlbedoColor: {r: 0.5019608, g: 0.5019608, b: 0.5019608, a: 0.5019608}
     - _Vector0: {r: 1, g: 0, b: 0, a: 0}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1

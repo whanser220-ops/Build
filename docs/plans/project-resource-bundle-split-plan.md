@@ -6,7 +6,7 @@
   - `Assets/Project/Tools/Build/Editor/ProjectAddressablesBuild.cs`
   - `Assets/Project/Tools/Build/Editor/AngryMeshAddressablesReferenceConverter.cs`
   - `Assets/Project/Tools/Build/Runtime/AngryMeshAddressablePrefabInstance.cs`
-- 最后实现核对：2026-06-09
+- 最后实现核对：2026-06-12
 
 ## 当前方向
 
@@ -15,9 +15,10 @@
 新的主线转向 Unity Addressables：
 
 1. 由 `ProjectAddressablesBuild` 收集 `Assets/GameAssets` 构建区资源并生成 `addressables_build_plan.json`。
-2. 根据计划创建或刷新 Addressables group。
-3. 使用 Addressables 的 packed content build 执行资源构建。
-4. 运行时占位组件通过 Addressables address 异步加载 prefab。
+2. 统计跨 group 的共享依赖摘要，供后续离线分析和人工治理使用，但当前不在主流程内自动拆公共依赖组。
+3. 根据计划创建或刷新 Addressables group。
+4. 使用 Addressables 的 packed content build 执行资源构建。
+5. 运行时占位组件通过 Addressables address 异步加载 prefab。
 
 当前构建主线改为顶层构建区和源产区：
 
@@ -26,9 +27,9 @@ Assets/GameAssets
 Assets/GameResources
 ```
 
-其中 `Assets/GameAssets` 是运行时资产构建白名单，打包脚本默认只扫描该目录；`Assets/GameResources` 是源素材产区，只参与资源质量检查，只有显式传入 `--addressables-include-source-assets` 时才会额外生成源素材 Addressables 组。
+其中 `Assets/GameAssets` 是运行时资产构建白名单，打包脚本默认只扫描该目录；`Assets/GameResources` 是源素材产区，只参与资源质量检查，只有显式传入 `--addressables-include-source-assets` 时才会额外生成源素材 Addressables 组。少量跨生态运行时共享贴图可以通过显式 `angrymesh.shared.*` 组纳入构建，例如当前 `Assets/GameResources/Stylized Pack - Common/Sources/Textures` 下的风噪声贴图。
 
-`Assets/GameAssets` 下的包目录直接映射为业务 AssetBundle / Addressables group 颗粒度。当前规则会把叶子目录，或包含直接资源文件的中间目录，作为一个业务 group：
+`Assets/GameAssets` 下的包目录直接映射为业务 AssetBundle / Addressables group 颗粒度。当前规则分为显式生命周期组和通用目录组：
 
 ```text
 Assets/GameAssets
@@ -43,9 +44,22 @@ Assets/GameAssets
 ├── Textures/
 ├── Prefabs/
 │   ├── Hero/
-│   ├── Monster/
-│   ├── Meadow Environment/
-│   └── Meadow Terrain Details/
+│   └── Monster/
+├── Worlds/
+│   └── Meadow/
+│       ├── Shared/
+│       │   ├── Materials/
+│       │   ├── Prefabs/
+│       │   └── Configs/
+│       ├── Seasons/
+│       │   ├── Autumn/
+│       │   ├── Summer/
+│       │   └── Winter/
+│       ├── Chunks/
+│       │   ├── Chunk_000_000/
+│       │   ├── Chunk_000_001/
+│       │   └── Chunk_001_000/
+│       └── Scenes/
 └── UIModules/
     ├── UILogin/
     └── UIMain/
@@ -59,10 +73,12 @@ Assets/GameAssets
 Assets/GameAssets/Common/ASP Global Settings
 Assets/GameAssets/Common/Functions
 Assets/GameAssets/Common/Shaders
-Assets/GameAssets/Configs/Post Processing/Meadow Environment
-Assets/GameAssets/Prefabs/Meadow Environment
-Assets/GameAssets/Prefabs/Meadow Terrain Details
-Assets/GameAssets/Scenes/Meadow Environment
+Assets/GameAssets/Worlds/Meadow/Shared
+Assets/GameAssets/Worlds/Meadow/Seasons/Autumn
+Assets/GameAssets/Worlds/Meadow/Seasons/Summer
+Assets/GameAssets/Worlds/Meadow/Seasons/Winter
+Assets/GameAssets/Worlds/Meadow/Chunks
+Assets/GameAssets/Worlds/Meadow/Scenes
 ```
 
 当前已迁移的 ANGRY MESH 源素材：
@@ -78,51 +94,48 @@ Assets/GameResources/Stylized Pack - Meadow Environment/Sources
 
 | Group | 当前输入范围 |
 |---|---|
-| `angrymesh.gameassets.common.asp.global.settings` | `Assets/GameAssets/Common/ASP Global Settings` |
-| `angrymesh.gameassets.common.functions` | `Assets/GameAssets/Common/Functions` |
-| `angrymesh.gameassets.common.shaders` | `Assets/GameAssets/Common/Shaders` |
-| `angrymesh.gameassets.common.fonts` | `Assets/GameAssets/Common/Fonts` |
-| `angrymesh.gameassets.scenes.meadow.environment` | `Assets/GameAssets/Scenes/Meadow Environment` |
-| `angrymesh.gameassets.configs.post.processing.meadow.environment.urp` | `Assets/GameAssets/Configs/Post Processing/Meadow Environment/URP` |
+| `angrymesh.shared.shaders` | `Assets/GameAssets/Common/Shaders` |
+| `angrymesh.shared.textures` | `Assets/GameResources/Stylized Pack - Common/Sources/Textures` |
+| `angrymesh.gameassets.common` | `Assets/GameAssets/Common`，排除已显式进入 `angrymesh.shared.shaders` 的 shader |
+| `angrymesh.worlds.meadow.shared` | `Assets/GameAssets/Worlds/Meadow/Shared` |
+| `angrymesh.worlds.meadow.season.autumn` | `Assets/GameAssets/Worlds/Meadow/Seasons/Autumn` |
+| `angrymesh.worlds.meadow.season.summer` | `Assets/GameAssets/Worlds/Meadow/Seasons/Summer` |
+| `angrymesh.worlds.meadow.season.winter` | `Assets/GameAssets/Worlds/Meadow/Seasons/Winter` |
+| `angrymesh.worlds.meadow.chunks.chunk_000_000` | `Assets/GameAssets/Worlds/Meadow/Chunks/Chunk_000_000` |
+| `angrymesh.worlds.meadow.chunks.chunk_000_001` | `Assets/GameAssets/Worlds/Meadow/Chunks/Chunk_000_001` |
+| `angrymesh.worlds.meadow.chunks.chunk_001_000` | `Assets/GameAssets/Worlds/Meadow/Chunks/Chunk_001_000` |
+| `angrymesh.worlds.meadow.scenes` | `Assets/GameAssets/Worlds/Meadow/Scenes` |
 | `angrymesh.gameassets.textures` | `Assets/GameAssets/Textures` |
 | `angrymesh.gameassets.prefabs.hero` | `Assets/GameAssets/Prefabs/Hero` |
 | `angrymesh.gameassets.prefabs.monster` | `Assets/GameAssets/Prefabs/Monster` |
-| `angrymesh.gameassets.prefabs.meadow.environment.*` | `Assets/GameAssets/Prefabs/Meadow Environment/...` |
-| `angrymesh.gameassets.prefabs.meadow.terrain.details.*` | `Assets/GameAssets/Prefabs/Meadow Terrain Details/...` |
 | `angrymesh.gameassets.uimodules.uilogin` | `Assets/GameAssets/UIModules/UILogin` |
 | `angrymesh.gameassets.uimodules.uimain` | `Assets/GameAssets/UIModules/UIMain` |
 
-实际 group 由 `Assets/GameAssets` 下的包目录自动生成，命名格式为 `angrymesh.gameassets.<相对目录路径>`，路径分隔符会转换为 `.`。
+`Worlds/<World>` 下按生命周期显式生成 `shared`、`season.<Season>`、`chunks.<ChunkId>` 与 `scenes` 组；其他 GameAssets 目录继续按 `angrymesh.gameassets.<相对目录路径>` 自动生成，路径分隔符会转换为 `.`。当 `Assets/GameAssets/Worlds/Meadow` 存在时，旧 Meadow prefab、config 和 scene 路径会从默认扫描中排除。
 
 只有显式传入 `--addressables-include-source-assets` 时，才会额外从 `Assets/GameResources` 生成 `angrymesh.gameresources.*` 组。
 
-## 自动公共依赖拆包
+## 共享依赖处理策略
 
-`ProjectAddressablesBuild` 会在业务 group 收集完成后执行一次共享依赖拆分：
+当前主流程不再在构建阶段自动把共享依赖提升到 `angrymesh.shared.*` 公共组；`angrymesh.shared.shaders` 与 `angrymesh.shared.textures` 是显式维护的稳定公共组。
 
-1. 对每个业务 group 内的资源调用 `AssetDatabase.GetDependencies(asset, true)`。
-2. 统计每个依赖被哪些业务 group 引用。
-3. 当某个依赖被两个或以上业务 group 引用，并且它可以安全成为 Addressables entry 时，自动提升到 `angrymesh.shared.*` 公共组。
-4. 如果共享依赖已经被某个业务 group 收集为普通 asset，会先从原业务 group 移出，再写入公共依赖组。
-5. 公共依赖组会和业务组一起写入 `addressables_build_plan.json`，随后由 Addressables settings 创建或刷新。
+当前做法是：
 
-当前自动公共组按主资源类型和扩展名分类：
+1. 先按显式公共组、`Common` 常驻组、`Worlds/<World>` 生命周期组和剩余 `Assets/GameAssets` 目录颗粒度生成业务 group。
+2. 继续对每个 group 做 `AssetDatabase.GetDependencies(asset, true)` 统计。
+3. 在 `addressables_build_plan.json` 中记录 `sharedDependencyCount` 和各 group 的 `sharedDependencies` 摘要。
+4. 先执行 Addressables content build，优先确保包体可构建、可校验、可落盘。
+5. 后续再离线分析公共依赖，决定是否做人为抽离、目录调整或额外配置。
 
-| Group | 典型内容 |
-|---|---|
-| `angrymesh.shared.shaders` | Shader、Shader Variant Collection |
-| `angrymesh.shared.materials` | Material |
-| `angrymesh.shared.textures` | PNG、TGA、TIF、PSD、EXR、HDR 等贴图 |
-| `angrymesh.shared.models` | FBX、OBJ、Blend、DAE 等模型资源 |
-| `angrymesh.shared.animations` | AnimationClip、Animator Controller |
-| `angrymesh.shared.audio` | 音频资源 |
-| `angrymesh.shared.assets` | 其他可 Addressable 化的共享 `.asset` 等资源 |
+这样调整的原因是，当前阶段先保证“目录到包体”的主链路稳定，避免在构建期自动提升公共依赖时引入额外的分组策略、命名规则和误拆分风险。
 
-自动提升规则保持保守：
+当前离线治理公共依赖的候选路径包括：
 
-- 只处理 `Assets/` 下的依赖，不处理 `Packages/` 依赖。
-- 不提升目录、脚本、未知 `DefaultAsset`、Prefab、Scene、Editor 目录资源、Resources 目录资源和被忽略扩展名。
-- 不直接修改源 prefab / material 引用；公共依赖通过 Addressables entry 所在 group 参与 packed content build，由 Addressables/SBP 建立 bundle 依赖关系。
+- 使用 [AssetBundleReporter](https://zhida.zhihu.com/search?content_id=254925364&content_type=Article&match_order=1&q=AssetBundleReporter&zhida_source=entity) 对构建结果做包体分析，识别被过多 bundle 引用的资源。
+- 基于 `addressables_build_plan.json`、BuildLayout 和资源依赖抽取结果做离线统计，找出高复用公共资源。
+- 人工判断哪些资源属于稳定公共依赖，维护额外 JSON 配置，再把这类显式规则接回主流程。
+
+这些离线分析与治理步骤当前不直接修改默认构建入口；主流程只负责把共享依赖摘要暴露出来，供后续工具或人工消费。
 
 ## 构建入口
 
@@ -191,10 +204,8 @@ Tools/ANGRY MESH/Addressables/Build Content
 - asset 列表
 - 估算源文件大小
 - 依赖数量
-- 自动公共依赖数量
-- group 角色：`primary` 或 `shared-dependency`
-- 自动公共依赖组的 owner group 列表
-- 拆分后仍残留的跨 group 共享依赖摘要
+- 跨 group 共享依赖总数
+- 各 group 的 `sharedDependencies` 摘要
 - warnings / errors
 
 这一步用于把“收集资源、规则检查、依赖分析、生成计划”和真正的 Addressables build 分开，避免一边扫描一边直接打包。
@@ -214,7 +225,7 @@ ProjectConfigData.BuildLayoutReportFileFormat = JSON
 
 | 检查项 | 数据来源 | 失败策略 |
 |---|---|---|
-| 重复资源 | Addressables BuildLayout `DuplicatedAssets` | error |
+| 重复资源 | Addressables BuildLayout `DuplicatedAssets` | warning，可通过 `--addressables-fail-on-validation-warning` 提升为失败 |
 | 循环依赖 | Bundle `Dependencies` 图 DFS | error |
 | 过大的 Bundle | Bundle `FileSize` 与阈值比较 | error |
 | 单个 Bundle 依赖过多 | Bundle 直接依赖数量与阈值比较 | error |
