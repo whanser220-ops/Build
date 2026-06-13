@@ -40,8 +40,15 @@ jobs:
             Assets/Tests/BuildPipeline.meta
             Assets/Tests/BuildPipeline/**
             tools/Invoke-Unity.ps1
+            tools/Use-UnityLibraryCache.ps1
             tools/Wait-CiOutput.ps1
             tools/Assert-UnityTestResults.ps1
+
+      - name: Attach Unity Library cache
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          .\tools\Use-UnityLibraryCache.ps1 -ProjectPath .
 
       - name: Clean previous CI outputs
         shell: powershell

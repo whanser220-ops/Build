@@ -8,6 +8,7 @@ public sealed class ProjectBuildPipelineTests
     private const string WorkflowPath = ".github/workflows/unity-ci.yml";
     private const string WaitCiOutputScriptPath = "tools/Wait-CiOutput.ps1";
     private const string AssertUnityTestResultsScriptPath = "tools/Assert-UnityTestResults.ps1";
+    private const string UnityLibraryCacheScriptPath = "tools/Use-UnityLibraryCache.ps1";
     private const string PlayerBuildScriptPath = "Assets/Editor/BuildPipeline/CiPlayerBuild.cs";
     private const string SmokeScenePath = "Assets/Tests/BuildPipeline/Fixtures/BuildPipelineSmoke.unity";
     private const string AndroidOutputPath = ".workspace/builds/android/Unity6-Android-Development.apk";
@@ -53,7 +54,26 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains("Assets/Settings/**", workflow);
         StringAssert.Contains("Assets/Tests/BuildPipeline/**", workflow);
         StringAssert.Contains("tools/Assert-UnityTestResults.ps1", workflow);
+        StringAssert.Contains("tools/Use-UnityLibraryCache.ps1", workflow);
         Assert.That(workflow, Does.Not.Contain("lfs: true"));
+    }
+
+    [Test]
+    public void CiUsesSinglePersistentUnityLibraryCache()
+    {
+        string workflow = ReadRequiredText(WorkflowPath);
+        string cacheScript = ReadRequiredText(UnityLibraryCacheScriptPath);
+
+        StringAssert.Contains("Attach Unity Library cache", workflow);
+        StringAssert.Contains("Use-UnityLibraryCache.ps1 -ProjectPath .", workflow);
+        Assert.That(workflow, Does.Not.Contain("Remove-Item -LiteralPath \"Library\""));
+        Assert.That(workflow, Does.Not.Contain("Remove-Item -LiteralPath \"Library/\""));
+        StringAssert.Contains("Unity6Ci\\LibraryCache", cacheScript);
+        StringAssert.Contains("single-library-v1", cacheScript);
+        StringAssert.Contains("cache-info.json", cacheScript);
+        StringAssert.Contains("Library.stale.", cacheScript);
+        StringAssert.Contains("New-Item -ItemType Junction", cacheScript);
+        Assert.That(cacheScript, Does.Not.Contain("sourceHash"));
     }
 
     [Test]
