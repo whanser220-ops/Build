@@ -83,4 +83,5 @@
 
 - 建议使用 Conventional Commits，例如 `feat(grass): add RenderGraph interaction mask pass`。
 - 单次提交聚焦一个功能或一个修复点。
+- 每次完成代码修改并通过最小必要验证后，都需要创建一次 git commit；提交前先确认只暂存本轮任务相关文件，不要混入无关改动。
 - 涉及渲染变更时，结果说明应包含影响的场景、资源、验证步骤，以及截图或动图。
