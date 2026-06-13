@@ -38,14 +38,16 @@
    .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
      -executeMethod Unity6.Ci.CiPlayerBuild.BuildAndroidDevelopment `
      -logFile Logs/build-android.log `
-     --ci-output .workspace/builds/android/Unity6-Android-Development.apk
+     --ci-output .workspace/builds/android/Unity6-Android-Development.apk `
+     --ci-scenes Assets/Tests/BuildPipeline/Fixtures/BuildPipelineSmoke.unity
    ```
 5. 构建 Windows 开发 Player：
    ```powershell
    .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
      -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment `
      -logFile Logs/build-windows.log `
-     --ci-output .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe
+     --ci-output .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe `
+     --ci-scenes Assets/Tests/BuildPipeline/Fixtures/BuildPipelineSmoke.unity
    ```
 6. 压缩 Windows Player 目录并上传产物与日志。
 
@@ -69,7 +71,7 @@
 支持命令行参数：
 
 - `--ci-output <path>`：覆盖默认输出路径。
-- `--ci-scenes <scene1;scene2>`：覆盖 `EditorBuildSettings` 中启用的场景列表。
+- `--ci-scenes <scene1;scene2>`：覆盖 `EditorBuildSettings` 中启用的场景列表。CI 主流程使用 `Assets/Tests/BuildPipeline/Fixtures/BuildPipelineSmoke.unity` 作为构建 smoke scene，避免依赖游戏内容目录的场景配置。
 
 ## 常见失败点
 
