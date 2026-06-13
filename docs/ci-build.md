@@ -24,6 +24,8 @@
 ## 构建流程
 
 1. Checkout 仓库。
+   - CI 使用 sparse checkout，只拉取 `ProjectSettings/`、`Packages/`、`Assets/Editor/`、`Assets/Settings/`、`Assets/Tests/BuildPipeline/` 与 `tools/` 中的构建脚本。
+   - `Assets/Project/` 与 `Assets/ThirdParty/` 不进入构建管线 job 的 checkout 范围。
 2. 清理 `.workspace/builds` 与本轮 CI 日志。
 3. 运行构建链路 EditMode 测试：
    ```powershell

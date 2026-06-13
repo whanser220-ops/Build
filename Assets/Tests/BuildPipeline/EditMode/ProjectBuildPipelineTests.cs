@@ -41,6 +41,22 @@ public sealed class ProjectBuildPipelineTests
     }
 
     [Test]
+    public void CiCheckoutUsesBuildPipelineSparseSourceSet()
+    {
+        string workflow = ReadRequiredText(WorkflowPath);
+
+        StringAssert.Contains("sparse-checkout:", workflow);
+        StringAssert.Contains("lfs: false", workflow);
+        StringAssert.Contains("ProjectSettings/**", workflow);
+        StringAssert.Contains("Packages/**", workflow);
+        StringAssert.Contains("Assets/Editor/**", workflow);
+        StringAssert.Contains("Assets/Settings/**", workflow);
+        StringAssert.Contains("Assets/Tests/BuildPipeline/**", workflow);
+        StringAssert.Contains("tools/Assert-UnityTestResults.ps1", workflow);
+        Assert.That(workflow, Does.Not.Contain("lfs: true"));
+    }
+
+    [Test]
     public void PlayerBuildCommandLineEntryPointsArePresent()
     {
         string playerBuildScript = ReadRequiredText(PlayerBuildScriptPath);

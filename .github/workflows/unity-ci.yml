@@ -22,6 +22,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          lfs: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .gitattributes
+            .github/workflows/unity-ci.yml
+            Packages/**
+            ProjectSettings/**
+            Assets/csc.rsp
+            Assets/csc.rsp.meta
+            Assets/Editor.meta
+            Assets/Editor/**
+            Assets/Settings.meta
+            Assets/Settings/**
+            Assets/Tests.meta
+            Assets/Tests/BuildPipeline.meta
+            Assets/Tests/BuildPipeline/**
+            tools/Invoke-Unity.ps1
+            tools/Wait-CiOutput.ps1
+            tools/Assert-UnityTestResults.ps1
 
       - name: Clean previous CI outputs
         shell: powershell
