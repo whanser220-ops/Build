@@ -58,7 +58,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
-            -executeMethod ProjectPlayerBuild.BuildAndroidDevelopment `
+            -executeMethod Unity6.Ci.CiPlayerBuild.BuildAndroidDevelopment `
             -logFile Logs/build-android.log `
             --ci-output .workspace/builds/android/Unity6-Android-Development.apk
           .\tools\Wait-CiOutput.ps1 `
@@ -72,7 +72,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
-            -executeMethod ProjectPlayerBuild.BuildWindowsDevelopment `
+            -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment `
             -logFile Logs/build-windows.log `
             --ci-output .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe
           .\tools\Wait-CiOutput.ps1 `
