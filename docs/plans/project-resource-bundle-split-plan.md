@@ -3,10 +3,10 @@
 - 状态：迁移中
 - 同步级别：弱同步
 - 当前实现锚点：
-  - `Assets/Project/Tools/Build/Editor/ProjectAddressablesBuild.cs`
-  - `Assets/Project/Tools/Build/Editor/AngryMeshAddressablesReferenceConverter.cs`
-  - `Assets/Project/Tools/Build/Runtime/AngryMeshAddressablePrefabInstance.cs`
-- 最后实现核对：2026-06-12
+  - `Assets/Editor/BuildPipeline/Addressables/ProjectAddressablesBuild.cs`
+  - `Assets/Editor/BuildPipeline/Addressables/AngryMeshAddressablesReferenceConverter.cs`
+  - `Assets/Scripts/Addressables/AngryMeshAddressablePrefabInstance.cs`
+- 最后实现核对：2026-06-13
 
 ## 当前方向
 

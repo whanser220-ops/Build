@@ -122,7 +122,6 @@
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DistortTunnel\DistortTunnelPass_CopyColor.cs" />
     <Compile Include="Assets\Project\Tools\Performance\Runtime\CrowdVatRenderDocCaptureContextProvider.cs" />
     <Compile Include="Assets\Project\CS\New_Grass\C#\ClumpParameters.cs" />
-    <Compile Include="Assets\Project\Tools\Build\Runtime\AngryMeshAddressablePrefabInstance.cs" />
     <Compile Include="Assets\Project\CS\New_Tree\C#\NewTreeLeafControlPoint.cs" />
     <Compile Include="Assets\Project\Scripts\Sky\SkyTimeData.cs" />
     <Compile Include="Assets\ANGRY MESH\Stylized Pack - Common\Scripts\ASPGlobalWind.cs" />
@@ -149,6 +148,7 @@
     <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatAiDebugExternalPlayerBootstrap.cs" />
     <Compile Include="Assets\Project\Characters\Qianxia\Scripts\QianxiaGenshinCameraController.cs" />
     <Compile Include="Assets\Project\Tools\Performance\Runtime\RenderDocCaptureBridge.cs" />
+    <Compile Include="Assets\Scripts\Addressables\AngryMeshAddressablePrefabInstance.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DepthBlit\DepthBlitCopyDepthPass.cs" />
     <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatIndirectRenderer.GpuDebug.cs" />
     <Compile Include="Assets\Project\CS\Boid\C#\Boid.cs" />
