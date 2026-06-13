@@ -46,6 +46,9 @@ jobs:
             -runTests -testPlatform EditMode `
             -testResults Logs/EditMode.xml `
             -logFile Logs/EditMode.log
+          if (-not (Test-Path "Logs/EditMode.xml")) {
+            throw "Unity EditMode test results were not generated. See Logs/EditMode.log."
+          }
 
       - name: Build Android development APK
         shell: powershell
@@ -55,6 +58,9 @@ jobs:
             -executeMethod ProjectPlayerBuild.BuildAndroidDevelopment `
             -logFile Logs/build-android.log `
             --ci-output .workspace/builds/android/Unity6-Android-Development.apk
+          if (-not (Test-Path ".workspace/builds/android/Unity6-Android-Development.apk")) {
+            throw "Android APK was not generated. See Logs/build-android.log."
+          }
 
       - name: Build Windows development player
         shell: powershell
@@ -64,6 +70,9 @@ jobs:
             -executeMethod ProjectPlayerBuild.BuildWindowsDevelopment `
             -logFile Logs/build-windows.log `
             --ci-output .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe
+          if (-not (Test-Path ".workspace/builds/windows/Unity6-Windows-Development/Unity6.exe")) {
+            throw "Windows player executable was not generated. See Logs/build-windows.log."
+          }
 
       - name: Package Windows player
         shell: powershell
