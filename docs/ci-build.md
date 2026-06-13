@@ -25,10 +25,11 @@
 
 1. Checkout 仓库。
 2. 清理 `.workspace/builds` 与本轮 CI 日志。
-3. 运行 EditMode 测试：
+3. 运行构建链路 EditMode 测试：
    ```powershell
    .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode `
      -runTests -testPlatform EditMode `
+     -assemblyNames Project.BuildPipeline.EditMode.Tests `
      -testResults Logs/EditMode.xml `
      -logFile Logs/EditMode.log
    ```
