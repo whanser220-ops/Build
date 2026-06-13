@@ -24,7 +24,7 @@
 ## 构建流程
 
 1. Checkout 仓库。
-   - CI 使用 sparse checkout，只拉取 `ProjectSettings/`、`Packages/`、`Assets/Editor/`、`Assets/Settings/`、`Assets/Tests/BuildPipeline/` 与 `tools/` 中的构建脚本。
+   - CI 使用 sparse checkout，只拉取 `ProjectSettings/`、`Packages/`、`Assets/Editor/`、`Assets/Scripts/Addressables/`、`Assets/Settings/`、`Assets/Tests/BuildPipeline/` 与 `tools/` 中的构建脚本。
    - `Assets/Project/` 与 `Assets/ThirdParty/` 不进入构建管线 job 的 checkout 范围。
 2. 挂载本机持久 `Library/` cache。
 3. 清理 `.workspace/builds` 与本轮 CI 日志；不要删除 `Library/`。
@@ -93,4 +93,4 @@ CI 使用单个本机持久 `Library/` cache，默认路径为 `%LOCALAPPDATA%\U
 
 ## Addressables
 
-本轮 CI 主流程不运行 Addressables 内容构建，避免构建过程中刷新 Addressables group 或生成配置导致工作区变脏。后续需要时，建议新增独立 job 调用 `ProjectAddressablesBuild.BuildFromCommandLine`，并明确它是验证型任务还是发布型任务。
+本轮 CI 主流程不运行 Addressables 内容构建，避免构建过程中刷新 Addressables group 或生成配置导致工作区变脏。Addressables 构建工具已从 `Assets/Project/` 拆到 `Assets/Editor/BuildPipeline/Addressables/ProjectAddressablesBuild.cs`，运行时占位组件位于 `Assets/Scripts/Addressables/AngryMeshAddressablePrefabInstance.cs`。后续需要时，建议新增独立 job 调用 `ProjectAddressablesBuild.BuildFromCommandLine`，并明确它是验证型任务还是发布型任务。

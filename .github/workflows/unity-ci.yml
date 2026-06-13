@@ -34,6 +34,9 @@ jobs:
             Assets/csc.rsp.meta
             Assets/Editor.meta
             Assets/Editor/**
+            Assets/Scripts.meta
+            Assets/Scripts/Addressables.meta
+            Assets/Scripts/Addressables/**
             Assets/Settings.meta
             Assets/Settings/**
             Assets/Tests.meta

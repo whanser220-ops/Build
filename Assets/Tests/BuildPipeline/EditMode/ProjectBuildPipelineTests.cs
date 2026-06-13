@@ -10,6 +10,9 @@ public sealed class ProjectBuildPipelineTests
     private const string AssertUnityTestResultsScriptPath = "tools/Assert-UnityTestResults.ps1";
     private const string UnityLibraryCacheScriptPath = "tools/Use-UnityLibraryCache.ps1";
     private const string PlayerBuildScriptPath = "Assets/Editor/BuildPipeline/CiPlayerBuild.cs";
+    private const string AddressablesBuildScriptPath = "Assets/Editor/BuildPipeline/Addressables/ProjectAddressablesBuild.cs";
+    private const string AddressablesConverterScriptPath = "Assets/Editor/BuildPipeline/Addressables/AngryMeshAddressablesReferenceConverter.cs";
+    private const string AddressablesRuntimeLoaderPath = "Assets/Scripts/Addressables/AngryMeshAddressablePrefabInstance.cs";
     private const string SmokeScenePath = "Assets/Tests/BuildPipeline/Fixtures/BuildPipelineSmoke.unity";
     private const string AndroidOutputPath = ".workspace/builds/android/Unity6-Android-Development.apk";
     private const string WindowsOutputPath = ".workspace/builds/windows/Unity6-Windows-Development/Unity6.exe";
@@ -51,6 +54,9 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains("ProjectSettings/**", workflow);
         StringAssert.Contains("Packages/**", workflow);
         StringAssert.Contains("Assets/Editor/**", workflow);
+        StringAssert.Contains("Assets/Scripts.meta", workflow);
+        StringAssert.Contains("Assets/Scripts/Addressables.meta", workflow);
+        StringAssert.Contains("Assets/Scripts/Addressables/**", workflow);
         StringAssert.Contains("Assets/Settings/**", workflow);
         StringAssert.Contains("Assets/Tests/BuildPipeline/**", workflow);
         StringAssert.Contains("tools/Assert-UnityTestResults.ps1", workflow);
@@ -103,6 +109,24 @@ public sealed class ProjectBuildPipelineTests
         Assert.That(buildScriptPath, Does.Not.StartWith(legacyThirdPartyRoot));
         Assert.That(workflow, Does.Not.Contain(legacyProjectRoot));
         Assert.That(workflow, Does.Not.Contain(legacyThirdPartyRoot));
+    }
+
+    [Test]
+    public void AddressablesBuildToolsAreOutsideLegacyContentRoots()
+    {
+        string buildScript = ReadRequiredText(AddressablesBuildScriptPath);
+        string converterScript = ReadRequiredText(AddressablesConverterScriptPath);
+        string runtimeLoaderScript = ReadRequiredText(AddressablesRuntimeLoaderPath);
+
+        StringAssert.Contains("public static void BuildFromCommandLine()", buildScript);
+        StringAssert.Contains("AddressableAssetSettings.BuildPlayerContent", buildScript);
+        StringAssert.Contains("public static void ConvertEnabledScenePrefabsFromCommandLine()", converterScript);
+        StringAssert.Contains("AngryMeshAddressablePrefabInstance", converterScript);
+        StringAssert.Contains("public sealed class AngryMeshAddressablePrefabInstance", runtimeLoaderScript);
+
+        Assert.That(File.Exists("Assets/Project/Tools/Build/Editor/ProjectAddressablesBuild.cs"), Is.False);
+        Assert.That(File.Exists("Assets/Project/Tools/Build/Editor/AngryMeshAddressablesReferenceConverter.cs"), Is.False);
+        Assert.That(File.Exists("Assets/Project/Tools/Build/Runtime/AngryMeshAddressablePrefabInstance.cs"), Is.False);
     }
 
     [Test]
