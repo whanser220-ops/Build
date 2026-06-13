@@ -226,6 +226,7 @@
     <None Include="Assets\Project\Shaders\Includes\NoiseSampler.hlsl" />
     <None Include="Assets\GameAssets\Worlds\Meadow\Chunks\Chunk_001_000\chunk_manifest.json" />
     <None Include="Assets\ThirdParty\Shop\Suntail Village\Shaders\Suntail_Foliage.shader" />
+    <None Include="Assets\csc.rsp" />
     <None Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\FramebufferFetch\FrameBufferFetch.shader" />
     <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectCombat.hlsl" />
     <None Include="Assets\Project\Tools\AngryMeshSourcesImport\Profiles\angry_mesh_sources_import_state.json" />
