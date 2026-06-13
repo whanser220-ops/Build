@@ -55,11 +55,18 @@ namespace Unity6.Ci
             string sceneOverride = GetCommandLineOption(SceneOptionName, string.Empty);
             if (!string.IsNullOrWhiteSpace(sceneOverride))
             {
-                return sceneOverride
+                string[] overrideScenes = sceneOverride
                     .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(scene => scene.Trim())
                     .Where(scene => !string.IsNullOrWhiteSpace(scene))
                     .ToArray();
+
+                if (overrideScenes.Length == 0)
+                {
+                    throw new InvalidOperationException("No scenes were provided through --ci-scenes.");
+                }
+
+                return overrideScenes;
             }
 
             string[] scenes = EditorBuildSettings.scenes

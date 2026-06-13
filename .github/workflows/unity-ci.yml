@@ -52,6 +52,7 @@ jobs:
             -Label "Unity EditMode test results" `
             -TimeoutSeconds 1200 `
             -LogPath Logs/EditMode.log
+          .\tools\Assert-UnityTestResults.ps1 -Path Logs/EditMode.xml
 
       - name: Build Android development APK
         shell: powershell
@@ -60,7 +61,8 @@ jobs:
           .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
             -executeMethod Unity6.Ci.CiPlayerBuild.BuildAndroidDevelopment `
             -logFile Logs/build-android.log `
-            --ci-output .workspace/builds/android/Unity6-Android-Development.apk
+            --ci-output .workspace/builds/android/Unity6-Android-Development.apk `
+            --ci-scenes Assets/Tests/BuildPipeline/Fixtures/BuildPipelineSmoke.unity
           .\tools\Wait-CiOutput.ps1 `
             -Path .workspace/builds/android/Unity6-Android-Development.apk `
             -Label "Android APK" `
@@ -74,7 +76,8 @@ jobs:
           .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
             -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment `
             -logFile Logs/build-windows.log `
-            --ci-output .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe
+            --ci-output .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe `
+            --ci-scenes Assets/Tests/BuildPipeline/Fixtures/BuildPipelineSmoke.unity
           .\tools\Wait-CiOutput.ps1 `
             -Path .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe `
             -Label "Windows player executable" `

@@ -7,7 +7,9 @@ public sealed class ProjectBuildPipelineTests
 {
     private const string WorkflowPath = ".github/workflows/unity-ci.yml";
     private const string WaitCiOutputScriptPath = "tools/Wait-CiOutput.ps1";
+    private const string AssertUnityTestResultsScriptPath = "tools/Assert-UnityTestResults.ps1";
     private const string PlayerBuildScriptPath = "Assets/Editor/BuildPipeline/CiPlayerBuild.cs";
+    private const string SmokeScenePath = "Assets/Tests/BuildPipeline/Fixtures/BuildPipelineSmoke.unity";
     private const string AndroidOutputPath = ".workspace/builds/android/Unity6-Android-Development.apk";
     private const string WindowsOutputPath = ".workspace/builds/windows/Unity6-Windows-Development/Unity6.exe";
     private const string WindowsArchivePath = ".workspace/builds/windows/Unity6-Windows-Development.zip";
@@ -19,6 +21,7 @@ public sealed class ProjectBuildPipelineTests
 
         StringAssert.Contains("-testPlatform EditMode", workflow);
         StringAssert.Contains("-assemblyNames Project.BuildPipeline.EditMode.Tests", workflow);
+        StringAssert.Contains("Assert-UnityTestResults.ps1", workflow);
         Assert.That(workflow, Does.Not.Contain("-testPlatform PlayMode"));
     }
 
@@ -30,9 +33,11 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains(AndroidOutputPath, workflow);
         StringAssert.Contains(WindowsOutputPath, workflow);
         StringAssert.Contains(WindowsArchivePath, workflow);
+        StringAssert.Contains(SmokeScenePath, workflow);
         StringAssert.Contains("Wait-CiOutput.ps1", workflow);
         StringAssert.Contains("actions/upload-artifact", workflow);
         ReadRequiredText(WaitCiOutputScriptPath);
+        ReadRequiredText(AssertUnityTestResultsScriptPath);
     }
 
     [Test]
@@ -47,6 +52,7 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains("BuildTarget.Android", playerBuildScript);
         StringAssert.Contains("BuildPipeline.BuildPlayer", playerBuildScript);
         StringAssert.Contains("--ci-output", playerBuildScript);
+        StringAssert.Contains("--ci-scenes", playerBuildScript);
     }
 
     [Test]
@@ -64,20 +70,13 @@ public sealed class ProjectBuildPipelineTests
     }
 
     [Test]
-    public void EditorBuildSettingsContainsBuildableScenes()
+    public void CiSmokeSceneFixtureExists()
     {
-        EditorBuildSettingsScene[] enabledScenes = EditorBuildSettings.scenes
-            .Where(scene => scene != null && scene.enabled && !string.IsNullOrWhiteSpace(scene.path))
-            .ToArray();
-
-        Assert.That(enabledScenes, Is.Not.Empty, "Player builds require at least one enabled scene.");
-        foreach (EditorBuildSettingsScene scene in enabledScenes)
-        {
-            Assert.That(
-                AssetDatabase.LoadAssetAtPath<SceneAsset>(scene.path),
-                Is.Not.Null,
-                "Enabled build scene is missing or is not a SceneAsset: " + scene.path);
-        }
+        Assert.That(File.Exists(SmokeScenePath), Is.True, "Missing CI build smoke scene fixture.");
+        Assert.That(
+            AssetDatabase.LoadAssetAtPath<SceneAsset>(SmokeScenePath),
+            Is.Not.Null,
+            "CI build smoke scene is missing or is not a SceneAsset: " + SmokeScenePath);
     }
 
     [Test]
