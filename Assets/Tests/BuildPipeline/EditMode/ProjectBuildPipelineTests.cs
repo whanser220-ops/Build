@@ -6,6 +6,7 @@ using UnityEditor;
 public sealed class ProjectBuildPipelineTests
 {
     private const string WorkflowPath = ".github/workflows/unity-ci.yml";
+    private const string WaitCiOutputScriptPath = "tools/Wait-CiOutput.ps1";
     private const string PlayerBuildScriptPath = "Assets/Project/Tools/Build/Editor/ProjectPlayerBuild.cs";
     private const string AndroidDeviceBuildScriptPath = "Assets/Project/Tools/Build/Editor/AndroidDeviceBuild.cs";
     private const string AndroidOutputPath = ".workspace/builds/android/Unity6-Android-Development.apk";
@@ -30,7 +31,9 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains(AndroidOutputPath, workflow);
         StringAssert.Contains(WindowsOutputPath, workflow);
         StringAssert.Contains(WindowsArchivePath, workflow);
+        StringAssert.Contains("Wait-CiOutput.ps1", workflow);
         StringAssert.Contains("actions/upload-artifact", workflow);
+        ReadRequiredText(WaitCiOutputScriptPath);
     }
 
     [Test]

@@ -47,9 +47,11 @@ jobs:
             -assemblyNames Project.BuildPipeline.EditMode.Tests `
             -testResults Logs/EditMode.xml `
             -logFile Logs/EditMode.log
-          if (-not (Test-Path "Logs/EditMode.xml")) {
-            throw "Unity EditMode test results were not generated. See Logs/EditMode.log."
-          }
+          .\tools\Wait-CiOutput.ps1 `
+            -Path Logs/EditMode.xml `
+            -Label "Unity EditMode test results" `
+            -TimeoutSeconds 1200 `
+            -LogPath Logs/EditMode.log
 
       - name: Build Android development APK
         shell: powershell
@@ -59,9 +61,11 @@ jobs:
             -executeMethod ProjectPlayerBuild.BuildAndroidDevelopment `
             -logFile Logs/build-android.log `
             --ci-output .workspace/builds/android/Unity6-Android-Development.apk
-          if (-not (Test-Path ".workspace/builds/android/Unity6-Android-Development.apk")) {
-            throw "Android APK was not generated. See Logs/build-android.log."
-          }
+          .\tools\Wait-CiOutput.ps1 `
+            -Path .workspace/builds/android/Unity6-Android-Development.apk `
+            -Label "Android APK" `
+            -TimeoutSeconds 5400 `
+            -LogPath Logs/build-android.log
 
       - name: Build Windows development player
         shell: powershell
@@ -71,9 +75,11 @@ jobs:
             -executeMethod ProjectPlayerBuild.BuildWindowsDevelopment `
             -logFile Logs/build-windows.log `
             --ci-output .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe
-          if (-not (Test-Path ".workspace/builds/windows/Unity6-Windows-Development/Unity6.exe")) {
-            throw "Windows player executable was not generated. See Logs/build-windows.log."
-          }
+          .\tools\Wait-CiOutput.ps1 `
+            -Path .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe `
+            -Label "Windows player executable" `
+            -TimeoutSeconds 5400 `
+            -LogPath Logs/build-windows.log
 
       - name: Package Windows player
         shell: powershell
