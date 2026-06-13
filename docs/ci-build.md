@@ -26,8 +26,9 @@
 1. Checkout 仓库。
    - CI 使用 sparse checkout，只拉取 `ProjectSettings/`、`Packages/`、`Assets/Editor/`、`Assets/Settings/`、`Assets/Tests/BuildPipeline/` 与 `tools/` 中的构建脚本。
    - `Assets/Project/` 与 `Assets/ThirdParty/` 不进入构建管线 job 的 checkout 范围。
-2. 清理 `.workspace/builds` 与本轮 CI 日志。
-3. 运行构建链路 EditMode 测试：
+2. 挂载本机持久 `Library/` cache。
+3. 清理 `.workspace/builds` 与本轮 CI 日志；不要删除 `Library/`。
+4. 运行构建链路 EditMode 测试：
    ```powershell
    .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode `
      -runTests -testPlatform EditMode `
@@ -35,7 +36,7 @@
      -testResults Logs/EditMode.xml `
      -logFile Logs/EditMode.log
    ```
-4. 构建 Android 开发 APK：
+5. 构建 Android 开发 APK：
    ```powershell
    .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
      -executeMethod Unity6.Ci.CiPlayerBuild.BuildAndroidDevelopment `
@@ -43,7 +44,7 @@
      --ci-output .workspace/builds/android/Unity6-Android-Development.apk `
      --ci-scenes Assets/Tests/BuildPipeline/Fixtures/BuildPipelineSmoke.unity
    ```
-5. 构建 Windows 开发 Player：
+6. 构建 Windows 开发 Player：
    ```powershell
    .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
      -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment `
@@ -51,7 +52,13 @@
      --ci-output .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe `
      --ci-scenes Assets/Tests/BuildPipeline/Fixtures/BuildPipelineSmoke.unity
    ```
-6. 压缩 Windows Player 目录并上传产物与日志。
+7. 压缩 Windows Player 目录并上传产物与日志。
+
+## Library cache
+
+CI 使用单个本机持久 `Library/` cache，默认路径为 `%LOCALAPPDATA%\Unity6Ci\LibraryCache\<repo>\Library`。`tools/Use-UnityLibraryCache.ps1` 会在 checkout 后把当前工作区的 `Library/` 建成指向该目录的 junction。
+
+这个 cache 不按源码 hash 或构建平台拆分；普通资源、脚本或构建夹具变更时，由 Unity 的 `ArtifactDB`、`Artifacts`、`Bee`、`ShaderCache` 与 `PlayerDataCache` 在同一个 `Library/` 内做增量更新。只有 Unity 版本或 cache schema 不兼容时，旧 cache 会被移动为 `Library.stale.<timestamp>`，下一轮重新冷建。
 
 ## 产物
 
