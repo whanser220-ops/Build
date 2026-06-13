@@ -11,7 +11,7 @@
 - `Assets/Scenes/`：场景区，启动场景、美术用场景、自动化或临时生成场景。
 - `Assets/Scripts/`：代码层，C# 源码主入口。
 - `Assets/Settings/`：Unity / URP / 项目级配置。
-- `Assets/Tests/`：EditMode / PlayMode 测试。
+- `Assets/Tests/`：构建链路 EditMode 测试；CI 只运行 `Project.BuildPipeline.EditMode.Tests`。
 - `Assets/Samples/`：Unity Package Manager 导入的 Samples，保持 Unity 默认约定。
 - `Assets/Resources/`、`Assets/StreamingAssets/`：仅在确实需要 Unity 特殊目录语义时使用。
 

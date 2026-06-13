@@ -38,12 +38,13 @@ jobs:
           Remove-Item -LiteralPath "Logs/build-android.log" -Force -ErrorAction SilentlyContinue
           Remove-Item -LiteralPath "Logs/build-windows.log" -Force -ErrorAction SilentlyContinue
 
-      - name: Run EditMode tests
+      - name: Run build pipeline EditMode tests
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
           .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode `
             -runTests -testPlatform EditMode `
+            -assemblyNames Project.BuildPipeline.EditMode.Tests `
             -testResults Logs/EditMode.xml `
             -logFile Logs/EditMode.log
           if (-not (Test-Path "Logs/EditMode.xml")) {
