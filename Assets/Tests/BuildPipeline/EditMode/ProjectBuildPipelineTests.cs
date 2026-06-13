@@ -7,8 +7,7 @@ public sealed class ProjectBuildPipelineTests
 {
     private const string WorkflowPath = ".github/workflows/unity-ci.yml";
     private const string WaitCiOutputScriptPath = "tools/Wait-CiOutput.ps1";
-    private const string PlayerBuildScriptPath = "Assets/Project/Tools/Build/Editor/ProjectPlayerBuild.cs";
-    private const string AndroidDeviceBuildScriptPath = "Assets/Project/Tools/Build/Editor/AndroidDeviceBuild.cs";
+    private const string PlayerBuildScriptPath = "Assets/Editor/BuildPipeline/CiPlayerBuild.cs";
     private const string AndroidOutputPath = ".workspace/builds/android/Unity6-Android-Development.apk";
     private const string WindowsOutputPath = ".workspace/builds/windows/Unity6-Windows-Development/Unity6.exe";
     private const string WindowsArchivePath = ".workspace/builds/windows/Unity6-Windows-Development.zip";
@@ -40,14 +39,28 @@ public sealed class ProjectBuildPipelineTests
     public void PlayerBuildCommandLineEntryPointsArePresent()
     {
         string playerBuildScript = ReadRequiredText(PlayerBuildScriptPath);
-        string androidDeviceBuildScript = ReadRequiredText(AndroidDeviceBuildScriptPath);
 
         StringAssert.Contains("public static void BuildAndroidDevelopment()", playerBuildScript);
         StringAssert.Contains("public static void BuildWindowsDevelopment()", playerBuildScript);
+        StringAssert.Contains("Unity6.Ci", playerBuildScript);
         StringAssert.Contains("BuildTarget.StandaloneWindows64", playerBuildScript);
         StringAssert.Contains("BuildTarget.Android", playerBuildScript);
         StringAssert.Contains("BuildPipeline.BuildPlayer", playerBuildScript);
-        StringAssert.Contains("ProjectPlayerBuild.BuildAndroidDevelopmentFromCommandLine", androidDeviceBuildScript);
+        StringAssert.Contains("--ci-output", playerBuildScript);
+    }
+
+    [Test]
+    public void BuildPipelineDoesNotTargetLegacyContentRoots()
+    {
+        string workflow = ReadRequiredText(WorkflowPath).Replace('\\', '/');
+        string buildScriptPath = PlayerBuildScriptPath.Replace('\\', '/');
+        string legacyProjectRoot = string.Concat("Assets", "/", "Project", "/");
+        string legacyThirdPartyRoot = string.Concat("Assets", "/", "ThirdParty", "/");
+
+        Assert.That(buildScriptPath, Does.Not.StartWith(legacyProjectRoot));
+        Assert.That(buildScriptPath, Does.Not.StartWith(legacyThirdPartyRoot));
+        Assert.That(workflow, Does.Not.Contain(legacyProjectRoot));
+        Assert.That(workflow, Does.Not.Contain(legacyThirdPartyRoot));
     }
 
     [Test]

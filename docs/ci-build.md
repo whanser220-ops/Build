@@ -36,14 +36,14 @@
 4. 构建 Android 开发 APK：
    ```powershell
    .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
-     -executeMethod ProjectPlayerBuild.BuildAndroidDevelopment `
+     -executeMethod Unity6.Ci.CiPlayerBuild.BuildAndroidDevelopment `
      -logFile Logs/build-android.log `
      --ci-output .workspace/builds/android/Unity6-Android-Development.apk
    ```
 5. 构建 Windows 开发 Player：
    ```powershell
    .\tools\Invoke-Unity.ps1 -ProjectPath . -batchmode -quit `
-     -executeMethod ProjectPlayerBuild.BuildWindowsDevelopment `
+     -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment `
      -logFile Logs/build-windows.log `
      --ci-output .workspace/builds/windows/Unity6-Windows-Development/Unity6.exe
    ```
@@ -61,18 +61,15 @@
 
 ## 构建入口
 
-统一 Player 构建入口为 `ProjectPlayerBuild`。
+统一 Player 构建入口为 `Unity6.Ci.CiPlayerBuild`，入口文件位于 `Assets/Editor/BuildPipeline/CiPlayerBuild.cs`。构建管线不以 `Assets/Project/` 或 `Assets/ThirdParty/` 下的旧工具脚本作为主入口。
 
-- `ProjectPlayerBuild.BuildAndroidDevelopment`
-- `ProjectPlayerBuild.BuildWindowsDevelopment`
+- `Unity6.Ci.CiPlayerBuild.BuildAndroidDevelopment`
+- `Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment`
 
 支持命令行参数：
 
 - `--ci-output <path>`：覆盖默认输出路径。
 - `--ci-scenes <scene1;scene2>`：覆盖 `EditorBuildSettings` 中启用的场景列表。
-- Android 额外支持 `-androidSdkPath`、`-androidNdkPath`、`-androidJdkPath`。
-
-旧入口 `AndroidDeviceBuild.BuildApk` 仍保留，内部复用新的 Android 开发包构建逻辑，默认输出仍为 `.workspace/builds/android/Unity6DeviceTest.apk`。
 
 ## 常见失败点
 
