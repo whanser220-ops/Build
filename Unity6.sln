@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unity.RenderPipeline.Univer
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unity.RenderPipelines.Universal.Shaders", "Unity.RenderPipelines.Universal.Shaders.csproj", "{137bbbc7-0a01-d625-f354-e91574399cb4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Project.Qianxia.EditMode.Tests", "Project.Qianxia.EditMode.Tests.csproj", "{c92655ea-b688-5a95-2996-6b96fddf97e5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -54,6 +56,8 @@ Global
 		{2b50f48c-4553-a6fb-730c-c3867dd072ce}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{137bbbc7-0a01-d625-f354-e91574399cb4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{137bbbc7-0a01-d625-f354-e91574399cb4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{c92655ea-b688-5a95-2996-6b96fddf97e5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{c92655ea-b688-5a95-2996-6b96fddf97e5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

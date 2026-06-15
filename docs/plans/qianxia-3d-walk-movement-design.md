@@ -13,7 +13,9 @@
   - `Assets/Project/Characters/Qianxia/Scripts/QianxiaGenshinCameraController.cs`
   - `Assets/Project/Characters/Qianxia/Generated/QianxiaThirdPerson.prefab`
   - `Assets/Project/Characters/Qianxia/Editor/QianxiaCharacterSetupUtility.cs`
-- 最后实现核对：2026-05-06
+  - `Assets/Project/Characters/Qianxia/Editor/QianxiaMeadowSceneMigrationUtility.cs`
+  - `Assets/GameAssets/Worlds/Meadow/Scenes/Scene_MeadowEnvironment_01_Summer.unity`
+- 最后实现核对：2026-06-15
 - 关联实现：
   - `Assets/Project/Configs/Input/InputSystem_Actions.inputactions`
   - `Assets/Project/Characters/Qianxia/Scripts/QianxiaGenshinCharacterController.cs`
