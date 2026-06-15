@@ -2,8 +2,6 @@ name: Unity PR Quick Check
 
 "on":
   pull_request:
-    branches:
-      - Main
     types:
       - opened
       - synchronize
@@ -11,7 +9,7 @@ name: Unity PR Quick Check
       - ready_for_review
 
 concurrency:
-  group: unity6-pr-check-${{ github.event.pull_request.number }}
+  group: unity6-pr-check-${{ github.event.pull_request.base.ref }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -24,6 +22,14 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      - name: Show virtual merge context
+        shell: powershell
+        run: |
+          Write-Host "PR #${{ github.event.pull_request.number }}"
+          Write-Host "Head branch: ${{ github.event.pull_request.head.ref }}"
+          Write-Host "Target branch: ${{ github.event.pull_request.base.ref }}"
+          Write-Host "Checkout ref: refs/pull/${{ github.event.pull_request.number }}/merge"
+
       - name: Checkout virtual merge commit
         uses: actions/checkout@v5
         with:
