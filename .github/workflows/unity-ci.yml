@@ -4,7 +4,7 @@ name: Unity CI
   workflow_dispatch:
   push:
     branches:
-      - codex/111
+      - Main
 
 concurrency:
   group: unity6-player-build
@@ -28,6 +28,7 @@ jobs:
           sparse-checkout: |
             .gitattributes
             .github/workflows/unity-ci.yml
+            .github/workflows/unity-pr-check.yml
             Packages/**
             ProjectSettings/**
             Assets/csc.rsp

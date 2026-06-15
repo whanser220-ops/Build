@@ -6,6 +6,7 @@ using UnityEditor;
 public sealed class ProjectBuildPipelineTests
 {
     private const string WorkflowPath = ".github/workflows/unity-ci.yml";
+    private const string PrWorkflowPath = ".github/workflows/unity-pr-check.yml";
     private const string WaitCiOutputScriptPath = "tools/Wait-CiOutput.ps1";
     private const string AssertUnityTestResultsScriptPath = "tools/Assert-UnityTestResults.ps1";
     private const string UnityLibraryCacheScriptPath = "tools/Use-UnityLibraryCache.ps1";
@@ -17,6 +18,18 @@ public sealed class ProjectBuildPipelineTests
     private const string AndroidOutputPath = ".workspace/builds/android/Unity6-Android-Development.apk";
     private const string WindowsOutputPath = ".workspace/builds/windows/Unity6-Windows-Development/Unity6.exe";
     private const string WindowsArchivePath = ".workspace/builds/windows/Unity6-Windows-Development.zip";
+
+    [Test]
+    public void MainDevelopmentBuildRunsOnlyOnMainPushOrManualDispatch()
+    {
+        string workflow = ReadRequiredText(WorkflowPath);
+
+        StringAssert.Contains("workflow_dispatch:", workflow);
+        StringAssert.Contains("push:", workflow);
+        StringAssert.Contains("- Main", workflow);
+        StringAssert.Contains("cancel-in-progress: false", workflow);
+        Assert.That(workflow, Does.Not.Contain("codex/111"));
+    }
 
     [Test]
     public void CiRunsOnlyBuildPipelineEditModeAssembly()
@@ -51,6 +64,7 @@ public sealed class ProjectBuildPipelineTests
 
         StringAssert.Contains("sparse-checkout:", workflow);
         StringAssert.Contains("lfs: false", workflow);
+        StringAssert.Contains(".github/workflows/unity-pr-check.yml", workflow);
         StringAssert.Contains("ProjectSettings/**", workflow);
         StringAssert.Contains("Packages/**", workflow);
         StringAssert.Contains("Assets/Editor/**", workflow);
@@ -62,6 +76,29 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains("tools/Assert-UnityTestResults.ps1", workflow);
         StringAssert.Contains("tools/Use-UnityLibraryCache.ps1", workflow);
         Assert.That(workflow, Does.Not.Contain("lfs: true"));
+    }
+
+    [Test]
+    public void PrQuickCheckUsesVirtualMergeCommitAndNoPlayerBuilds()
+    {
+        string workflow = ReadRequiredText(PrWorkflowPath);
+
+        StringAssert.Contains("pull_request:", workflow);
+        StringAssert.Contains("- Main", workflow);
+        StringAssert.Contains("cancel-in-progress: true", workflow);
+        StringAssert.Contains("Checkout virtual merge commit", workflow);
+        StringAssert.Contains("refs/pull/${{ github.event.pull_request.number }}/merge", workflow);
+        StringAssert.Contains("lfs: true", workflow);
+        StringAssert.Contains("Use-UnityLibraryCache.ps1 -ProjectPath .", workflow);
+        StringAssert.Contains("-assemblyNames Project.BuildPipeline.EditMode.Tests", workflow);
+        StringAssert.Contains("-assemblyNames Project.Qianxia.EditMode.Tests", workflow);
+        StringAssert.Contains("Assets/Project/Characters/**", workflow);
+        Assert.That(workflow, Does.Not.Contain("Assets/ThirdParty"));
+        Assert.That(workflow, Does.Not.Contain("Build Android development APK"));
+        Assert.That(workflow, Does.Not.Contain("Build Windows development player"));
+        Assert.That(workflow, Does.Not.Contain(AndroidOutputPath));
+        Assert.That(workflow, Does.Not.Contain(WindowsOutputPath));
+        Assert.That(workflow, Does.Not.Contain(WindowsArchivePath));
     }
 
     [Test]
