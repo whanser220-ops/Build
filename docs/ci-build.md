@@ -20,7 +20,7 @@
 - 推送到 `Main` 时自动触发开发包工作流。
 - 也可以在 GitHub Actions 页面手动执行 `workflow_dispatch`。
 - 工作流使用固定 concurrency group `unity6-player-build`，避免同一个 Unity 项目被同一台构建机并发打开。
-- Pull Request 指向 `Main` 时触发 PR 快检。该工作流显式 checkout `refs/pull/${{ github.event.pull_request.number }}/merge`，也就是 GitHub 临时生成的虚拟合并提交，用来验证“如果当前 feature 分支合进 Main，会变成什么样”。
+- 任意 Pull Request 都会触发 PR 快检。该工作流显式 checkout `refs/pull/${{ github.event.pull_request.number }}/merge`，也就是 GitHub 针对当前 PR 目标分支临时生成的虚拟合并提交，用来验证“如果当前 feature 分支合进它声明的目标分支，会变成什么样”。
 - PR 快检启用 `cancel-in-progress: true`，同一个 PR 的新提交会取消旧 run，避免多人频繁小改动时排队。
 
 ## 构建流程
@@ -60,7 +60,7 @@
 
 PR 快检只服务“能不能合并”，不出完整包：
 
-1. Checkout 虚拟合并提交 `refs/pull/<PR>/merge`。
+1. Checkout 虚拟合并提交 `refs/pull/<PR>/merge`，该 ref 对应 PR head 合入 PR base/目标分支后的临时结果。
 2. 挂载同一个本机持久 `Library/` cache。
 3. 运行构建管线 EditMode Tests。
 4. 运行当前 feature 相关的 EditMode 单元测试，例如 `Project.Qianxia.EditMode.Tests`。

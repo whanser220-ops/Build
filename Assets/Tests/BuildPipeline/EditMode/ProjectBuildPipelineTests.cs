@@ -84,7 +84,9 @@ public sealed class ProjectBuildPipelineTests
         string workflow = ReadRequiredText(PrWorkflowPath);
 
         StringAssert.Contains("pull_request:", workflow);
-        StringAssert.Contains("- Main", workflow);
+        Assert.That(workflow, Does.Not.Contain("branches:"));
+        StringAssert.Contains("github.event.pull_request.base.ref", workflow);
+        StringAssert.Contains("Target branch:", workflow);
         StringAssert.Contains("cancel-in-progress: true", workflow);
         StringAssert.Contains("Checkout virtual merge commit", workflow);
         StringAssert.Contains("refs/pull/${{ github.event.pull_request.number }}/merge", workflow);
