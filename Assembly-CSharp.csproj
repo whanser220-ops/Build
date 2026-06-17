@@ -46,197 +46,80 @@
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.0.46f1\Editor\Data\Tools\Unity.SourceGenerators\Unity.UIToolkit.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatWorldTypes.cs" />
-    <Compile Include="Assets\Project\Scripts\Sky\SkyTimeDataController.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\GlobalGbuffers\GlobalGbuffersRendererFeature.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\AudioZoneControl.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\KeepFrame\KeepFrameFeature.cs" />
-    <Compile Include="Assets\Project\CS\Pleyer_Camera\FpsCharacterController.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\Interactive.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\PlayerInteractions.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DistortTunnel\DistortTunnelPass_Tunnel.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DistortTunnel\DistortTunnelPass_Distort.cs" />
-    <Compile Include="Assets\Project\CS\New_Grass\C#\SeamlessNoiseGenerator.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\Door.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\PhysicsObject.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatObservationHub.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatFrameProtocol.cs" />
-    <Compile Include="Assets\Project\CS\New_Grass\C#\NewGrassBakedDataAsset.cs" />
-    <Compile Include="Assets\Project\CS\CokeBottlePbd\C#\BottleInteractionProfile.cs" />
     <Compile Include="Assets\ANGRY MESH\Stylized Pack - Common\Scripts\ASPGlobalSettings.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Runtime\GpuSemanticDrawFeature.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Runtime\PerformancePoiSampler.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DistortTunnel\DistortTunnelRendererFeature.cs" />
-    <Compile Include="Assets\Project\CS\Grass_cartoon\RenderGraph\GrassFeature.cs" />
-    <Compile Include="Assets\Project\CS\New_Grass\C#\NewGrassBladeMeshFactory.cs" />
-    <Compile Include="Assets\Project\CS\CokeBottlePbd\C#\BottlePileSystem.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatFactionControlPoint.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\BlitWithMaterial\BlitAndSwapColorRendererFeature.cs" />
-    <Compile Include="Assets\Project\CS\caroon_Tree\C#\StylizedTreeCrownControlPoint.cs" />
-    <Compile Include="Assets\Project\CS\Grass_cartoon\C#\GrassTerrianProvider.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\UnsafePass\UnsafePassRenderFeature.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatIndirectRenderer.Simulation.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\Blit\CopyRenderFeature.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Runtime\RenderDocCaptureBootstrap.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSceneQueryFieldAsset.cs" />
-    <Compile Include="Assets\Project\CS\New_Grass\C#\NewGrassTerrainProvider.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Runtime\PerformancePoiBootstrap.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Runtime\RenderDocCaptureController.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatIndirectRenderer.Visibility.cs" />
-    <Compile Include="Assets\Project\CS\CokeBottlePbd\C#\BottlePileVolume.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSquadController.AuthoringAndLifecycle.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSquadController.cs" />
-    <Compile Include="Assets\Project\Tools\Templates\LegacyRenderTemplates\RenderFeature\CustomRenderPass.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Runtime\PerformancePoiPoint.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\BlitToRTHandle\BlitToRTHandlePass.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\CameraStacking\3D Skybox\Scripts\SkyboxCamera.cs" />
-    <Compile Include="Assets\Project\CS\New_Grass\C#\NewGrassIndirectRenderer.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Runtime\IRenderDocCaptureContextProvider.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DepthBlit\DepthBlitDepthOnlyPass.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatCodexAgentController.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\GbufferVisualization\GbufferVisualizationRendererFeature.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatIndirectRenderer.Infrastructure.cs" />
-    <Compile Include="Assets\Project\CS\New_Grass\C#\ProceduralFlower.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSceneQueryTypes.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Runtime\InGamePerformanceMonitor.cs" />
-    <Compile Include="Assets\Project\Tools\AssetStats\Runtime\QianxiaRuntimeAssetInstanceCounter.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSpatialQueryTypes.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\BlitToRTHandle\BlitToRTHandleRendererFeature.cs" />
     <Compile Include="Assets\ANGRY MESH\Stylized Pack - Common\Scripts\ObjectFollowTarget.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSceneQueryUtility.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\FramebufferFetch\FrameBufferFetchRenderFeature.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSquadController.RuntimeSync.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\MRT\MrtRendererFeature.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatRendererFrameBridge.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Scripts\QianxiaGenshinCharacterController.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Scripts\QianxiaLodCollection.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatAiDebugRecorder.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\PlayerController.cs" />
     <Compile Include="Assets\ANGRY MESH\Stylized Pack - Common\Scripts\ASPGlobalTopLayer.cs" />
     <Compile Include="Assets\ThirdParty\UnityTutorialInfo\TutorialInfo\Scripts\Readme.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\TextureReference w. FrameData\TextureRefRendererFeature.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatPlayer.cs" />
-    <Compile Include="Assets\Project\Scripts\Sky\SkyController.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Scripts\QianxiaRigidBodyProxySetup.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatIndirectRenderer.AiDebug.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DistortTunnel\DistortTunnelPass_CopyColor.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Runtime\CrowdVatRenderDocCaptureContextProvider.cs" />
-    <Compile Include="Assets\Project\CS\New_Grass\C#\ClumpParameters.cs" />
-    <Compile Include="Assets\Project\CS\New_Tree\C#\NewTreeLeafControlPoint.cs" />
-    <Compile Include="Assets\Project\Scripts\Sky\SkyTimeData.cs" />
     <Compile Include="Assets\ANGRY MESH\Stylized Pack - Common\Scripts\ASPGlobalWind.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\RendererList\RendererListRenderFeature.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatIndirectRenderer.ApiAndLifecycle.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\LightCulling.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\SuntailStartDemo.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSquadCommandController.cs" />
-    <Compile Include="Assets\Project\CS\New_Tree\C#\NewTreeLeafRenderer.cs" />
-    <Compile Include="Assets\Project\CS\CokeBottlePbd\C#\BottleSimulationConfig.cs" />
-    <Compile Include="Assets\Project\CS\caroon_Tree\C#\StylizedTreeCrownRenderer.cs" />
-    <Compile Include="Assets\Project\Tools\Templates\LegacyRenderTemplates\RenderFeature\CustomRenderFeature.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\SharedAssets\Scripts\CheckAssignedRenderPipelineAsset.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatIndirectRenderer.Initialization.cs" />
     <Compile Include="Assets\ANGRY MESH\Stylized Pack - Common\Scripts\SimpleText.cs" />
-    <Compile Include="Assets\Project\CS\Grass_cartoon\RenderGraph\GrassRenderPass.cs" />
-    <Compile Include="Assets\Project\CS\Star\C#\Star.cs" />
-    <Compile Include="Assets\Project\CS\CokeBottlePbd\C#\BottleArchetypeAsset.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\LensFlares\Scripts\ScreenSpacePlacement.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DepthBlit\DepthBlitFeature.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\Compute\ComputeRendererFeature.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DepthBlit\DepthBlitEdgePass.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatWorld.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatAiDebugExternalPlayerBootstrap.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Scripts\QianxiaGenshinCameraController.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Runtime\RenderDocCaptureBridge.cs" />
     <Compile Include="Assets\Scripts\Addressables\AngryMeshAddressablePrefabInstance.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DepthBlit\DepthBlitCopyDepthPass.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatIndirectRenderer.GpuDebug.cs" />
-    <Compile Include="Assets\Project\CS\Boid\C#\Boid.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSquadController.Gameplay.cs" />
-    <Compile Include="Assets\Project\CS\New_Grass\volumeter cloud\VolumeNoise3DGenerator.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSquadController.Support.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatIndirectRenderer.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\SharedAssets\Scripts\FirstPersonController.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\OutputTexture\OutputTextureRendererFeature.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatAnimationAsset.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\Blit w. FrameData\BlitRendererFeature.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Runtime\CrowdVatSquadTypes.cs" />
     <None Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\package.json" />
     <None Include="Assets\GameAssets\Common\Shaders\S_Tree_Bark.shader" />
     <None Include="Assets\GameAssets\Worlds\Meadow\Chunks\Chunk_000_001\chunk_manifest.json" />
-    <None Include="Assets\Project\CS\caroon_Tree\Shader\StylizedTreeCrownIndirect.shader" />
-    <None Include="Assets\Project\CS\New_Grass\shader\NewGrassScatter.compute" />
-    <None Include="Assets\Project\CS\New_Tree\Shader\NewTreeLeafBillboard.shader" />
     <None Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\Compute\ComputeShaderExample.compute" />
     <None Include="Assets\GameAssets\Common\Shaders\S_Decals.shader" />
     <None Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\GbufferVisualization\GBuffer_Visualization_Shader_Sample.shader" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirect.compute" />
     <None Include="Assets\ThirdParty\Shop\Suntail Village\Demo\Fonts\Fonts License.txt" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectAiDebug.hlsl" />
-    <None Include="Assets\Project\CS\New_Grass\shader\NewGrassBezierBladeToonFar.shader" />
-    <None Include="Assets\Project\Tools\Templates\LegacyRenderTemplates\Shader\Blit_Shader.shader" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectSpatialQuery.hlsl" />
-    <None Include="Assets\Project\CS\New_Grass\shader\NewGrassBezierBlade.shader" />
     <None Include="Assets\ThirdParty\QianxiaMmdSource\readme【一定要看】.txt" />
-    <None Include="Assets\Project\Tools\Templates\LegacyRenderTemplates\Shader\GPUInstance.shader" />
     <None Include="Assets\GameAssets\Worlds\Meadow\Chunks\Chunk_000_000\chunk_manifest.json" />
-    <None Include="Assets\Project\CS\Star\Shader\Star.compute" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectCulling.hlsl" />
-    <None Include="Assets\Project\Tools\Templates\LegacyRenderTemplates\Shader\geometryShader.shader" />
     <None Include="Assets\GameAssets\Common\Shaders\S_VFX_TransparentAlpha.shader" />
-    <None Include="Assets\Project\CS\Boid\Shader\Boid.compute" />
     <None Include="Assets\GameAssets\Common\Shaders\S_VFX_SimpleCutoff.shader" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectSimple.shader" />
     <None Include="Assets\ThirdParty\Shop\Suntail Village\Shaders\Suntail_Water.shader" />
-    <None Include="Assets\Project\CS\Grass_cartoon\Shader\Grass_cartoon.compute" />
     <None Include="Assets\GameAssets\Common\Shaders\S_VFX_WindMesh.shader" />
     <None Include="Assets\ANGRY MESH\Stylized Pack - Meadow Environment\Prefabs Terrain Details\Readme.txt" />
     <None Include="Assets\ThirdParty\Shop\Suntail Village\Shaders\Suntail_Surface.shader" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectFinalize.hlsl" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatLit.shader" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectWorksets.hlsl" />
-    <None Include="Assets\Project\Shaders\Sky\CloudA.shader" />
     <None Include="Assets\GameAssets\Common\Shaders\S_Tree_Leaf.shader" />
     <None Include="Assets\GameAssets\Common\Shaders\S_Grass.shader" />
-    <None Include="Assets\Project\CS\CokeBottlePbd\Shader\BottlePileInstanced.shader" />
     <None Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\MRT\MrtColor.shader" />
     <None Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\BlitWithMaterial\BlitWithMaterial.shader" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectCommon.hlsl" />
-    <None Include="Assets\Project\Tools\AngryMeshSourcesImport\Profiles\angry_mesh_sources_import_profile.json" />
-    <None Include="Assets\Project\Tools\Templates\LegacyRenderTemplates\Shader\URP_Shader.shader" />
-    <None Include="Assets\Project\CS\New_Grass\volumeter cloud\LearningVolumeCloud.shader" />
-    <None Include="Assets\Project\CS\Star\Shader\Star.shader" />
     <None Include="Assets\ANGRY MESH\Stylized Pack - Common\Readme.txt" />
     <None Include="Assets\ThirdParty\Shop\Suntail Village\Demo\Readme.txt" />
-    <None Include="Assets\Project\CS\Boid\Shader\Boid.shader" />
     <None Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\ValidationExceptions.json" />
     <None Include="Assets\ANGRY MESH\Stylized Pack - Meadow Environment\SRP Templates\Readme.txt" />
     <None Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\SharedAssets\Shaders\3DText.shader" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectSimulation.hlsl" />
-    <None Include="Assets\Project\CS\New_Grass\shader\ProceduralFlowerWatercolor.shader" />
-    <None Include="Assets\Project\CS\New_Tree\Shader\NewTreeLeafScatter.compute" />
-    <None Include="Assets\Project\CS\New_Grass\shader\NewGrassBezierBladeToon.shader" />
-    <None Include="Assets\Project\Shaders\Sky\sky_cloud.shader" />
-    <None Include="Assets\Project\CS\CokeBottlePbd\Shader\BottlePilePbd.compute" />
     <None Include="Assets\ANGRY MESH\Stylized Pack - Meadow Environment\Documentation - Meadow Environment.txt" />
-    <None Include="Assets\Project\CS\Grass_cartoon\Shader\Grass_cartoon_shader.shader" />
-    <None Include="Assets\Project\CS\New_Grass\shader\NewGrassVoronoiMap.shader" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectLit.shader" />
     <None Include="Assets\GameAssets\Common\Shaders\ASE_Template_URPLit.shader" />
-    <None Include="Assets\Project\Shaders\Includes\NoiseSampler.hlsl" />
     <None Include="Assets\GameAssets\Worlds\Meadow\Chunks\Chunk_001_000\chunk_manifest.json" />
     <None Include="Assets\ThirdParty\Shop\Suntail Village\Shaders\Suntail_Foliage.shader" />
     <None Include="Assets\csc.rsp" />
     <None Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\FramebufferFetch\FrameBufferFetch.shader" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatIndirectCombat.hlsl" />
-    <None Include="Assets\Project\Tools\AngryMeshSourcesImport\Profiles\angry_mesh_sources_import_state.json" />
-    <None Include="Assets\Project\Crowds\VAT\Shader\CrowdVatCombatTracer.shader" />
     <None Include="Assets\GameAssets\Common\Shaders\S_VFX_VPOMesh.shader" />
-    <None Include="Assets\Project\CS\caroon_Tree\Shader\StylizedTreeCrown.compute" />
-    <None Include="Assets\Project\CS\New_Grass\shader\NewGrassBezierBladeToonMid.shader" />
-    <None Include="Assets\Project\CS\New_Grass\Tree\new\LeafTest.shader" />
     <None Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\ValidationConfig.json" />
-    <None Include="Assets\Project\Tools\Templates\LegacyRenderTemplates\Shader\ProceduralInstance.shader" />
     <None Include="Assets\GameAssets\Common\Shaders\S_Props.shader" />
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.0.46f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
@@ -1000,11 +883,11 @@
     <Reference Include="Unity.TerrainTools">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.TerrainTools.dll</HintPath>
     </Reference>
-    <Reference Include="Unity.Timeline">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Timeline.dll</HintPath>
-    </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Editor.Shared">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.RenderPipelines.Core.Editor.Shared.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.Timeline">
+      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Timeline.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\UnityEngine.UI.dll</HintPath>
@@ -1157,10 +1040,6 @@
     <ProjectReference Include="PPv2URPConverters.csproj">
       <Project>{37c30cd7-b2d8-910c-8e5d-1a0072966721}</Project>
       <Name>PPv2URPConverters</Name>
-    </ProjectReference>
-    <ProjectReference Include="Qianxia.RenderDocCapture.Shared.csproj">
-      <Project>{cc7944d5-6efd-df27-2d17-0e7e4f1e5604}</Project>
-      <Name>Qianxia.RenderDocCapture.Shared</Name>
     </ProjectReference>
     <ProjectReference Include="Unity.RenderPipelines.Universal.Editor.csproj">
       <Project>{e624241b-e836-dc79-10c3-3d8d48935409}</Project>

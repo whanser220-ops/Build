@@ -46,46 +46,10 @@
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.0.46f1\Editor\Data\Tools\Unity.SourceGenerators\Unity.UIToolkit.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Project\Characters\Qianxia\Editor\QianxiaFbxImportConfigurator.cs" />
-    <Compile Include="Assets\Project\Tools\AssetStats\Editor\QianxiaRuntimeAssetInstanceCounterEditor.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Editor\RenderDocUnityMaterialMetadataExporter.cs" />
-    <Compile Include="Assets\Project\CS\CokeBottlePbd\Editor\BottlePileSceneAutomation.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Editor\QianxiaMeadowSceneMigrationUtility.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Editor\RenTextureApplyUtility.cs" />
     <Compile Include="Assets\Editor\BuildPipeline\Addressables\ProjectAddressablesBuild.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Editor\QianxiaVatBuilder.cs" />
-    <Compile Include="Assets\Project\Tools\Build\Editor\ProjectPlayerBuild.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Editor\QianxiaRigDiagnostics.cs" />
-    <Compile Include="Assets\Project\Tools\AngryMeshSourcesImport\Editor\AngryMeshSourcesImportCli.cs" />
-    <Compile Include="Assets\Project\Tools\AngryMeshSourcesImport\Editor\AngryMeshSourcesImportWorkflow.cs" />
     <Compile Include="Assets\Editor\BuildPipeline\CiPlayerBuild.cs" />
     <Compile Include="Assets\ThirdParty\UnityTutorialInfo\TutorialInfo\Scripts\Editor\ReadmeEditor.cs" />
-    <Compile Include="Assets\Project\Tools\AngryMeshSourcesImport\Editor\AngryMeshSourcesImportData.cs" />
-    <Compile Include="Assets\Project\Tools\AngryMeshSourcesImport\Editor\AngryMeshSourcesImportPostprocessor.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Editor\CrowdVatGlobalGizmoSystem.cs" />
-    <Compile Include="Assets\Project\Tools\AssetStats\Editor\QianxiaAssetStatsAnalyzer.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Editor\CrowdVatBaker.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Editor\ProfilerAnalysisCli.cs" />
-    <Compile Include="Assets\Project\Tools\Build\Editor\AndroidDeviceBuild.cs" />
     <Compile Include="Assets\Editor\BuildPipeline\Addressables\AngryMeshAddressablesReferenceConverter.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Editor\RenMaterialImportUtility.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Editor\WalkingMaterialImportUtility.cs" />
-    <Compile Include="Assets\Project\CS\New_Grass\Editor\NewGrassIndirectRendererEditor.cs" />
-    <Compile Include="Assets\Project\Tools\AngryMeshSourcesImport\Editor\AngryMeshSourcesImportWindow.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Editor\QianxiaCharacterSetupUtility.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Editor\QianxiaLodPrefabBuilder.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Editor\CrowdVatAiDebuggerWindow.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Editor\QianxiaCrowdSceneAutomation.cs" />
-    <Compile Include="Assets\Project\Tools\AssetStats\Editor\QianxiaAssetStatsWindow.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Editor\RenderDocPlayerBuildUtility.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Editor\RenderDocCaptureWindow.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Editor\CrowdVatDiagnostics.cs" />
-    <Compile Include="Assets\Project\Tools\EditorBridge\Editor\QianxiaEditorBridgeServer.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Editor\CrowdVatSquadControllerEditor.cs" />
-    <Compile Include="Assets\Project\Crowds\VAT\Editor\CrowdVatIndirectRendererEditor.cs" />
-    <Compile Include="Assets\Project\Tools\CodexCliBridge\Editor\QianxiaCodexCliWindow.cs" />
-    <Compile Include="Assets\Project\Characters\Qianxia\Editor\QianxiaCrowdTextureApplyUtility.cs" />
-    <Compile Include="Assets\Project\Tools\Performance\Editor\PerformancePoiEditors.cs" />
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.0.46f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
     </Reference>
@@ -914,11 +878,11 @@
     <Reference Include="Unity.TerrainTools">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.TerrainTools.dll</HintPath>
     </Reference>
-    <Reference Include="Unity.Timeline">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Timeline.dll</HintPath>
-    </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Editor.Shared">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.RenderPipelines.Core.Editor.Shared.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.Timeline">
+      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Timeline.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\UnityEngine.UI.dll</HintPath>
@@ -1075,10 +1039,6 @@
     <ProjectReference Include="PPv2URPConverters.csproj">
       <Project>{37c30cd7-b2d8-910c-8e5d-1a0072966721}</Project>
       <Name>PPv2URPConverters</Name>
-    </ProjectReference>
-    <ProjectReference Include="Qianxia.RenderDocCapture.Shared.csproj">
-      <Project>{cc7944d5-6efd-df27-2d17-0e7e4f1e5604}</Project>
-      <Name>Qianxia.RenderDocCapture.Shared</Name>
     </ProjectReference>
     <ProjectReference Include="Unity.RenderPipelines.Universal.Editor.csproj">
       <Project>{e624241b-e836-dc79-10c3-3d8d48935409}</Project>
