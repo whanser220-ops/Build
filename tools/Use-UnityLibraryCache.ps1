@@ -120,7 +120,7 @@ if (-not (Test-IsPathInside -ChildPath $workspaceLibraryFullPath -ParentPath $re
 if (Test-Path $workspaceLibraryPath) {
     $libraryItem = Get-Item -LiteralPath $workspaceLibraryPath -Force
     if (($libraryItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
-        Remove-Item -LiteralPath $workspaceLibraryPath -Force
+        [System.IO.Directory]::Delete($workspaceLibraryFullPath)
     }
     else {
         Remove-Item -LiteralPath $workspaceLibraryPath -Recurse -Force
