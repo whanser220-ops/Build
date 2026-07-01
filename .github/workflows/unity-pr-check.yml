@@ -34,10 +34,11 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
-          lfs: true
+          lfs: false
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             .gitattributes
+            svn-assets.lock.json
             .github/workflows/unity-ci.yml
             .github/workflows/unity-pr-check.yml
             Packages/**
@@ -52,11 +53,9 @@ jobs:
             Assets/Settings.meta
             Assets/Settings/**
             Assets/GameAssets.meta
-            Assets/GameAssets/Worlds.meta
-            Assets/GameAssets/Worlds/Meadow.meta
-            Assets/GameAssets/Worlds/Meadow/Scenes.meta
-            Assets/GameAssets/Worlds/Meadow/Scenes/Scene_MeadowEnvironment_01_Summer.unity
-            Assets/GameAssets/Worlds/Meadow/Scenes/Scene_MeadowEnvironment_01_Summer.unity.meta
+            Assets/GameResources.meta
+            Assets/ThirdParty.meta
+            Assets/ANGRY MESH.meta
             Assets/Project.meta
             Assets/Project/Configs/**
             Assets/Project/Characters/**
@@ -66,9 +65,19 @@ jobs:
             Assets/Tests/Qianxia.meta
             Assets/Tests/Qianxia/**
             tools/Invoke-Unity.ps1
+            tools/Sync-SvnAssets.ps1
             tools/Use-UnityLibraryCache.ps1
             tools/Wait-CiOutput.ps1
             tools/Assert-UnityTestResults.ps1
+
+      - name: Sync SVN art assets
+        shell: powershell
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          .\tools\Sync-SvnAssets.ps1 -ProjectPath .
 
       - name: Attach Unity Library cache
         shell: powershell

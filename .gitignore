@@ -12,6 +12,9 @@ UserSettings/
 # Codex workspace artifacts
 .workspace/
 
+# SVN working copies embedded under Unity asset roots
+.svn/
+
 # IDE
 .idea/
 .vs/
@@ -28,3 +31,9 @@ __pycache__/
 
 # Built output (do not commit)
 DOC/
+
+# Art assets are versioned by SVN and pinned through svn-assets.lock.json.
+/Assets/GameAssets/**
+/Assets/GameResources/**
+/Assets/ThirdParty/**
+/Assets/ANGRY MESH/**

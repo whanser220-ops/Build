@@ -27,6 +27,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             .gitattributes
+            svn-assets.lock.json
             .github/workflows/unity-ci.yml
             .github/workflows/unity-pr-check.yml
             Packages/**
@@ -40,10 +41,15 @@ jobs:
             Assets/Scripts/Addressables/**
             Assets/Settings.meta
             Assets/Settings/**
+            Assets/GameAssets.meta
+            Assets/GameResources.meta
+            Assets/ThirdParty.meta
+            Assets/ANGRY MESH.meta
             Assets/Tests.meta
             Assets/Tests/BuildPipeline.meta
             Assets/Tests/BuildPipeline/**
             tools/Invoke-Unity.ps1
+            tools/Sync-SvnAssets.ps1
             tools/Use-UnityLibraryCache.ps1
             tools/Wait-CiOutput.ps1
             tools/Assert-UnityTestResults.ps1

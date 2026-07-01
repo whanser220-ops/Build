@@ -7,6 +7,8 @@ public sealed class ProjectBuildPipelineTests
 {
     private const string WorkflowPath = ".github/workflows/unity-ci.yml";
     private const string PrWorkflowPath = ".github/workflows/unity-pr-check.yml";
+    private const string SvnAssetsLockPath = "svn-assets.lock.json";
+    private const string SyncSvnAssetsScriptPath = "tools/Sync-SvnAssets.ps1";
     private const string WaitCiOutputScriptPath = "tools/Wait-CiOutput.ps1";
     private const string AssertUnityTestResultsScriptPath = "tools/Assert-UnityTestResults.ps1";
     private const string UnityLibraryCacheScriptPath = "tools/Use-UnityLibraryCache.ps1";
@@ -55,6 +57,8 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains("actions/upload-artifact", workflow);
         ReadRequiredText(WaitCiOutputScriptPath);
         ReadRequiredText(AssertUnityTestResultsScriptPath);
+        ReadRequiredText(SvnAssetsLockPath);
+        ReadRequiredText(SyncSvnAssetsScriptPath);
     }
 
     [Test]
@@ -64,6 +68,7 @@ public sealed class ProjectBuildPipelineTests
 
         StringAssert.Contains("sparse-checkout:", workflow);
         StringAssert.Contains("lfs: false", workflow);
+        StringAssert.Contains(SvnAssetsLockPath, workflow);
         StringAssert.Contains(".github/workflows/unity-pr-check.yml", workflow);
         StringAssert.Contains("ProjectSettings/**", workflow);
         StringAssert.Contains("Packages/**", workflow);
@@ -72,7 +77,12 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains("Assets/Scripts/Addressables.meta", workflow);
         StringAssert.Contains("Assets/Scripts/Addressables/**", workflow);
         StringAssert.Contains("Assets/Settings/**", workflow);
+        StringAssert.Contains("Assets/GameAssets.meta", workflow);
+        StringAssert.Contains("Assets/GameResources.meta", workflow);
+        StringAssert.Contains("Assets/ThirdParty.meta", workflow);
+        StringAssert.Contains("Assets/ANGRY MESH.meta", workflow);
         StringAssert.Contains("Assets/Tests/BuildPipeline/**", workflow);
+        StringAssert.Contains("tools/Sync-SvnAssets.ps1", workflow);
         StringAssert.Contains("tools/Assert-UnityTestResults.ps1", workflow);
         StringAssert.Contains("tools/Use-UnityLibraryCache.ps1", workflow);
         Assert.That(workflow, Does.Not.Contain("lfs: true"));
@@ -90,12 +100,17 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains("cancel-in-progress: true", workflow);
         StringAssert.Contains("Checkout virtual merge commit", workflow);
         StringAssert.Contains("refs/pull/${{ github.event.pull_request.number }}/merge", workflow);
-        StringAssert.Contains("lfs: true", workflow);
+        StringAssert.Contains("lfs: false", workflow);
+        StringAssert.Contains(SvnAssetsLockPath, workflow);
+        StringAssert.Contains("Sync SVN art assets", workflow);
+        StringAssert.Contains("tools/Sync-SvnAssets.ps1", workflow);
+        StringAssert.Contains("SVN_USERNAME", workflow);
         StringAssert.Contains("Use-UnityLibraryCache.ps1 -ProjectPath .", workflow);
         StringAssert.Contains("-assemblyNames Project.BuildPipeline.EditMode.Tests", workflow);
         StringAssert.Contains("-assemblyNames Project.Qianxia.EditMode.Tests", workflow);
         StringAssert.Contains("Assets/Project/Characters/**", workflow);
-        Assert.That(workflow, Does.Not.Contain("Assets/ThirdParty"));
+        Assert.That(workflow, Does.Not.Contain("Assets/GameAssets/Worlds/Meadow/Scenes/Scene_MeadowEnvironment_01_Summer.unity"));
+        Assert.That(workflow, Does.Not.Contain("Assets/ThirdParty/**"));
         Assert.That(workflow, Does.Not.Contain("Build Android development APK"));
         Assert.That(workflow, Does.Not.Contain("Build Windows development player"));
         Assert.That(workflow, Does.Not.Contain(AndroidOutputPath));

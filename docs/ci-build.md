@@ -26,8 +26,8 @@
 ## 构建流程
 
 1. Checkout 仓库。
-   - CI 使用 sparse checkout，只拉取 `ProjectSettings/`、`Packages/`、`Assets/Editor/`、`Assets/Scripts/Addressables/`、`Assets/Settings/`、`Assets/Tests/BuildPipeline/` 与 `tools/` 中的构建脚本。
-   - `Assets/Project/` 与 `Assets/ThirdParty/` 不进入构建管线 job 的 checkout 范围。
+   - CI 使用 sparse checkout，只拉取 `ProjectSettings/`、`Packages/`、`Assets/Editor/`、`Assets/Scripts/Addressables/`、`Assets/Settings/`、`Assets/Tests/BuildPipeline/`、`svn-assets.lock.json` 与 `tools/` 中的构建脚本。
+   - 美术资产由 SVN 管理，Git checkout 只保留 `Assets/GameAssets.meta`、`Assets/GameResources.meta`、`Assets/ThirdParty.meta`、`Assets/ANGRY MESH.meta` 等顶层目录 `.meta`。
 2. 挂载本机持久 `Library/` cache。
 3. 清理 `.workspace/builds` 与本轮 CI 日志；不要删除 `Library/`。
 4. 运行构建链路 EditMode 测试：
@@ -61,10 +61,23 @@
 PR 快检只服务“能不能合并”，不出完整包：
 
 1. Checkout 虚拟合并提交 `refs/pull/<PR>/merge`，该 ref 对应 PR head 合入 PR base/目标分支后的临时结果。
-2. 挂载同一个本机持久 `Library/` cache。
-3. 运行构建管线 EditMode Tests。
-4. 运行当前 feature 相关的 EditMode 单元测试，例如 `Project.Qianxia.EditMode.Tests`。
-5. 上传测试日志，不上传 Android APK 或 Windows ZIP。
+2. 根据 `svn-assets.lock.json` 运行 `tools/Sync-SvnAssets.ps1`，把 SVN 美术资产同步到锁定 revision。
+3. 挂载同一个本机持久 `Library/` cache。
+4. 运行构建管线 EditMode Tests。
+5. 运行当前 feature 相关的 EditMode 单元测试，例如 `Project.Qianxia.EditMode.Tests`。
+6. 上传测试日志，不上传 Android APK 或 Windows ZIP。
+
+## SVN 美术资产
+
+Git 仓库不再跟踪运行时和源美术资产内容。当前 SVN 仓库为 `https://localhost/svn/Unity6-ArtAssets`，Git 通过根目录 `svn-assets.lock.json` 固定 exact revision。
+
+任何依赖完整美术资产的 CI job 都应在 Unity 启动前运行：
+
+```powershell
+.\tools\Sync-SvnAssets.ps1 -ProjectPath .
+```
+
+自托管 runner 需要通过凭据缓存或 `SVN_USERNAME` / `SVN_PASSWORD` secret 提供 SVN 访问凭据。
 
 ## Library cache
 
