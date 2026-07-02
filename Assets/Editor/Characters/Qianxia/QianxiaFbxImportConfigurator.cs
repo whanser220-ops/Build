@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class QianxiaFbxImportConfigurator : AssetPostprocessor
 {
-    public const string ModelAssetPath = "Assets/GameResources/Characters/Qianxia/SourceModels/Qianxia_Rokoko_BlenderClean.fbx";
+    public const string ModelAssetPath = "Assets/GameResources/Characters/Qianxia/Meshs/Qianxia_Rokoko_BlenderClean.fbx";
     public const string WalkAssetPath = "Assets/GameResources/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
     public const string SourceAnimationsRoot = "Assets/GameResources/Characters/Qianxia/SourceAnimations/";
 

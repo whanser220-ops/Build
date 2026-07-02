@@ -10,9 +10,10 @@ public static class QianxiaCharacterSetupUtility
 {
     private const string ExternalModelPath = @"D:\mouxin\mhy\qianxia\Qianxia_Rokoko_BlenderClean.fbx";
     private const string ExternalWalkPath = @"D:\mouxin\donghua\Walking.fbx";
-    private const string SourceModelsFolder = "Assets/GameResources/Characters/Qianxia/SourceModels";
+    private const string SourceModelsFolder = "Assets/GameResources/Characters/Qianxia/Meshs";
     private const string SourceAnimationsFolder = "Assets/GameResources/Characters/Qianxia/SourceAnimations";
     private const string SourceWalkFolder = "Assets/GameResources/Characters/Qianxia/SourceAnimations/Walk";
+    private const string CharacterMaterialsFolder = "Assets/GameResources/Characters/Qianxia/Materials";
     private const string GeneratedFolder = "Assets/GameAssets/Characters/Qianxia/Generated";
     private const string AnimatorControllerPath = GeneratedFolder + "/QianxiaLocomotion.controller";
     private const string PrefabPath = GeneratedFolder + "/QianxiaThirdPerson.prefab";
@@ -132,6 +133,7 @@ public static class QianxiaCharacterSetupUtility
         modelInstance.transform.localRotation = Quaternion.identity;
         modelInstance.transform.localScale = Vector3.one;
 
+        ApplyCharacterMaterials(modelInstance);
         AlignModelToGround(modelInstance.transform);
         Bounds modelBounds = CalculateCombinedBounds(modelInstance);
 
@@ -227,6 +229,52 @@ public static class QianxiaCharacterSetupUtility
             bounds.Encapsulate(renderers[i].bounds);
 
         return bounds;
+    }
+
+    private static void ApplyCharacterMaterials(GameObject modelInstance)
+    {
+        Material[] materials = LoadCharacterMaterials();
+        Renderer[] renderers = modelInstance.GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer renderer in renderers)
+            renderer.sharedMaterials = materials;
+    }
+
+    private static Material[] LoadCharacterMaterials()
+    {
+        string[] materialNames =
+        {
+            "Qianxia_00_颜",
+            "Qianxia_01_颜2",
+            "Qianxia_02_口线",
+            "Qianxia_03_口舌",
+            "Qianxia_04_齿",
+            "Qianxia_05_睫眉",
+            "Qianxia_06_睫2",
+            "Qianxia_07_白目",
+            "Qianxia_08_目",
+            "Qianxia_09_目光",
+            "Qianxia_10_目光2",
+            "Qianxia_11_目影",
+            "Qianxia_12_髮",
+            "Qianxia_13_前髪",
+            "Qianxia_14_新規",
+            "Qianxia_15_肌",
+            "Qianxia_16_体",
+            "Qianxia_17_饰",
+            "Qianxia_18_饰2",
+            "Qianxia_19_髮+"
+        };
+
+        Material[] materials = new Material[materialNames.Length];
+        for (int i = 0; i < materialNames.Length; i++)
+        {
+            string materialPath = $"{CharacterMaterialsFolder}/{materialNames[i]}.mat";
+            materials[i] = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if (materials[i] == null)
+                throw new InvalidOperationException($"Qianxia material not found: {materialPath}");
+        }
+
+        return materials;
     }
 
     private static void EnsureFolder(string assetPath)

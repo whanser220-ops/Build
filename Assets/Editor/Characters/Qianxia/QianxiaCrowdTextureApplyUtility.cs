@@ -7,7 +7,7 @@ using UnityEngine;
 
 public static class QianxiaCrowdTextureApplyUtility
 {
-    private const string SourceWalkingFbxPath = "Assets/GameResources/Characters/Qianxia/SourceModels/Ch36_nonPBR@Walking.fbx";
+    private const string SourceWalkingFbxPath = "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx";
     private const string OutputTextureFolder = "Assets/GameAssets/Characters/Qianxia/Generated/Textures/Walking";
     private const string DiffuseTextureName = "Ch36_1001_Diffuse.png";
     private const string NormalTextureName = "Ch36_1001_Normal.png";
