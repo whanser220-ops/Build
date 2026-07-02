@@ -1,23 +1,11 @@
 {
   "schemaVersion": 1,
   "repositoryUrl": "https://localhost/svn/Unity6-ArtAssets",
-  "revision": 4,
+  "revision": 5,
   "roots": [
-    {
-      "repositoryPath": "GameAssets",
-      "localPath": "Assets/GameAssets"
-    },
     {
       "repositoryPath": "GameResources",
       "localPath": "Assets/GameResources"
-    },
-    {
-      "repositoryPath": "ThirdParty",
-      "localPath": "Assets/ThirdParty"
-    },
-    {
-      "repositoryPath": "ANGRY MESH",
-      "localPath": "Assets/ANGRY MESH"
     }
   ]
 }

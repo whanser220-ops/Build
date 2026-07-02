@@ -103,4 +103,4 @@ Assets/GameAssets/Worlds/Meadow/Scenes
 - VAT 烘焙编辑器代码：`Assets/Editor/Crowds/VAT/`
 - VAT shader 资源：`Assets/GameAssets/Common/Shaders/Crowds/VAT/`
 
-其中 `Assets/GameAssets/**` �?`Assets/GameResources/**` 继续�?SVN 管理，Git 不新�?LFS 规则�?
+其中只有 `Assets/GameResources/**` 继续由 SVN 管理，Git 不新增 LFS 规则。
