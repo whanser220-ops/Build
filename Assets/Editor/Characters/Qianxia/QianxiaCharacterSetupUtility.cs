@@ -67,6 +67,24 @@ public static class QianxiaCharacterSetupUtility
         PrefabUtility.InstantiatePrefab(prefab);
     }
 
+    [MenuItem("Tools/Qianxia/Repair Third Person Prefab Materials")]
+    public static void RepairThirdPersonPrefabMaterials()
+    {
+        GameObject prefabRoot = PrefabUtility.LoadPrefabContents(PrefabPath);
+        try
+        {
+            ApplyCharacterMaterials(prefabRoot);
+            PrefabUtility.SaveAsPrefabAsset(prefabRoot, PrefabPath);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            Debug.Log($"Qianxia third-person prefab materials repaired: {PrefabPath}");
+        }
+        finally
+        {
+            PrefabUtility.UnloadPrefabContents(prefabRoot);
+        }
+    }
+
     private static AnimatorController CreateOrReplaceAnimatorController()
     {
         if (AssetDatabase.DeleteAsset(AnimatorControllerPath))
@@ -241,37 +259,37 @@ public static class QianxiaCharacterSetupUtility
 
     private static Material[] LoadCharacterMaterials()
     {
-        string[] materialNames =
+        string[] materialGuids =
         {
-            "Qianxia_00_颜",
-            "Qianxia_01_颜2",
-            "Qianxia_02_口线",
-            "Qianxia_03_口舌",
-            "Qianxia_04_齿",
-            "Qianxia_05_睫眉",
-            "Qianxia_06_睫2",
-            "Qianxia_07_白目",
-            "Qianxia_08_目",
-            "Qianxia_09_目光",
-            "Qianxia_10_目光2",
-            "Qianxia_11_目影",
-            "Qianxia_12_髮",
-            "Qianxia_13_前髪",
-            "Qianxia_14_新規",
-            "Qianxia_15_肌",
-            "Qianxia_16_体",
-            "Qianxia_17_饰",
-            "Qianxia_18_饰2",
-            "Qianxia_19_髮+"
+            "b46f3eeedb7bf704b83510a043342a8c",
+            "4b85c70482764ff49a2da8af82ecee21",
+            "2d78d9e294998a846bc9d30b6c9d5896",
+            "d9ecb26aa71b30e4b9ba38e5b3d8730b",
+            "951b24c35b2ecb541a7c014851346347",
+            "610d10a14a02c5948b5c60835eab067f",
+            "b9d75e898eaa94b429c55c332e40c36c",
+            "fcb948bc39845da4586134435870f8aa",
+            "85218bbfe919ef94697fddcdd8aa5a3d",
+            "2d5a9e1e500fa6347b218f61e3cf51e1",
+            "56c6dad6a9778e14088f3d57aaf6aa5b",
+            "7b5007af745a13e4c9b21a6b49f88f87",
+            "797f7b2682e319b48bd7b97ef161a69c",
+            "3e7e2e2540304fb48810c9716962fb4f",
+            "ceff811f6bf8a9a49b5e689119575a62",
+            "472fc137ba5200945b2ca6be4e7b6e42",
+            "64ac40502423a2540a61e9a5e31a7c1c",
+            "7774097e240e59e46967b792d8a433a3",
+            "36d4d94b635356c4f8936e2a1bfd2d20",
+            "ceb1397485c9c264ea3a5347f8862de2"
         };
 
-        Material[] materials = new Material[materialNames.Length];
-        for (int i = 0; i < materialNames.Length; i++)
+        Material[] materials = new Material[materialGuids.Length];
+        for (int i = 0; i < materialGuids.Length; i++)
         {
-            string materialPath = $"{CharacterMaterialsFolder}/{materialNames[i]}.mat";
+            string materialPath = AssetDatabase.GUIDToAssetPath(materialGuids[i]);
             materials[i] = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
             if (materials[i] == null)
-                throw new InvalidOperationException($"Qianxia material not found: {materialPath}");
+                throw new InvalidOperationException($"Qianxia material not found for GUID: {materialGuids[i]}");
         }
 
         return materials;
