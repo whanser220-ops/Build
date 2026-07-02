@@ -108,7 +108,8 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains("Use-UnityLibraryCache.ps1 -ProjectPath .", workflow);
         StringAssert.Contains("-assemblyNames Project.BuildPipeline.EditMode.Tests", workflow);
         StringAssert.Contains("-assemblyNames Project.Qianxia.EditMode.Tests", workflow);
-        StringAssert.Contains("Assets/Project/Characters/**", workflow);
+        StringAssert.Contains("Assets/GameAssets/Characters/Qianxia/**", workflow);
+        StringAssert.Contains("Assets/GameResources/Characters/Qianxia/**", workflow);
         Assert.That(workflow, Does.Not.Contain("Assets/GameAssets/Worlds/Meadow/Scenes/Scene_MeadowEnvironment_01_Summer.unity"));
         Assert.That(workflow, Does.Not.Contain("Assets/ThirdParty/**"));
         Assert.That(workflow, Does.Not.Contain("Build Android development APK"));
