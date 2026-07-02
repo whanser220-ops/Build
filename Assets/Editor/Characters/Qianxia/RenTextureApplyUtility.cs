@@ -22,11 +22,11 @@ public static class RenTextureApplyUtility
     {
         Texture2D diffuseTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(DiffuseTexturePath);
         if (diffuseTexture == null)
-            throw new InvalidOperationException($"未找到贴图资�? {DiffuseTexturePath}");
+            throw new InvalidOperationException($"Diffuse texture not found: {DiffuseTexturePath}");
 
         Shader shader = Shader.Find("Universal Render Pipeline/Lit");
         if (shader == null)
-            throw new InvalidOperationException("未找�?URP/Lit Shader�?);
+            throw new InvalidOperationException("URP/Lit shader not found.");
 
         EnsureFolder(MaterialFolderPath);
 
@@ -35,7 +35,7 @@ public static class RenTextureApplyUtility
 
         ModelImporter importer = AssetImporter.GetAtPath(RenAssetPath) as ModelImporter;
         if (importer == null)
-            throw new InvalidOperationException($"未能加载 ModelImporter: {RenAssetPath}");
+            throw new InvalidOperationException($"Unable to load ModelImporter: {RenAssetPath}");
 
         importer.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), "Ch36_Body"), materialA);
         importer.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), "Ch36_Body.001"), materialB);

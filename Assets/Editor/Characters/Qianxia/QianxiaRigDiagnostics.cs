@@ -27,7 +27,7 @@ public static class QianxiaRigDiagnostics
         Texture2D boneTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(BoneTextureAssetPath);
 
         if (motionSourceAsset == null || vatTargetAsset == null || walkClip == null || boneTexture == null)
-            throw new InvalidOperationException("千夏骨架诊断所需资源缺失�?);
+            throw new InvalidOperationException("Required Qianxia rig diagnostics assets are missing.");
 
         GameObject motionRoot = null;
         GameObject vatRoot = null;
@@ -48,7 +48,7 @@ public static class QianxiaRigDiagnostics
                 .FirstOrDefault(avatar => avatar != null && avatar.isValid);
 
             if (motionRenderer == null || vatRenderer == null)
-                throw new InvalidOperationException("诊断未找�?SkinnedMeshRenderer�?);
+                throw new InvalidOperationException("Diagnostics could not find a SkinnedMeshRenderer.");
 
             Dictionary<string, Transform> motionBones = motionRenderer.bones
                 .Where(bone => bone != null)
