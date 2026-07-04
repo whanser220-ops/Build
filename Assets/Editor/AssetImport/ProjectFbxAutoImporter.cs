@@ -484,7 +484,7 @@ internal static class ProjectFbxPostprocessRules
 
 internal static class ProjectFbxNaming
 {
-    private static readonly Regex LodRegex = new Regex(@"(?:^|[_\-.])LOD(?<index>\d+)(?:$|[_\-.])", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex LodRegex = new Regex(@"(?<![A-Za-z0-9])LOD(?<index>\d+)(?![A-Za-z0-9])", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public static bool IsLodNode(string name)
     {
@@ -497,8 +497,14 @@ internal static class ProjectFbxNaming
         if (string.IsNullOrWhiteSpace(name))
             return false;
 
-        Match match = LodRegex.Match(name);
-        return match.Success && int.TryParse(match.Groups["index"].Value, out index);
+        MatchCollection matches = LodRegex.Matches(name);
+        for (int i = matches.Count - 1; i >= 0; i--)
+        {
+            if (int.TryParse(matches[i].Groups["index"].Value, out index))
+                return true;
+        }
+
+        return false;
     }
 
     public static bool IsCollisionNode(string name)

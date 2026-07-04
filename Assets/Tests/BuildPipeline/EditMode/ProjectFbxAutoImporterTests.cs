@@ -65,6 +65,18 @@ public sealed class ProjectFbxAutoImporterTests
         Assert.That(collisionKind, Is.EqualTo("Box"));
     }
 
+    [Test]
+    public void NamingRulesUseLastLodTokenWhenExporterRepeatsBaseLodName()
+    {
+        Assert.That(TryGetLodIndex("zz_LOD0_LOD0", out int lod0), Is.True);
+        Assert.That(TryGetLodIndex("zz_LOD0_LOD1", out int lod1), Is.True);
+        Assert.That(TryGetLodIndex("zz_LOD0_LOD2", out int lod2), Is.True);
+
+        Assert.That(lod0, Is.EqualTo(0));
+        Assert.That(lod1, Is.EqualTo(1));
+        Assert.That(lod2, Is.EqualTo(2));
+    }
+
     private static object Evaluate(string assetPath, object signals)
     {
         Type rulesType = GetRequiredType("ProjectFbxImportRules");

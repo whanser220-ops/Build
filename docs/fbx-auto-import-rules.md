@@ -127,6 +127,7 @@ Clip 设置：
 - `LOD1`
 - `LOD2`
 - 也支持以下分隔形式：`SM_Tree_LOD0`、`SM_Tree-LOD1`、`SM_Tree.LOD2`
+- 如果同一个节点名里出现多个 LOD 标记，取最后一个，例如 `zz_LOD0_LOD2` 归为 `LOD2`
 
 导入后，如果至少找到 2 个 LOD 渲染组，会在根对象上生成或更新 `LODGroup`。
 
