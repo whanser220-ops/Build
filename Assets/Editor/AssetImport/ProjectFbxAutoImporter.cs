@@ -50,6 +50,30 @@ public sealed class ProjectFbxAutoImporter : AssetPostprocessor
     }
 }
 
+internal static class ProjectFbxAutoImporterRuleDocs
+{
+    private const string RulesDocumentPath = "docs/fbx-auto-import-rules.md";
+    private const string MenuPath = "Tools/Asset Import/FBX Auto Import Rules";
+
+    [MenuItem(MenuPath)]
+    private static void OpenRulesDocument()
+    {
+        string fullPath = GetRulesDocumentFullPath();
+        if (!File.Exists(fullPath))
+        {
+            Debug.LogWarning($"FBX auto import rules document not found: {RulesDocumentPath}");
+            return;
+        }
+
+        EditorUtility.OpenWithDefaultApp(fullPath);
+    }
+
+    private static string GetRulesDocumentFullPath()
+    {
+        return Path.GetFullPath(Path.Combine(Application.dataPath, "..", RulesDocumentPath));
+    }
+}
+
 internal enum ProjectFbxImportKind
 {
     StaticModel,
