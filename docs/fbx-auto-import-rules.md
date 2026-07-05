@@ -178,6 +178,39 @@ Clip 设置：
 - 如果材质槽名以 `M_` 开头，再尝试去掉 `M_` 后匹配。
 - 找不到时保留 Unity 原始材质。
 
+## Meadow FBX 自动生成 Prefab
+
+导入完成后，以下路径内的静态模型 FBX 会自动生成一份对应的 Unity prefab：
+
+```text
+Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/**/*.fbx
+```
+
+输出路径固定映射到：
+
+```text
+Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/<分类>/P_<模型名>.prefab
+```
+
+命名规则：
+
+- `SM_` 前缀会替换为 `P_`，例如 `SM_ZZ_1.fbx` 生成 `P_ZZ_1.prefab`。
+- 非 `SM_` 开头的模型会追加 `P_` 前缀，例如 `zzz.fbx` 生成 `P_zzz.prefab`。
+
+示例：
+
+| 输入 FBX | 输出 Prefab |
+|---|---|
+| `Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Flowers/SM_ZZ_1.fbx` | `Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/Flowers/P_ZZ_1.prefab` |
+| `Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Background/SM_Hill_01.fbx` | `Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/Background/P_Hill_01.prefab` |
+
+安全策略：
+
+- 目标 prefab 已存在时默认跳过，不覆盖人工编辑。
+- 只监听 `.fbx` 导入，生成 `.prefab` 引发的二次导入不会再次触发本规则。
+- 生成的 prefab 是普通 Unity prefab，会复制导入后模型层级并保留 `LODGroup`、Renderer、Collider、材质和 mesh 引用。
+- 当前不自动生成 Summer / Autumn / Winter 季节材质变体，也不自动生成 `P_TD_` 版本。
+
 ## 当前特例
 
 `Assets/Editor/Characters/Qianxia/QianxiaFbxImportConfigurator.cs` 仍保留千夏角色的专用导入设置。该特例与通用 FBX 自动导入器并存；如果两边规则都命中，应优先检查千夏专用脚本和本文档是否需要同步。

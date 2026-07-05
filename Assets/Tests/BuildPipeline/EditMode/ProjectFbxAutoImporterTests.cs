@@ -77,6 +77,45 @@ public sealed class ProjectFbxAutoImporterTests
         Assert.That(lod2, Is.EqualTo(2));
     }
 
+    [Test]
+    public void MeadowPrefabRules_MapMeshFolderToSharedPrefabFolder()
+    {
+        Assert.That(TryGetMeadowPrefabPath(
+            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Flowers/SM_ZZ_1.fbx",
+            out string prefabPath), Is.True);
+
+        Assert.That(prefabPath, Is.EqualTo(
+            "Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/Flowers/P_ZZ_1.prefab"));
+    }
+
+    [Test]
+    public void MeadowPrefabRules_RemovesSmPrefixWhenMakingPrefabName()
+    {
+        Assert.That(MakeMeadowPrefabName("SM_Hill_01"), Is.EqualTo("P_Hill_01"));
+    }
+
+    [Test]
+    public void MeadowPrefabRules_AddsPPrefixForNonSmModelNames()
+    {
+        Assert.That(MakeMeadowPrefabName("zzz"), Is.EqualTo("P_zzz"));
+    }
+
+    [Test]
+    public void MeadowPrefabRules_IgnoreFbxOutsideMeadowSourceMeshes()
+    {
+        Assert.That(TryGetMeadowPrefabPath(
+            "Assets/GameResources/Characters/Qianxia/Meshs/Qianxia_Rokoko_BlenderClean.fbx",
+            out string prefabPath), Is.False);
+        Assert.That(prefabPath, Is.Null);
+    }
+
+    [Test]
+    public void MeadowPrefabRules_SkipWhenTargetPrefabAlreadyExists()
+    {
+        Assert.That(ShouldCreateMeadowPrefab(
+            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Flowers/SM_Flower_10_03.fbx"), Is.False);
+    }
+
     private static object Evaluate(string assetPath, object signals)
     {
         Type rulesType = GetRequiredType("ProjectFbxImportRules");
@@ -126,6 +165,30 @@ public sealed class ProjectFbxAutoImporterTests
             .Invoke(null, args);
         kind = args[1].ToString();
         return result;
+    }
+
+    private static bool TryGetMeadowPrefabPath(string assetPath, out string prefabPath)
+    {
+        Type rulesType = GetRequiredType("ProjectFbxMeadowPrefabGenerationRules");
+        object[] args = { assetPath, null };
+        bool result = (bool)rulesType.GetMethod("TryGetPrefabPath", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, args);
+        prefabPath = args[1] as string;
+        return result;
+    }
+
+    private static string MakeMeadowPrefabName(string modelName)
+    {
+        Type rulesType = GetRequiredType("ProjectFbxMeadowPrefabGenerationRules");
+        return (string)rulesType.GetMethod("MakePrefabName", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, new object[] { modelName });
+    }
+
+    private static bool ShouldCreateMeadowPrefab(string assetPath)
+    {
+        Type rulesType = GetRequiredType("ProjectFbxMeadowPrefabGenerationRules");
+        return (bool)rulesType.GetMethod("ShouldCreatePrefab", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, new object[] { assetPath });
     }
 
     private static void AssertProfile(object profile, string expectedKind)

@@ -8,6 +8,15 @@ using UnityEngine;
 
 public sealed class ProjectFbxAutoImporter : AssetPostprocessor
 {
+    private static void OnPostprocessAllAssets(
+        string[] importedAssets,
+        string[] deletedAssets,
+        string[] movedAssets,
+        string[] movedFromAssetPaths)
+    {
+        ProjectFbxMeadowPrefabGenerator.EnqueueImportedAssets(importedAssets);
+    }
+
     private void OnPreprocessModel()
     {
         if (assetImporter is not ModelImporter importer || !ProjectFbxImportRules.IsFbx(assetPath))
@@ -47,6 +56,161 @@ public sealed class ProjectFbxAutoImporter : AssetPostprocessor
             collisionKind = ProjectFbxUserPropertyReader.FindString(propNames, values, "Collider");
 
         ProjectFbxCollisionBuilder.AddRequestedCollider(go, collisionKind);
+    }
+}
+
+internal static class ProjectFbxMeadowPrefabGenerationRules
+{
+    private const string SourceRoot = "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/";
+    private const string PrefabRoot = "Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/";
+
+    public static bool TryGetPrefabPath(string assetPath, out string prefabPath)
+    {
+        prefabPath = null;
+
+        string normalizedPath = NormalizeAssetPath(assetPath);
+        if (!ProjectFbxImportRules.IsFbx(normalizedPath) ||
+            !normalizedPath.StartsWith(SourceRoot, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        string relativePath = normalizedPath.Substring(SourceRoot.Length);
+        if (string.IsNullOrWhiteSpace(relativePath))
+            return false;
+
+        string relativeFolder = Path.GetDirectoryName(relativePath)?.Replace('\\', '/');
+        string modelName = Path.GetFileNameWithoutExtension(relativePath);
+        if (string.IsNullOrWhiteSpace(modelName))
+            return false;
+
+        string prefabName = MakePrefabName(modelName);
+        string targetFolder = string.IsNullOrWhiteSpace(relativeFolder)
+            ? PrefabRoot.TrimEnd('/')
+            : PrefabRoot.TrimEnd('/') + "/" + relativeFolder;
+
+        prefabPath = targetFolder + "/" + prefabName + ".prefab";
+        return true;
+    }
+
+    public static string MakePrefabName(string modelName)
+    {
+        if (string.IsNullOrWhiteSpace(modelName))
+            return "P_Model";
+
+        return modelName.StartsWith("SM_", StringComparison.OrdinalIgnoreCase)
+            ? "P_" + modelName.Substring(3)
+            : "P_" + modelName;
+    }
+
+    public static bool ShouldCreatePrefab(string assetPath)
+    {
+        return TryGetPrefabPath(assetPath, out string prefabPath) &&
+            AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) == null;
+    }
+
+    private static string NormalizeAssetPath(string assetPath)
+    {
+        return (assetPath ?? string.Empty).Replace('\\', '/');
+    }
+}
+
+internal static class ProjectFbxMeadowPrefabGenerator
+{
+    private static readonly HashSet<string> PendingAssetPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private static bool s_DelayCallRegistered;
+
+    public static void EnqueueImportedAssets(IEnumerable<string> assetPaths)
+    {
+        if (assetPaths == null)
+            return;
+
+        bool addedAny = false;
+        foreach (string assetPath in assetPaths)
+        {
+            if (!ProjectFbxMeadowPrefabGenerationRules.TryGetPrefabPath(assetPath, out _))
+                continue;
+
+            PendingAssetPaths.Add(NormalizeAssetPath(assetPath));
+            addedAny = true;
+        }
+
+        if (!addedAny || s_DelayCallRegistered)
+            return;
+
+        s_DelayCallRegistered = true;
+        EditorApplication.delayCall += ProcessPendingAssets;
+    }
+
+    private static void ProcessPendingAssets()
+    {
+        s_DelayCallRegistered = false;
+
+        string[] assetPaths = PendingAssetPaths.ToArray();
+        PendingAssetPaths.Clear();
+
+        foreach (string assetPath in assetPaths)
+            CreatePrefabIfMissing(assetPath);
+    }
+
+    private static void CreatePrefabIfMissing(string assetPath)
+    {
+        if (!ProjectFbxMeadowPrefabGenerationRules.TryGetPrefabPath(assetPath, out string prefabPath))
+            return;
+
+        if (AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) != null)
+        {
+            Debug.Log($"Meadow FBX prefab already exists, skip auto-create: {prefabPath}");
+            return;
+        }
+
+        GameObject modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+        if (modelAsset == null)
+        {
+            Debug.LogWarning($"Unable to load Meadow FBX model asset for prefab generation: {assetPath}");
+            return;
+        }
+
+        EnsureFolder(Path.GetDirectoryName(prefabPath)?.Replace('\\', '/'));
+
+        GameObject instance = UnityEngine.Object.Instantiate(modelAsset);
+        instance.name = Path.GetFileNameWithoutExtension(prefabPath);
+
+        try
+        {
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(instance, prefabPath);
+            if (prefab == null)
+                Debug.LogWarning($"Failed to auto-create Meadow FBX prefab: {prefabPath}");
+            else
+                Debug.Log($"Auto-created Meadow FBX prefab: {prefabPath}");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(instance);
+        }
+    }
+
+    private static void EnsureFolder(string folderPath)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath) || AssetDatabase.IsValidFolder(folderPath))
+            return;
+
+        string[] segments = folderPath.Split('/');
+        if (segments.Length == 0)
+            return;
+
+        string current = segments[0];
+        for (int i = 1; i < segments.Length; i++)
+        {
+            string next = current + "/" + segments[i];
+            if (!AssetDatabase.IsValidFolder(next))
+                AssetDatabase.CreateFolder(current, segments[i]);
+
+            current = next;
+        }
+    }
+
+    private static string NormalizeAssetPath(string assetPath)
+    {
+        return (assetPath ?? string.Empty).Replace('\\', '/');
     }
 }
 
