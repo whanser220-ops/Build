@@ -17,6 +17,8 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
     private static readonly Color DirectoryTagColor = new Color(0.22f, 0.58f, 0.95f, 1f);
     private static readonly Color PackageTagColor = new Color(0.95f, 0.62f, 0.2f, 1f);
     private static readonly Color AssetClassTagColor = new Color(0.38f, 0.78f, 0.38f, 1f);
+    private static readonly Color RuleTypeTagColor = new Color(0.72f, 0.48f, 0.9f, 1f);
+    private static readonly Color InheritedSettingColor = new Color(1f, 0.78f, 0.18f, 1f);
 
     private ProjectAssetImportRuleSet _ruleSet;
     private SerializedObject _serializedRuleSet;
@@ -161,11 +163,16 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
                 filter.FindPropertyRelative("packageNameMatch"),
                 filter.FindPropertyRelative("packageNamePattern"));
             DrawAssetClassRow(filter.FindPropertyRelative("assetClass"));
-            DrawImportSettingsPanel(rule, filter.FindPropertyRelative("assetClass"), index);
+            ProjectRuleInheritedSettings inheritedSettings = BuildInheritedDirectorySettings(rules, index);
+            DrawImportSettingsPanel(rule, filter.FindPropertyRelative("assetClass"), index, inheritedSettings);
         }
     }
 
-    private void DrawImportSettingsPanel(SerializedProperty rule, SerializedProperty assetClass, int ruleIndex)
+    private void DrawImportSettingsPanel(
+        SerializedProperty rule,
+        SerializedProperty assetClass,
+        int ruleIndex,
+        ProjectRuleInheritedSettings inheritedSettings)
     {
         ProjectAssetClass currentClass = (ProjectAssetClass)assetClass.enumValueIndex;
         string[] tabs = ProjectAssetImportSettingCatalog.GetTabs(currentClass);
@@ -183,15 +190,18 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         {
             if (string.Equals(tab, "Custom", StringComparison.OrdinalIgnoreCase))
             {
-                DrawCustomSettings(rule.FindPropertyRelative("customImportSettings").FindPropertyRelative("propertyItems"));
+                DrawCustomSettings(rule.FindPropertyRelative("customImportSettings").FindPropertyRelative("propertyItems"), inheritedSettings);
                 return;
             }
 
-            DrawSettingDefinitions(rule, ProjectAssetImportSettingCatalog.GetDefinitions(currentClass, tab));
+            DrawSettingDefinitions(rule, ProjectAssetImportSettingCatalog.GetDefinitions(currentClass, tab), inheritedSettings);
         }
     }
 
-    private static void DrawSettingDefinitions(SerializedProperty rule, ProjectAssetImportSettingDefinition[] definitions)
+    private static void DrawSettingDefinitions(
+        SerializedProperty rule,
+        ProjectAssetImportSettingDefinition[] definitions,
+        ProjectRuleInheritedSettings inheritedSettings)
     {
         foreach (ProjectAssetImportSettingDefinition definition in definitions)
         {
@@ -204,7 +214,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
                 continue;
             }
 
-            DrawImportSettingRow(rule, definition);
+            DrawImportSettingRow(rule, definition, inheritedSettings);
         }
     }
 
@@ -238,7 +248,10 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         return false;
     }
 
-    private static void DrawImportSettingRow(SerializedProperty rule, ProjectAssetImportSettingDefinition definition)
+    private static void DrawImportSettingRow(
+        SerializedProperty rule,
+        ProjectAssetImportSettingDefinition definition,
+        ProjectRuleInheritedSettings inheritedSettings)
     {
         SerializedProperty setting = FindRelative(rule, definition.settingPath);
         if (setting == null)
@@ -253,8 +266,13 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         rect.x += indentOffset;
         rect.width -= indentOffset;
 
+        ProjectInheritedImportSetting inherited = inheritedSettings?.Find(definition.propertyPath);
+        Rect inheritedMarkerRect = new Rect(rect.x + 5f, rect.y + 7f, 8f, 8f);
         Rect overrideRect = new Rect(rect.x + 18f, rect.y + 1f, LabelWidth - 24f, rect.height - 2f);
         Rect valueRect = new Rect(rect.x + LabelWidth, rect.y + 1f, rect.width - LabelWidth - 10f, rect.height - 2f);
+
+        if (inherited != null && !overrideEnabled.boolValue)
+            DrawInheritedSettingMarker(inheritedMarkerRect, inherited);
 
         bool wasEnabled = overrideEnabled.boolValue;
         bool isEnabled = EditorGUI.ToggleLeft(
@@ -272,7 +290,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
 
         using (new EditorGUI.DisabledScope(!isEnabled))
         {
-            string currentValue = isEnabled ? value.stringValue : definition.defaultValue;
+            string currentValue = isEnabled ? value.stringValue : inherited?.value ?? definition.defaultValue;
             string nextValue = DrawDefinitionValue(valueRect, definition, currentValue);
             if (isEnabled)
             {
@@ -280,6 +298,14 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
                 value.stringValue = nextValue;
             }
         }
+    }
+
+    private static void DrawInheritedSettingMarker(Rect rect, ProjectInheritedImportSetting inherited)
+    {
+        EditorGUI.DrawRect(rect, InheritedSettingColor);
+        EditorGUI.LabelField(rect, new GUIContent(
+            string.Empty,
+            $"Inherited from {inherited.sourceRuleName} ({inherited.ruleTypeLabel})\nValue: {inherited.value}"));
     }
 
     private static string DrawDefinitionValue(Rect rect, ProjectAssetImportSettingDefinition definition, string currentValue)
@@ -302,13 +328,13 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         }
     }
 
-    private static void DrawCustomSettings(SerializedProperty propertyItems)
+    private static void DrawCustomSettings(SerializedProperty propertyItems, ProjectRuleInheritedSettings inheritedSettings)
     {
         if (propertyItems == null)
             return;
 
         for (int i = 0; i < propertyItems.arraySize; i++)
-            DrawCustomPropertyRow(propertyItems, i);
+            DrawCustomPropertyRow(propertyItems, i, inheritedSettings);
 
         Rect rect = EditorGUILayout.GetControlRect(false, RowHeight);
         float indentOffset = EditorGUI.indentLevel * 15f;
@@ -319,22 +345,30 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
             AddPropertyItem(propertyItems, "Custom.Property", ProjectAssetPropertyValueKind.String, string.Empty);
     }
 
-    private static void DrawCustomPropertyRow(SerializedProperty propertyItems, int index)
+    private static void DrawCustomPropertyRow(
+        SerializedProperty propertyItems,
+        int index,
+        ProjectRuleInheritedSettings inheritedSettings)
     {
         SerializedProperty item = propertyItems.GetArrayElementAtIndex(index);
         SerializedProperty propertyPath = item.FindPropertyRelative("propertyPath");
         SerializedProperty valueKind = item.FindPropertyRelative("valueKind");
         SerializedProperty value = item.FindPropertyRelative("value");
+        ProjectInheritedImportSetting inherited = inheritedSettings?.Find(propertyPath.stringValue);
 
         Rect rect = EditorGUILayout.GetControlRect(false, RowHeight);
         float indentOffset = EditorGUI.indentLevel * 15f;
         rect.x += indentOffset;
         rect.width -= indentOffset;
 
+        Rect inheritedMarkerRect = new Rect(rect.x + 5f, rect.y + 7f, 8f, 8f);
         Rect pathRect = new Rect(rect.x + 18f, rect.y + 1f, LabelWidth - 24f, rect.height - 2f);
         Rect kindRect = new Rect(rect.x + LabelWidth, rect.y + 1f, 110f, rect.height - 2f);
         Rect valueRect = new Rect(kindRect.xMax + 6f, rect.y + 1f, rect.width - LabelWidth - 148f, rect.height - 2f);
         Rect deleteRect = new Rect(rect.xMax - SmallButtonWidth - 4f, rect.y + 1f, SmallButtonWidth, rect.height - 2f);
+
+        if (inherited != null)
+            DrawInheritedSettingMarker(inheritedMarkerRect, inherited);
 
         propertyPath.stringValue = EditorGUI.TextField(pathRect, propertyPath.stringValue);
         EditorGUI.PropertyField(kindRect, valueKind, GUIContent.none);
@@ -344,6 +378,159 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
             propertyItems.DeleteArrayElementAtIndex(index);
             GUIUtility.ExitGUI();
         }
+    }
+
+    private static ProjectRuleInheritedSettings BuildInheritedDirectorySettings(SerializedProperty rules, int currentIndex)
+    {
+        ProjectRuleInheritedSettings inheritedSettings = new ProjectRuleInheritedSettings();
+        if (rules == null || currentIndex < 0 || currentIndex >= rules.arraySize)
+            return inheritedSettings;
+
+        SerializedProperty currentRule = rules.GetArrayElementAtIndex(currentIndex);
+        SerializedProperty currentFilter = currentRule.FindPropertyRelative("filter");
+        ProjectAssetStringMatchMode currentDirectoryMode =
+            (ProjectAssetStringMatchMode)currentFilter.FindPropertyRelative("directoryMatch").enumValueIndex;
+        if (currentDirectoryMode == ProjectAssetStringMatchMode.Any)
+            return inheritedSettings;
+
+        string currentDirectoryPattern = NormalizeDirectoryPatternForInheritance(
+            currentDirectoryMode,
+            currentFilter.FindPropertyRelative("directoryPattern").stringValue);
+        if (string.IsNullOrWhiteSpace(currentDirectoryPattern))
+            return inheritedSettings;
+
+        ProjectAssetClass currentAssetClass = (ProjectAssetClass)currentFilter.FindPropertyRelative("assetClass").enumValueIndex;
+        for (int i = 0; i < rules.arraySize; i++)
+        {
+            if (i == currentIndex)
+                continue;
+
+            SerializedProperty sourceRule = rules.GetArrayElementAtIndex(i);
+            if (!sourceRule.FindPropertyRelative("enabled").boolValue)
+                continue;
+
+            SerializedProperty sourceFilter = sourceRule.FindPropertyRelative("filter");
+            ProjectAssetStringMatchMode sourceDirectoryMode =
+                (ProjectAssetStringMatchMode)sourceFilter.FindPropertyRelative("directoryMatch").enumValueIndex;
+            if (sourceDirectoryMode == ProjectAssetStringMatchMode.Any)
+                continue;
+
+            ProjectAssetClass sourceAssetClass = (ProjectAssetClass)sourceFilter.FindPropertyRelative("assetClass").enumValueIndex;
+            if (!AssetClassesCanInherit(sourceAssetClass, currentAssetClass))
+                continue;
+
+            string sourceDirectoryPattern = NormalizeDirectoryPatternForInheritance(
+                sourceDirectoryMode,
+                sourceFilter.FindPropertyRelative("directoryPattern").stringValue);
+            if (!IsAncestorDirectoryPattern(sourceDirectoryPattern, currentDirectoryPattern))
+                continue;
+
+            ProjectInheritedRuleRank rank = ProjectInheritedRuleRank.FromPattern(sourceDirectoryPattern, i);
+            string sourceRuleName = sourceRule.FindPropertyRelative("name").stringValue;
+            string ruleTypeLabel = BuildRuleTypeLabel(sourceFilter);
+            AddInheritedKnownSettings(inheritedSettings, sourceRule, currentAssetClass, sourceRuleName, ruleTypeLabel, rank);
+            AddInheritedCustomSettings(inheritedSettings, sourceRule, sourceRuleName, ruleTypeLabel, rank);
+        }
+
+        return inheritedSettings;
+    }
+
+    private static void AddInheritedKnownSettings(
+        ProjectRuleInheritedSettings inheritedSettings,
+        SerializedProperty sourceRule,
+        ProjectAssetClass currentAssetClass,
+        string sourceRuleName,
+        string ruleTypeLabel,
+        ProjectInheritedRuleRank rank)
+    {
+        foreach (ProjectAssetImportSettingDefinition definition in ProjectAssetImportSettingCatalog.GetDefinitionsForAssetClass(currentAssetClass))
+        {
+            if (definition.isSection)
+                continue;
+
+            SerializedProperty setting = FindRelative(sourceRule, definition.settingPath);
+            if (setting == null)
+                continue;
+
+            SerializedProperty overrideEnabled = setting.FindPropertyRelative("overrideEnabled");
+            if (overrideEnabled == null || !overrideEnabled.boolValue)
+                continue;
+
+            SerializedProperty value = setting.FindPropertyRelative("value");
+            inheritedSettings.AddOrReplace(new ProjectInheritedImportSetting
+            {
+                propertyPath = definition.propertyPath,
+                valueKind = definition.valueKind,
+                value = string.IsNullOrEmpty(value.stringValue) ? definition.defaultValue : value.stringValue,
+                sourceRuleName = string.IsNullOrWhiteSpace(sourceRuleName) ? "Unnamed Rule" : sourceRuleName,
+                ruleTypeLabel = ruleTypeLabel,
+                rank = rank
+            });
+        }
+    }
+
+    private static void AddInheritedCustomSettings(
+        ProjectRuleInheritedSettings inheritedSettings,
+        SerializedProperty sourceRule,
+        string sourceRuleName,
+        string ruleTypeLabel,
+        ProjectInheritedRuleRank rank)
+    {
+        SerializedProperty customItems = sourceRule.FindPropertyRelative("customImportSettings").FindPropertyRelative("propertyItems");
+        if (customItems == null)
+            return;
+
+        for (int i = 0; i < customItems.arraySize; i++)
+        {
+            SerializedProperty item = customItems.GetArrayElementAtIndex(i);
+            string propertyPath = item.FindPropertyRelative("propertyPath").stringValue;
+            if (string.IsNullOrWhiteSpace(propertyPath))
+                continue;
+
+            inheritedSettings.AddOrReplace(new ProjectInheritedImportSetting
+            {
+                propertyPath = propertyPath,
+                valueKind = (ProjectAssetPropertyValueKind)item.FindPropertyRelative("valueKind").enumValueIndex,
+                value = item.FindPropertyRelative("value").stringValue,
+                sourceRuleName = string.IsNullOrWhiteSpace(sourceRuleName) ? "Unnamed Rule" : sourceRuleName,
+                ruleTypeLabel = ruleTypeLabel,
+                rank = rank
+            });
+        }
+    }
+
+    private static bool AssetClassesCanInherit(ProjectAssetClass sourceAssetClass, ProjectAssetClass currentAssetClass)
+    {
+        return sourceAssetClass == ProjectAssetClass.Any ||
+            currentAssetClass == ProjectAssetClass.Any ||
+            sourceAssetClass == currentAssetClass;
+    }
+
+    private static string NormalizeDirectoryPatternForInheritance(ProjectAssetStringMatchMode mode, string pattern)
+    {
+        if (mode == ProjectAssetStringMatchMode.Any ||
+            mode == ProjectAssetStringMatchMode.Regex ||
+            string.IsNullOrWhiteSpace(pattern))
+            return string.Empty;
+
+        string normalized = pattern.Replace('\\', '/').Trim().Trim('/');
+        if (mode == ProjectAssetStringMatchMode.Glob)
+            normalized = normalized.Replace("*", string.Empty).Replace("?", string.Empty).Trim('/');
+
+        return normalized;
+    }
+
+    private static bool IsAncestorDirectoryPattern(string ancestorPattern, string currentPattern)
+    {
+        if (string.IsNullOrWhiteSpace(ancestorPattern) ||
+            string.IsNullOrWhiteSpace(currentPattern) ||
+            string.Equals(ancestorPattern, currentPattern, StringComparison.OrdinalIgnoreCase) ||
+            ancestorPattern.Length >= currentPattern.Length)
+            return false;
+
+        return currentPattern.StartsWith(ancestorPattern + "/", StringComparison.OrdinalIgnoreCase) ||
+            currentPattern.IndexOf("/" + ancestorPattern + "/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            currentPattern.IndexOf(ancestorPattern + "/", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private void DrawPreviewPanel()
@@ -967,9 +1154,29 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         if (!string.IsNullOrWhiteSpace(ruleName))
             DrawRuleSummaryText(ref x, rect, ruleName, EditorGUIUtility.isProSkin ? new Color(0.84f, 0.84f, 0.84f, 1f) : new Color(0.18f, 0.18f, 0.18f, 1f), false);
 
+        DrawRuleSummaryText(ref x, rect, "[Type: " + BuildRuleTypeLabel(filter) + "]", RuleTypeTagColor, true);
         DrawRuleSummaryText(ref x, rect, BuildMatchSummary("Dir", directoryMatch, directoryPattern), DirectoryTagColor, true);
         DrawRuleSummaryText(ref x, rect, BuildMatchSummary("Pkg", packageNameMatch, packageNamePattern), PackageTagColor, true);
         DrawRuleSummaryText(ref x, rect, "[Class: " + GetEnumName(assetClass) + "]", AssetClassTagColor, true);
+    }
+
+    private static string BuildRuleTypeLabel(SerializedProperty filter)
+    {
+        SerializedProperty directoryMatch = filter.FindPropertyRelative("directoryMatch");
+        SerializedProperty packageNameMatch = filter.FindPropertyRelative("packageNameMatch");
+        SerializedProperty assetClass = filter.FindPropertyRelative("assetClass");
+
+        ProjectAssetStringMatchMode packageMode = (ProjectAssetStringMatchMode)packageNameMatch.enumValueIndex;
+        if (packageMode != ProjectAssetStringMatchMode.Any)
+            return packageMode == ProjectAssetStringMatchMode.Equals ? "Package Name Exact" : "Package Name";
+
+        if ((ProjectAssetStringMatchMode)directoryMatch.enumValueIndex != ProjectAssetStringMatchMode.Any)
+            return "Directory";
+
+        if ((ProjectAssetClass)assetClass.enumValueIndex != ProjectAssetClass.Any)
+            return "Asset Class";
+
+        return "Fallback";
     }
 
     private static string BuildMatchSummary(string label, SerializedProperty matchMode, SerializedProperty pattern)
@@ -1070,6 +1277,83 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
 
             current = next;
         }
+    }
+}
+
+internal sealed class ProjectRuleInheritedSettings
+{
+    private readonly Dictionary<string, ProjectInheritedImportSetting> _settingsByPropertyPath =
+        new Dictionary<string, ProjectInheritedImportSetting>(StringComparer.OrdinalIgnoreCase);
+
+    public ProjectInheritedImportSetting Find(string propertyPath)
+    {
+        if (string.IsNullOrWhiteSpace(propertyPath))
+            return null;
+
+        return _settingsByPropertyPath.TryGetValue(propertyPath, out ProjectInheritedImportSetting setting)
+            ? setting
+            : null;
+    }
+
+    public void AddOrReplace(ProjectInheritedImportSetting setting)
+    {
+        if (setting == null || string.IsNullOrWhiteSpace(setting.propertyPath))
+            return;
+
+        if (_settingsByPropertyPath.TryGetValue(setting.propertyPath, out ProjectInheritedImportSetting existing) &&
+            existing.rank.CompareTo(setting.rank) >= 0)
+            return;
+
+        _settingsByPropertyPath[setting.propertyPath] = setting;
+    }
+}
+
+internal sealed class ProjectInheritedImportSetting
+{
+    public string propertyPath;
+    public ProjectAssetPropertyValueKind valueKind;
+    public string value;
+    public string sourceRuleName;
+    public string ruleTypeLabel;
+    public ProjectInheritedRuleRank rank;
+}
+
+internal struct ProjectInheritedRuleRank : IComparable<ProjectInheritedRuleRank>
+{
+    private int _directoryDepth;
+    private int _directoryPatternLength;
+    private int _sourceIndex;
+
+    public static ProjectInheritedRuleRank FromPattern(string directoryPattern, int sourceIndex)
+    {
+        string normalized = (directoryPattern ?? string.Empty).Replace('\\', '/').Trim().Trim('/');
+        return new ProjectInheritedRuleRank
+        {
+            _directoryDepth = CountSegments(normalized),
+            _directoryPatternLength = normalized.Length,
+            _sourceIndex = sourceIndex
+        };
+    }
+
+    public int CompareTo(ProjectInheritedRuleRank other)
+    {
+        int result = _directoryDepth.CompareTo(other._directoryDepth);
+        if (result != 0)
+            return result;
+
+        result = _directoryPatternLength.CompareTo(other._directoryPatternLength);
+        if (result != 0)
+            return result;
+
+        return other._sourceIndex.CompareTo(_sourceIndex);
+    }
+
+    private static int CountSegments(string directoryPattern)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPattern))
+            return 0;
+
+        return directoryPattern.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries).Length;
     }
 }
 
