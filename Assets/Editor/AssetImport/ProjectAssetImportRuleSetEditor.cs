@@ -1485,6 +1485,7 @@ internal sealed class ProjectAssetProcessorPropertyChange
 public sealed class ProjectAssetProcessorReportWindow : EditorWindow
 {
     private string _report;
+    private string[] _reportLines = Array.Empty<string>();
     private Vector2 _scroll;
 
     public static void ShowReport(string title, string report)
@@ -1492,6 +1493,7 @@ public sealed class ProjectAssetProcessorReportWindow : EditorWindow
         ProjectAssetProcessorReportWindow window = GetWindow<ProjectAssetProcessorReportWindow>("Asset Processor Report");
         window.titleContent = new GUIContent(string.IsNullOrWhiteSpace(title) ? "Asset Processor Report" : title);
         window._report = report ?? string.Empty;
+        window._reportLines = SplitReportLines(window._report);
         window._scroll = Vector2.zero;
         window.minSize = new Vector2(720f, 420f);
         window.Show();
@@ -1508,8 +1510,79 @@ public sealed class ProjectAssetProcessorReportWindow : EditorWindow
         }
 
         _scroll = EditorGUILayout.BeginScrollView(_scroll);
-        EditorGUILayout.TextArea(_report ?? string.Empty, GUILayout.ExpandHeight(true));
+        DrawReportLines();
         EditorGUILayout.EndScrollView();
+    }
+
+    private void DrawReportLines()
+    {
+        if (_reportLines == null || _reportLines.Length == 0)
+        {
+            EditorGUILayout.LabelField(string.Empty);
+            return;
+        }
+
+        foreach (string line in _reportLines)
+        {
+            if (TryExtractAssetPath(line, out string assetPath))
+            {
+                DrawAssetPathLine(line, assetPath);
+                continue;
+            }
+
+            EditorGUILayout.SelectableLabel(line ?? string.Empty, GUILayout.Height(EditorGUIUtility.singleLineHeight));
+        }
+    }
+
+    private static void DrawAssetPathLine(string line, string assetPath)
+    {
+        GUIContent content = new GUIContent(line, "点击后在 Project/Inspector 中选中这个资产");
+        GUIStyle style = new GUIStyle(EditorStyles.linkLabel)
+        {
+            alignment = TextAnchor.MiddleLeft,
+            wordWrap = false
+        };
+
+        Rect rect = EditorGUILayout.GetControlRect(false, EditorGUIUtility.singleLineHeight);
+        EditorGUIUtility.AddCursorRect(rect, MouseCursor.Link);
+        if (GUI.Button(rect, content, style))
+            SelectAsset(assetPath);
+    }
+
+    private static void SelectAsset(string assetPath)
+    {
+        UnityEngine.Object asset = AssetDatabase.LoadMainAssetAtPath(assetPath);
+        if (asset == null)
+        {
+            EditorUtility.DisplayDialog("资产不存在", assetPath, "OK");
+            return;
+        }
+
+        Selection.activeObject = asset;
+        EditorGUIUtility.PingObject(asset);
+        EditorUtility.FocusProjectWindow();
+    }
+
+    private static bool TryExtractAssetPath(string line, out string assetPath)
+    {
+        assetPath = null;
+        if (string.IsNullOrWhiteSpace(line))
+            return false;
+
+        string trimmed = line.Trim();
+        if (!trimmed.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        assetPath = trimmed;
+        return AssetDatabase.LoadMainAssetAtPath(assetPath) != null;
+    }
+
+    private static string[] SplitReportLines(string report)
+    {
+        return (report ?? string.Empty)
+            .Replace("\r\n", "\n")
+            .Replace('\r', '\n')
+            .Split('\n');
     }
 }
 
