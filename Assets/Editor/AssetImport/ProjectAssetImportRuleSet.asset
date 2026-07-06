@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f4b33f1d5434e7f9cf2d7b0e7a13142, type: 3}
   m_Name: ProjectAssetImportRuleSet
   m_EditorClassIdentifier:
+  applyRuleOnSave: 0
   applyAllMatchingRules: 1
   rules:
   - name: Common Model Defaults

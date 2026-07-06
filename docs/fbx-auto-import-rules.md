@@ -10,7 +10,7 @@
 - 导入器脚本：`Assets/Editor/AssetImport/ProjectFbxAutoImporter.cs`
 - 通用规则资产：`Assets/Editor/AssetImport/ProjectAssetImportRuleSet.asset`
 - 规则资产类型：`Assets/Editor/AssetImport/ProjectAssetImportRuleSet.cs`
-- 规则编辑器 UI：`Tools/Asset Import/Asset Import Rules`
+- 规则编辑器 UI：`Tools/Asset Import/Asset Processor`
 - 说明文档菜单：`Tools/Asset Import/FBX Auto Import Rules`
 
 ## 编辑器 UI
@@ -18,12 +18,12 @@
 在 Unity 菜单打开：
 
 ```text
-Tools/Asset Import/Asset Import Rules
+Tools/Asset Import/Asset Processor
 ```
 
-也可以在 Project 面板选中 `ProjectAssetImportRuleSet.asset`，Inspector 顶部点击 `Open Rule Editor`。
+也可以在 Project 面板选中 `ProjectAssetImportRuleSet.asset`，Inspector 顶部点击 `Open Asset Processor`。
 
-窗口左侧是规则列表；右侧按“Asset Filter”和“Property Items”编辑当前规则。`Match Preview` 可以输入一个资产路径和资产类型，预览该资产会命中哪些规则，以及最终会写入哪些 importer 属性。
+窗口是面板式布局：顶部是 `Plugins - Asset Processor` 和 `Export / Import`，下面依次是 `Global Settings`、`Rule Settings`、`Rule Items`。每条规则展开后直接编辑 `Directory`、`Package Name`、`Asset Class` 和 `Property Items`。
 
 ## 通用规则结构
 
