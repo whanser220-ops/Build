@@ -68,6 +68,8 @@ Assets/GameResources
 - `Regex`
 - `Glob`
 
+`Directory` 路径不需要手写，规则面板会通过文件夹选择按钮从当前项目的 `Assets/` 目录下选择，并保存为 `Assets/...` 项目相对路径。选择项目外目录会被拒绝。
+
 例如筛选全项目所有以 `_N` 结尾的贴图：
 
 ```text

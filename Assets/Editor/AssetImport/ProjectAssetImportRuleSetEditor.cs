@@ -154,7 +154,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
             DrawPropertyRow("启用", enabled);
 
             SerializedProperty filter = rule.FindPropertyRelative("filter");
-            DrawMatchRow(
+            DrawDirectoryMatchRow(
                 "Directory",
                 filter.FindPropertyRelative("directoryMatch"),
                 filter.FindPropertyRelative("directoryPattern"));
@@ -649,6 +649,74 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         {
             pattern.stringValue = EditorGUI.TextField(patternRect, pattern.stringValue);
         }
+    }
+
+    private static void DrawDirectoryMatchRow(string label, SerializedProperty matchMode, SerializedProperty pattern)
+    {
+        Rect rect = BeginRow(label);
+        float modeWidth = 132f;
+        float buttonWidth = 30f;
+        Rect modeRect = new Rect(rect.x, rect.y + 1f, modeWidth, rect.height - 2f);
+        Rect patternRect = new Rect(modeRect.xMax + 6f, rect.y + 1f, rect.width - modeWidth - buttonWidth - 16f, rect.height - 2f);
+        Rect buttonRect = new Rect(patternRect.xMax + 4f, rect.y + 1f, buttonWidth, rect.height - 2f);
+
+        EditorGUI.PropertyField(modeRect, matchMode, GUIContent.none);
+        bool canSelectDirectory = (ProjectAssetStringMatchMode)matchMode.enumValueIndex != ProjectAssetStringMatchMode.Any;
+        using (new EditorGUI.DisabledScope(!canSelectDirectory))
+        {
+            EditorGUI.TextField(patternRect, pattern.stringValue);
+            if (GUI.Button(buttonRect, new GUIContent("...", "Select a project folder"), EditorStyles.miniButton))
+            {
+                string selectedPath = EditorUtility.OpenFolderPanel(
+                    "Select Directory Rule Folder",
+                    ResolveInitialDirectoryPickerPath(pattern.stringValue),
+                    string.Empty);
+                if (TryConvertToAssetFolderPath(selectedPath, out string assetFolderPath))
+                    pattern.stringValue = assetFolderPath;
+                else if (!string.IsNullOrWhiteSpace(selectedPath))
+                    EditorUtility.DisplayDialog("Invalid Folder", "Please select a folder under this project's Assets directory.", "OK");
+            }
+        }
+    }
+
+    private static string ResolveInitialDirectoryPickerPath(string currentPattern)
+    {
+        if (!string.IsNullOrWhiteSpace(currentPattern))
+        {
+            string normalizedPattern = currentPattern.Replace('\\', '/').Trim();
+            if (normalizedPattern.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(normalizedPattern, "Assets", StringComparison.OrdinalIgnoreCase))
+            {
+                string fullPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", normalizedPattern));
+                if (Directory.Exists(fullPath))
+                    return fullPath;
+            }
+        }
+
+        return Application.dataPath;
+    }
+
+    private static bool TryConvertToAssetFolderPath(string selectedPath, out string assetFolderPath)
+    {
+        assetFolderPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(selectedPath))
+            return false;
+
+        string fullSelectedPath = Path.GetFullPath(selectedPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string fullAssetsPath = Path.GetFullPath(Application.dataPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.Equals(fullSelectedPath, fullAssetsPath, StringComparison.OrdinalIgnoreCase))
+        {
+            assetFolderPath = "Assets";
+            return true;
+        }
+
+        if (!fullSelectedPath.StartsWith(fullAssetsPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
+            !fullSelectedPath.StartsWith(fullAssetsPath + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        string relativePath = fullSelectedPath.Substring(fullAssetsPath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        assetFolderPath = ("Assets/" + relativePath).Replace('\\', '/');
+        return AssetDatabase.IsValidFolder(assetFolderPath);
     }
 
     private static void DrawAssetClassRow(SerializedProperty assetClass)
