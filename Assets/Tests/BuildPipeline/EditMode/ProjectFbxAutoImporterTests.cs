@@ -44,6 +44,11 @@ public sealed class ProjectFbxAutoImporterTests
         AssertResolvedProperty(
             "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx",
             "Model",
+            "ModelImporter.animationType",
+            "Human");
+        AssertResolvedProperty(
+            "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx",
+            "Model",
             "ModelImporter.clipNameFromAsset",
             "true");
         AssertResolvedProperty(
@@ -96,6 +101,154 @@ public sealed class ProjectFbxAutoImporterTests
         Assert.That(StringMatches("Regex", "_N$", "Wood_N"), Is.True);
         Assert.That(StringMatches("Glob", "*LOD*", "SM_Tree_LOD2"), Is.True);
         Assert.That(StringMatches("Contains", "Props/", "Assets/GameResources/Characters/Hero"), Is.False);
+    }
+
+    [Test]
+    public void ImportRuleSet_PackageNameRulesOverrideDirectoryAndAssetClassDefaults()
+    {
+        object ruleSet = CreateRuleSetWithRules(
+            CreateImportRule("Model Defaults", "Model", "ModelImporter.addCollider", "false"),
+            CreateImportRule(
+                "Character Directory",
+                "Model",
+                "ModelImporter.addCollider",
+                "false",
+                directoryMatch: "Contains",
+                directoryPattern: "Assets/GameResources/Characters/"),
+            CreateImportRule(
+                "Hero Name",
+                "Model",
+                "ModelImporter.addCollider",
+                "true",
+                packageNameMatch: "EndsWith",
+                packageNamePattern: "_Hero"));
+
+        AssertResolvedProperty(
+            ruleSet,
+            "Assets/GameResources/Characters/Main/Player_Hero.fbx",
+            "Model",
+            "ModelImporter.addCollider",
+            "true");
+    }
+
+    [Test]
+    public void ImportRuleSet_MoreSpecificDirectoryRulesOverrideBroaderDirectoryRules()
+    {
+        object ruleSet = CreateRuleSetWithRules(
+            CreateImportRule(
+                "Characters",
+                "Model",
+                "ModelImporter.addCollider",
+                "false",
+                directoryMatch: "Contains",
+                directoryPattern: "Assets/GameResources/Characters/"),
+            CreateImportRule(
+                "Hero Characters",
+                "Model",
+                "ModelImporter.addCollider",
+                "true",
+                directoryMatch: "Contains",
+                directoryPattern: "Assets/GameResources/Characters/Hero/"));
+
+        AssertResolvedProperty(
+            ruleSet,
+            "Assets/GameResources/Characters/Hero/Body.fbx",
+            "Model",
+            "ModelImporter.addCollider",
+            "true");
+    }
+
+    [Test]
+    public void ImportRuleSet_AssetClassDefaultsRemainWhenHigherPriorityRulesDoNotSetProperty()
+    {
+        object ruleSet = CreateRuleSetWithRules(
+            CreateImportRule("Model Defaults", "Model", "ModelImporter.meshCompression", "Low"),
+            CreateImportRule(
+                "Hero Name",
+                "Model",
+                "ModelImporter.addCollider",
+                "true",
+                packageNameMatch: "EndsWith",
+                packageNamePattern: "_Hero"));
+
+        AssertResolvedProperty(
+            ruleSet,
+            "Assets/GameResources/Characters/Main/Player_Hero.fbx",
+            "Model",
+            "ModelImporter.meshCompression",
+            "Low");
+        AssertResolvedProperty(
+            ruleSet,
+            "Assets/GameResources/Characters/Main/Player_Hero.fbx",
+            "Model",
+            "ModelImporter.addCollider",
+            "true");
+    }
+
+    [Test]
+    public void ImportRuleSet_SamePrioritySameValueDoesNotConflict()
+    {
+        object ruleSet = CreateRuleSetWithRules(
+            CreateImportRule(
+                "Rock Contains",
+                "Model",
+                "ModelImporter.addCollider",
+                "true",
+                packageNameMatch: "Contains",
+                packageNamePattern: "Rock"),
+            CreateImportRule(
+                "Rock EndsWith",
+                "Model",
+                "ModelImporter.addCollider",
+                "true",
+                packageNameMatch: "EndsWith",
+                packageNamePattern: "Rock"));
+
+        object effectiveSettings = BuildEffectiveImportSettings(
+            ruleSet,
+            "Assets/GameResources/Props/BigRock.fbx",
+            "Model");
+
+        Assert.That(GetField<bool>(effectiveSettings, "hasConflicts"), Is.False);
+        AssertResolvedProperty(
+            ruleSet,
+            "Assets/GameResources/Props/BigRock.fbx",
+            "Model",
+            "ModelImporter.addCollider",
+            "true");
+    }
+
+    [Test]
+    public void ImportRuleSet_SamePriorityDifferentValueCreatesConflictAndNoApplicableItems()
+    {
+        object ruleSet = CreateRuleSetWithRules(
+            CreateImportRule(
+                "Rock Contains",
+                "Model",
+                "ModelImporter.addCollider",
+                "true",
+                packageNameMatch: "Contains",
+                packageNamePattern: "Rock"),
+            CreateImportRule(
+                "Rock EndsWith",
+                "Model",
+                "ModelImporter.addCollider",
+                "false",
+                packageNameMatch: "EndsWith",
+                packageNamePattern: "Rock"));
+
+        object effectiveSettings = BuildEffectiveImportSettings(
+            ruleSet,
+            "Assets/GameResources/Props/BigRock.fbx",
+            "Model");
+        Array conflicts = GetField<Array>(effectiveSettings, "conflicts");
+        Array propertyItems = (Array)effectiveSettings.GetType()
+            .GetMethod("ToPropertyItems", BindingFlags.Public | BindingFlags.Instance)
+            .Invoke(effectiveSettings, Array.Empty<object>());
+
+        Assert.That(GetField<bool>(effectiveSettings, "hasConflicts"), Is.True);
+        Assert.That(conflicts.Length, Is.EqualTo(1));
+        Assert.That(propertyItems.Length, Is.EqualTo(0));
     }
 
     [Test]
@@ -416,8 +569,24 @@ public sealed class ProjectFbxAutoImporterTests
         Type ruleSetType = GetRequiredType("ProjectAssetImportRuleSet");
         object ruleSet = ruleSetType.GetMethod("CreateDefaultInstance", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
             .Invoke(null, Array.Empty<object>());
+        return ResolvePropertyValue(ruleSet, assetPath, assetClass, propertyPath);
+    }
+
+    private static void AssertResolvedProperty(
+        object ruleSet,
+        string assetPath,
+        string assetClass,
+        string propertyPath,
+        string expectedValue)
+    {
+        string value = ResolvePropertyValue(ruleSet, assetPath, assetClass, propertyPath);
+        Assert.That(value, Is.EqualTo(expectedValue), assetPath + " / " + propertyPath);
+    }
+
+    private static string ResolvePropertyValue(object ruleSet, string assetPath, string assetClass, string propertyPath)
+    {
         object context = CreateRuleContext(assetPath, assetClass);
-        object effectiveSettings = ruleSetType.GetMethod("BuildEffectiveImportSettings", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+        object effectiveSettings = ruleSet.GetType().GetMethod("BuildEffectiveImportSettings", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
             .Invoke(ruleSet, new[] { context });
 
         Array settings = GetField<Array>(effectiveSettings, "settings");
@@ -428,6 +597,79 @@ public sealed class ProjectFbxAutoImporterTests
         }
 
         return null;
+    }
+
+    private static object BuildEffectiveImportSettings(object ruleSet, string assetPath, string assetClass)
+    {
+        object context = CreateRuleContext(assetPath, assetClass);
+        return ruleSet.GetType().GetMethod("BuildEffectiveImportSettings", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            .Invoke(ruleSet, new[] { context });
+    }
+
+    private static object CreateRuleSetWithRules(params object[] rules)
+    {
+        Type ruleSetType = GetRequiredType("ProjectAssetImportRuleSet");
+        Type ruleType = GetRequiredType("ProjectAssetImportRule");
+        object ruleSet = ScriptableObject.CreateInstance(ruleSetType);
+        Array ruleArray = Array.CreateInstance(ruleType, rules.Length);
+        for (int i = 0; i < rules.Length; i++)
+            ruleArray.SetValue(rules[i], i);
+
+        SetField(ruleSet, "rules", ruleArray);
+        return ruleSet;
+    }
+
+    private static object CreateImportRule(
+        string name,
+        string assetClass,
+        string propertyPath,
+        string value,
+        string directoryMatch = "Any",
+        string directoryPattern = null,
+        string packageNameMatch = "Any",
+        string packageNamePattern = null)
+    {
+        Type ruleType = GetRequiredType("ProjectAssetImportRule");
+        Type filterType = GetRequiredType("ProjectAssetRuleFilter");
+        Type classType = GetRequiredType("ProjectAssetClass");
+        Type matchModeType = GetRequiredType("ProjectAssetStringMatchMode");
+        Type itemType = GetRequiredType("ProjectAssetPropertyItem");
+        Type valueKindType = GetRequiredType("ProjectAssetPropertyValueKind");
+
+        object rule = Activator.CreateInstance(ruleType);
+        object filter = Activator.CreateInstance(filterType);
+        SetField(filter, "assetClass", Enum.Parse(classType, assetClass));
+        SetField(filter, "directoryMatch", Enum.Parse(matchModeType, directoryMatch));
+        SetField(filter, "directoryPattern", directoryPattern);
+        SetField(filter, "packageNameMatch", Enum.Parse(matchModeType, packageNameMatch));
+        SetField(filter, "packageNamePattern", packageNamePattern);
+
+        object item = Activator.CreateInstance(itemType);
+        SetField(item, "propertyPath", propertyPath);
+        SetField(item, "valueKind", Enum.Parse(valueKindType, GuessValueKindName(value)));
+        SetField(item, "value", value);
+
+        Array items = Array.CreateInstance(itemType, 1);
+        items.SetValue(item, 0);
+
+        SetField(rule, "name", name);
+        SetField(rule, "enabled", true);
+        SetField(rule, "filter", filter);
+        SetField(rule, "propertyItems", items);
+        SetField(rule, "legacyPropertyItemsMigrated", false);
+        return rule;
+    }
+
+    private static string GuessValueKindName(string value)
+    {
+        if (bool.TryParse(value, out _))
+            return "Bool";
+        if (int.TryParse(value, out _))
+            return "Int";
+        if (float.TryParse(value, out _))
+            return "Float";
+
+        return "Enum";
     }
 
     private static object CreateRuleContext(string assetPath, string assetClass)

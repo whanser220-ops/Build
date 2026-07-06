@@ -359,6 +359,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
             ProjectAssetRuleContext context = CreatePreviewContext(_previewAssetPath, _previewAssetClass);
             ProjectEffectiveImportSettings effective = _ruleSet.BuildEffectiveImportSettings(context);
             DrawMatchedRules(effective);
+            DrawEffectiveConflicts(effective);
             DrawEffectiveSettings(effective);
         }
     }
@@ -376,6 +377,30 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         }
 
         EditorGUILayout.LabelField("命中规则", rules.Length == 0 ? "无" : builder.ToString());
+    }
+
+    private static void DrawEffectiveConflicts(ProjectEffectiveImportSettings effective)
+    {
+        ProjectEffectiveImportConflict[] conflicts = effective?.conflicts ?? Array.Empty<ProjectEffectiveImportConflict>();
+        if (conflicts.Length == 0)
+        {
+            EditorGUILayout.LabelField("Rule Conflicts", "None");
+            return;
+        }
+
+        EditorGUILayout.LabelField("Rule Conflicts", $"{conflicts.Length} item(s); import settings will not be applied.");
+        using (new EditorGUI.IndentLevelScope())
+        {
+            foreach (ProjectEffectiveImportConflict conflict in conflicts)
+            {
+                EditorGUILayout.LabelField(conflict.propertyPath, conflict.priorityLabel);
+                using (new EditorGUI.IndentLevelScope())
+                {
+                    foreach (ProjectEffectiveImportConflictValue value in conflict.values ?? Array.Empty<ProjectEffectiveImportConflictValue>())
+                        EditorGUILayout.LabelField(value.value, value.sourceRuleName);
+                }
+            }
+        }
     }
 
     private static void DrawEffectiveSettings(ProjectEffectiveImportSettings effective)
@@ -1097,6 +1122,7 @@ internal static class ProjectAssetProcessorRunner
         int changedPropertyCount = 0;
         int appliedAssetCount = 0;
         int skippedPropertyCount = 0;
+        int conflictAssetCount = 0;
 
         try
         {
@@ -1112,9 +1138,15 @@ internal static class ProjectAssetProcessorRunner
                     break;
                 }
 
-                ProjectAssetPropertyItem[] targetItems = ruleSet
-                    .BuildRuleImportSettings(rule, context)
-                    .ToPropertyItems();
+                ProjectEffectiveImportSettings effectiveSettings = ruleSet.BuildEffectiveImportSettings(context);
+                if (effectiveSettings.hasConflicts)
+                {
+                    conflictAssetCount++;
+                    AppendConflicts(report, context.assetPath, effectiveSettings.conflicts);
+                    continue;
+                }
+
+                ProjectAssetPropertyItem[] targetItems = effectiveSettings.ToPropertyItems();
                 List<ProjectAssetProcessorPropertyChange> changes = BuildPropertyChanges(context.importer, targetItems);
 
                 if (changes.Count == 0)
@@ -1152,6 +1184,8 @@ internal static class ProjectAssetProcessorRunner
 
         report.AppendLine();
         report.AppendLine("Summary");
+        if (conflictAssetCount > 0)
+            report.AppendLine($"Rule conflict assets skipped: {conflictAssetCount}");
         report.AppendLine($"需要修改的资产: {changedAssetCount}");
         report.AppendLine($"需要修改的属性: {changedPropertyCount}");
         if (skippedPropertyCount > 0)
@@ -1461,6 +1495,33 @@ internal static class ProjectAssetProcessorRunner
 
         foreach (ProjectAssetRuleContext context in matches)
             report.AppendLine(context.assetPath);
+    }
+
+    private static void AppendConflicts(
+        StringBuilder report,
+        string assetPath,
+        ProjectEffectiveImportConflict[] conflicts)
+    {
+        report.AppendLine(assetPath);
+        report.AppendLine("  [CONFLICT] Import settings were not applied.");
+        foreach (ProjectEffectiveImportConflict conflict in conflicts ?? Array.Empty<ProjectEffectiveImportConflict>())
+        {
+            report.Append("    ")
+                .Append(conflict.propertyPath)
+                .Append(" (")
+                .Append(conflict.priorityLabel)
+                .AppendLine(")");
+
+            foreach (ProjectEffectiveImportConflictValue value in conflict.values ?? Array.Empty<ProjectEffectiveImportConflictValue>())
+            {
+                report.Append("      ")
+                    .Append(value.value)
+                    .Append(" <- ")
+                    .AppendLine(value.sourceRuleName);
+            }
+        }
+
+        report.AppendLine();
     }
 
     private static void AppendChanges(

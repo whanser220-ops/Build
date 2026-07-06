@@ -758,6 +758,7 @@ public sealed class ProjectEffectiveImportSetting
     public ProjectAssetPropertyValueKind valueKind;
     public string value;
     public string sourceRuleName;
+    public string[] sourceRuleNames = Array.Empty<string>();
 
     public ProjectAssetPropertyItem ToPropertyItem()
     {
@@ -770,13 +771,33 @@ public sealed class ProjectEffectiveImportSetting
     }
 }
 
+public sealed class ProjectEffectiveImportConflictValue
+{
+    public ProjectAssetPropertyValueKind valueKind;
+    public string value;
+    public string sourceRuleName;
+    public string[] sourceRuleNames = Array.Empty<string>();
+}
+
+public sealed class ProjectEffectiveImportConflict
+{
+    public string propertyPath;
+    public string priorityLabel;
+    public ProjectEffectiveImportConflictValue[] values = Array.Empty<ProjectEffectiveImportConflictValue>();
+}
+
 public sealed class ProjectEffectiveImportSettings
 {
     public ProjectAssetImportRule[] matchedRules = Array.Empty<ProjectAssetImportRule>();
     public ProjectEffectiveImportSetting[] settings = Array.Empty<ProjectEffectiveImportSetting>();
+    public ProjectEffectiveImportConflict[] conflicts = Array.Empty<ProjectEffectiveImportConflict>();
+    public bool hasConflicts;
 
     public ProjectAssetPropertyItem[] ToPropertyItems()
     {
+        if (hasConflicts)
+            return Array.Empty<ProjectAssetPropertyItem>();
+
         ProjectAssetPropertyItem[] items = new ProjectAssetPropertyItem[settings?.Length ?? 0];
         for (int i = 0; i < items.Length; i++)
             items[i] = settings[i]?.ToPropertyItem();
@@ -962,6 +983,299 @@ public sealed class ProjectAssetRuleContext
     }
 }
 
+internal struct ProjectAssetRulePriority : IComparable<ProjectAssetRulePriority>
+{
+    private int _tier;
+    private int _packageMatchRank;
+    private int _directoryDepth;
+    private int _directoryPatternLength;
+    private int _assetClassRank;
+    private string _label;
+
+    public static ProjectAssetRulePriority FromRule(ProjectAssetImportRule rule)
+    {
+        ProjectAssetRuleFilter filter = rule?.filter ?? new ProjectAssetRuleFilter();
+        ProjectAssetStringMatchMode packageMatch = filter.packageNameMatch;
+        ProjectAssetStringMatchMode directoryMatch = filter.directoryMatch;
+        bool hasPackageName = packageMatch != ProjectAssetStringMatchMode.Any;
+        bool hasDirectory = directoryMatch != ProjectAssetStringMatchMode.Any;
+        bool hasAssetClass = filter.assetClass != ProjectAssetClass.Any;
+
+        int tier;
+        string tierLabel;
+        if (hasPackageName)
+        {
+            tier = 3;
+            tierLabel = packageMatch == ProjectAssetStringMatchMode.Equals
+                ? "Package Name Exact"
+                : "Package Name";
+        }
+        else if (hasDirectory)
+        {
+            tier = 2;
+            tierLabel = "Directory";
+        }
+        else if (hasAssetClass)
+        {
+            tier = 1;
+            tierLabel = "Asset Class";
+        }
+        else
+        {
+            tier = 0;
+            tierLabel = "Fallback";
+        }
+
+        string normalizedDirectory = NormalizePattern(filter.directoryPattern);
+        return new ProjectAssetRulePriority
+        {
+            _tier = tier,
+            _packageMatchRank = packageMatch == ProjectAssetStringMatchMode.Equals ? 2 : hasPackageName ? 1 : 0,
+            _directoryDepth = hasDirectory ? CountDirectorySegments(normalizedDirectory) : 0,
+            _directoryPatternLength = hasDirectory ? normalizedDirectory.Length : 0,
+            _assetClassRank = hasAssetClass ? 1 : 0,
+            _label = tierLabel
+        };
+    }
+
+    public int CompareTo(ProjectAssetRulePriority other)
+    {
+        int result = _tier.CompareTo(other._tier);
+        if (result != 0)
+            return result;
+
+        result = _packageMatchRank.CompareTo(other._packageMatchRank);
+        if (result != 0)
+            return result;
+
+        result = _directoryDepth.CompareTo(other._directoryDepth);
+        if (result != 0)
+            return result;
+
+        result = _directoryPatternLength.CompareTo(other._directoryPatternLength);
+        if (result != 0)
+            return result;
+
+        return _assetClassRank.CompareTo(other._assetClassRank);
+    }
+
+    public string ToLabel()
+    {
+        return string.IsNullOrWhiteSpace(_label) ? "Fallback" : _label;
+    }
+
+    private static string NormalizePattern(string pattern)
+    {
+        return (pattern ?? string.Empty).Replace('\\', '/').Trim().Trim('/');
+    }
+
+    private static int CountDirectorySegments(string normalizedPattern)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedPattern))
+            return 0;
+
+        string[] segments = normalizedPattern.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length;
+    }
+}
+
+internal sealed class ProjectAssetRuleMatch
+{
+    public ProjectAssetImportRule rule;
+    public ProjectAssetRulePriority priority;
+    public int originalIndex;
+}
+
+internal sealed class ProjectAssetRuleContribution
+{
+    public string propertyPath;
+    public ProjectAssetPropertyValueKind valueKind;
+    public string value;
+    public string sourceRuleName;
+    public ProjectAssetRulePriority priority;
+}
+
+internal sealed class ProjectEffectiveImportSettingBuilder
+{
+    private ProjectAssetRulePriority _priority;
+    private string _propertyPath;
+    private ProjectAssetPropertyValueKind _valueKind;
+    private string _value;
+    private readonly List<string> _sourceRuleNames = new List<string>();
+    private List<ProjectEffectiveImportConflictValue> _conflictValues;
+
+    public ProjectEffectiveImportSettingBuilder(ProjectAssetRuleContribution contribution)
+    {
+        Reset(contribution);
+    }
+
+    public bool HasConflict => _conflictValues != null && _conflictValues.Count > 1;
+
+    public void Merge(ProjectAssetRuleContribution contribution)
+    {
+        int priorityComparison = contribution.priority.CompareTo(_priority);
+        if (priorityComparison > 0)
+        {
+            Reset(contribution);
+            return;
+        }
+
+        if (priorityComparison < 0)
+            return;
+
+        if (SameTargetValue(contribution.valueKind, contribution.value))
+        {
+            AddSourceName(contribution.sourceRuleName);
+            return;
+        }
+
+        EnsureConflictValues();
+        AddConflictValue(contribution);
+    }
+
+    public ProjectEffectiveImportSetting ToSetting()
+    {
+        string[] sourceRuleNames = _sourceRuleNames.ToArray();
+        return new ProjectEffectiveImportSetting
+        {
+            propertyPath = _propertyPath,
+            valueKind = _valueKind,
+            value = _value,
+            sourceRuleName = JoinSourceNames(sourceRuleNames),
+            sourceRuleNames = sourceRuleNames
+        };
+    }
+
+    public ProjectEffectiveImportConflict ToConflict()
+    {
+        return new ProjectEffectiveImportConflict
+        {
+            propertyPath = _propertyPath,
+            priorityLabel = _priority.ToLabel(),
+            values = _conflictValues?.ToArray() ?? Array.Empty<ProjectEffectiveImportConflictValue>()
+        };
+    }
+
+    private void Reset(ProjectAssetRuleContribution contribution)
+    {
+        _priority = contribution.priority;
+        _propertyPath = contribution.propertyPath;
+        _valueKind = contribution.valueKind;
+        _value = contribution.value;
+        _sourceRuleNames.Clear();
+        AddSourceName(contribution.sourceRuleName);
+        _conflictValues = null;
+    }
+
+    private void AddSourceName(string sourceRuleName)
+    {
+        string normalizedName = string.IsNullOrWhiteSpace(sourceRuleName) ? "Unnamed Rule" : sourceRuleName;
+        foreach (string existingName in _sourceRuleNames)
+        {
+            if (string.Equals(existingName, normalizedName, StringComparison.Ordinal))
+                return;
+        }
+
+        _sourceRuleNames.Add(normalizedName);
+        if (_conflictValues != null)
+            RefreshCurrentConflictValueSources();
+    }
+
+    private bool SameTargetValue(ProjectAssetPropertyValueKind valueKind, string value)
+    {
+        if (_valueKind != valueKind)
+            return false;
+
+        switch (valueKind)
+        {
+            case ProjectAssetPropertyValueKind.Bool:
+                if (bool.TryParse(_value, out bool leftBool) && bool.TryParse(value, out bool rightBool))
+                    return leftBool == rightBool;
+                break;
+            case ProjectAssetPropertyValueKind.Int:
+                if (int.TryParse(_value, out int leftInt) && int.TryParse(value, out int rightInt))
+                    return leftInt == rightInt;
+                break;
+            case ProjectAssetPropertyValueKind.Float:
+                if (float.TryParse(_value, out float leftFloat) && float.TryParse(value, out float rightFloat))
+                    return Mathf.Abs(leftFloat - rightFloat) <= 0.0001f;
+                break;
+            case ProjectAssetPropertyValueKind.Enum:
+                return string.Equals(_value, value, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(_value ?? string.Empty, value ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    private void EnsureConflictValues()
+    {
+        if (_conflictValues != null)
+            return;
+
+        _conflictValues = new List<ProjectEffectiveImportConflictValue>
+        {
+            new ProjectEffectiveImportConflictValue
+            {
+                valueKind = _valueKind,
+                value = _value,
+                sourceRuleNames = _sourceRuleNames.ToArray(),
+                sourceRuleName = JoinSourceNames(_sourceRuleNames.ToArray())
+            }
+        };
+    }
+
+    private void AddConflictValue(ProjectAssetRuleContribution contribution)
+    {
+        foreach (ProjectEffectiveImportConflictValue conflictValue in _conflictValues)
+        {
+            if (conflictValue.valueKind != contribution.valueKind ||
+                !string.Equals(conflictValue.value ?? string.Empty, contribution.value ?? string.Empty, StringComparison.Ordinal))
+                continue;
+
+            conflictValue.sourceRuleNames = AppendSourceName(conflictValue.sourceRuleNames, contribution.sourceRuleName);
+            conflictValue.sourceRuleName = JoinSourceNames(conflictValue.sourceRuleNames);
+            return;
+        }
+
+        string[] sourceRuleNames = AppendSourceName(Array.Empty<string>(), contribution.sourceRuleName);
+        _conflictValues.Add(new ProjectEffectiveImportConflictValue
+        {
+            valueKind = contribution.valueKind,
+            value = contribution.value,
+            sourceRuleNames = sourceRuleNames,
+            sourceRuleName = JoinSourceNames(sourceRuleNames)
+        });
+    }
+
+    private void RefreshCurrentConflictValueSources()
+    {
+        if (_conflictValues == null || _conflictValues.Count == 0)
+            return;
+
+        _conflictValues[0].sourceRuleNames = _sourceRuleNames.ToArray();
+        _conflictValues[0].sourceRuleName = JoinSourceNames(_sourceRuleNames.ToArray());
+    }
+
+    private static string[] AppendSourceName(string[] sourceRuleNames, string sourceRuleName)
+    {
+        string normalizedName = string.IsNullOrWhiteSpace(sourceRuleName) ? "Unnamed Rule" : sourceRuleName;
+        List<string> names = new List<string>(sourceRuleNames ?? Array.Empty<string>());
+        foreach (string existingName in names)
+        {
+            if (string.Equals(existingName, normalizedName, StringComparison.Ordinal))
+                return names.ToArray();
+        }
+
+        names.Add(normalizedName);
+        return names.ToArray();
+    }
+
+    private static string JoinSourceNames(string[] sourceRuleNames)
+    {
+        return string.Join(", ", sourceRuleNames ?? Array.Empty<string>());
+    }
+}
+
 [CreateAssetMenu(menuName = "Project/Asset Import/Asset Import Rule Set", fileName = "ProjectAssetImportRuleSet")]
 public sealed class ProjectAssetImportRuleSet : ScriptableObject
 {
@@ -1104,60 +1418,69 @@ public sealed class ProjectAssetImportRuleSet : ScriptableObject
 
     public ProjectAssetImportRule[] ResolveRules(ProjectAssetRuleContext context)
     {
-        List<ProjectAssetImportRule> matches = new List<ProjectAssetImportRule>();
-        if (rules == null)
-            return matches.ToArray();
+        ProjectAssetRuleMatch[] matches = ResolveRuleMatches(context);
+        ProjectAssetImportRule[] resolvedRules = new ProjectAssetImportRule[matches.Length];
+        for (int i = 0; i < matches.Length; i++)
+            resolvedRules[i] = matches[i].rule;
 
-        foreach (ProjectAssetImportRule rule in rules)
-        {
-            if (rule == null || !rule.Matches(context))
-                continue;
-
-            matches.Add(rule);
-        }
-
-        return matches.ToArray();
+        return resolvedRules;
     }
 
     public ProjectEffectiveImportSettings BuildEffectiveImportSettings(ProjectAssetRuleContext context)
     {
-        ProjectAssetImportRule[] matchedRules = ResolveRules(context);
-        List<ProjectEffectiveImportSetting> effectiveSettings = new List<ProjectEffectiveImportSetting>();
-        Dictionary<string, int> indexByPropertyPath = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        ProjectAssetRuleMatch[] matchedRuleEntries = ResolveRuleMatches(context);
+        ProjectAssetImportRule[] matchedRules = new ProjectAssetImportRule[matchedRuleEntries.Length];
+        List<ProjectAssetRuleContribution> contributions = new List<ProjectAssetRuleContribution>();
 
-        foreach (ProjectAssetImportRule rule in matchedRules)
+        for (int i = 0; i < matchedRuleEntries.Length; i++)
         {
+            ProjectAssetImportRule rule = matchedRuleEntries[i].rule;
+            matchedRules[i] = rule;
             if (rule == null)
                 continue;
 
             rule.EnsureMigrated();
-            MergeStrongSettings(rule, context, effectiveSettings, indexByPropertyPath);
-            MergeCustomSettings(rule, effectiveSettings, indexByPropertyPath);
+            AddStrongSettings(rule, context, matchedRuleEntries[i].priority, contributions);
+            AddCustomSettings(rule, matchedRuleEntries[i].priority, contributions);
         }
+
+        BuildEffectiveSettingsFromContributions(
+            contributions,
+            out ProjectEffectiveImportSetting[] effectiveSettings,
+            out ProjectEffectiveImportConflict[] conflicts);
 
         return new ProjectEffectiveImportSettings
         {
             matchedRules = matchedRules,
-            settings = effectiveSettings.ToArray()
+            settings = effectiveSettings,
+            conflicts = conflicts,
+            hasConflicts = conflicts.Length > 0
         };
     }
 
     public ProjectEffectiveImportSettings BuildRuleImportSettings(ProjectAssetImportRule rule, ProjectAssetRuleContext context)
     {
-        List<ProjectEffectiveImportSetting> effectiveSettings = new List<ProjectEffectiveImportSetting>();
-        Dictionary<string, int> indexByPropertyPath = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        List<ProjectAssetRuleContribution> contributions = new List<ProjectAssetRuleContribution>();
 
         if (rule != null)
         {
             rule.EnsureMigrated();
-            MergeStrongSettings(rule, context, effectiveSettings, indexByPropertyPath);
-            MergeCustomSettings(rule, effectiveSettings, indexByPropertyPath);
+            ProjectAssetRulePriority priority = ProjectAssetRulePriority.FromRule(rule);
+            AddStrongSettings(rule, context, priority, contributions);
+            AddCustomSettings(rule, priority, contributions);
         }
+
+        BuildEffectiveSettingsFromContributions(
+            contributions,
+            out ProjectEffectiveImportSetting[] effectiveSettings,
+            out ProjectEffectiveImportConflict[] conflicts);
 
         return new ProjectEffectiveImportSettings
         {
             matchedRules = rule != null ? new[] { rule } : Array.Empty<ProjectAssetImportRule>(),
-            settings = effectiveSettings.ToArray()
+            settings = effectiveSettings,
+            conflicts = conflicts,
+            hasConflicts = conflicts.Length > 0
         };
     }
 
@@ -1168,6 +1491,12 @@ public sealed class ProjectAssetImportRuleSet : ScriptableObject
 
         ProjectAssetRuleContext context = ProjectAssetRuleContext.FromImporter(assetPath, importer);
         ProjectEffectiveImportSettings settings = BuildEffectiveImportSettings(context);
+        if (settings.hasConflicts)
+        {
+            Debug.LogError(BuildConflictLog(assetPath, settings));
+            return;
+        }
+
         ProjectAssetPropertyApplier.Apply(importer, assetPath, settings.ToPropertyItems());
     }
 
@@ -1188,11 +1517,44 @@ public sealed class ProjectAssetImportRuleSet : ScriptableObject
         EnsureMigrated();
     }
 
-    private static void MergeStrongSettings(
+    private ProjectAssetRuleMatch[] ResolveRuleMatches(ProjectAssetRuleContext context)
+    {
+        List<ProjectAssetRuleMatch> matches = new List<ProjectAssetRuleMatch>();
+        if (rules == null)
+            return matches.ToArray();
+
+        for (int i = 0; i < rules.Length; i++)
+        {
+            ProjectAssetImportRule rule = rules[i];
+            if (rule == null || !rule.Matches(context))
+                continue;
+
+            matches.Add(new ProjectAssetRuleMatch
+            {
+                rule = rule,
+                priority = ProjectAssetRulePriority.FromRule(rule),
+                originalIndex = i
+            });
+        }
+
+        matches.Sort(CompareRuleMatches);
+        return matches.ToArray();
+    }
+
+    private static int CompareRuleMatches(ProjectAssetRuleMatch left, ProjectAssetRuleMatch right)
+    {
+        int priority = right.priority.CompareTo(left.priority);
+        if (priority != 0)
+            return priority;
+
+        return left.originalIndex.CompareTo(right.originalIndex);
+    }
+
+    private static void AddStrongSettings(
         ProjectAssetImportRule rule,
         ProjectAssetRuleContext context,
-        List<ProjectEffectiveImportSetting> effectiveSettings,
-        Dictionary<string, int> indexByPropertyPath)
+        ProjectAssetRulePriority priority,
+        List<ProjectAssetRuleContribution> contributions)
     {
         ProjectAssetClass assetClass = context?.assetClass ?? ProjectAssetClass.Any;
         foreach (ProjectAssetImportSettingDefinition definition in ProjectAssetImportSettingCatalog.GetDefinitionsForAssetClass(assetClass))
@@ -1204,20 +1566,20 @@ public sealed class ProjectAssetImportRuleSet : ScriptableObject
             if (setting == null || !setting.overrideEnabled)
                 continue;
 
-            UpsertEffectiveSetting(
-                effectiveSettings,
-                indexByPropertyPath,
+            AddContribution(
+                contributions,
                 definition.propertyPath,
                 definition.valueKind,
                 string.IsNullOrEmpty(setting.value) ? definition.defaultValue : setting.value,
-                rule.name);
+                rule.name,
+                priority);
         }
     }
 
-    private static void MergeCustomSettings(
+    private static void AddCustomSettings(
         ProjectAssetImportRule rule,
-        List<ProjectEffectiveImportSetting> effectiveSettings,
-        Dictionary<string, int> indexByPropertyPath)
+        ProjectAssetRulePriority priority,
+        List<ProjectAssetRuleContribution> contributions)
     {
         ProjectAssetPropertyItem[] customItems = rule.customImportSettings?.propertyItems ?? Array.Empty<ProjectAssetPropertyItem>();
         foreach (ProjectAssetPropertyItem item in customItems)
@@ -1225,43 +1587,101 @@ public sealed class ProjectAssetImportRuleSet : ScriptableObject
             if (item == null || string.IsNullOrWhiteSpace(item.propertyPath))
                 continue;
 
-            UpsertEffectiveSetting(
-                effectiveSettings,
-                indexByPropertyPath,
+            AddContribution(
+                contributions,
                 item.propertyPath,
                 item.valueKind,
                 item.value,
-                rule.name);
+                rule.name,
+                priority);
         }
     }
 
-    private static void UpsertEffectiveSetting(
-        List<ProjectEffectiveImportSetting> effectiveSettings,
-        Dictionary<string, int> indexByPropertyPath,
+    private static void AddContribution(
+        List<ProjectAssetRuleContribution> contributions,
         string propertyPath,
         ProjectAssetPropertyValueKind valueKind,
         string value,
-        string sourceRuleName)
+        string sourceRuleName,
+        ProjectAssetRulePriority priority)
     {
         if (string.IsNullOrWhiteSpace(propertyPath))
             return;
 
-        ProjectEffectiveImportSetting setting = new ProjectEffectiveImportSetting
+        contributions.Add(new ProjectAssetRuleContribution
         {
             propertyPath = propertyPath,
             valueKind = valueKind,
             value = value,
-            sourceRuleName = sourceRuleName
-        };
+            sourceRuleName = sourceRuleName,
+            priority = priority
+        });
+    }
 
-        if (indexByPropertyPath.TryGetValue(propertyPath, out int existingIndex))
+    private static void BuildEffectiveSettingsFromContributions(
+        List<ProjectAssetRuleContribution> contributions,
+        out ProjectEffectiveImportSetting[] settings,
+        out ProjectEffectiveImportConflict[] conflicts)
+    {
+        Dictionary<string, int> builderIndexByPropertyPath = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        List<ProjectEffectiveImportSettingBuilder> builders = new List<ProjectEffectiveImportSettingBuilder>();
+
+        foreach (ProjectAssetRuleContribution contribution in contributions)
         {
-            effectiveSettings[existingIndex] = setting;
-            return;
+            if (contribution == null || string.IsNullOrWhiteSpace(contribution.propertyPath))
+                continue;
+
+            if (!builderIndexByPropertyPath.TryGetValue(contribution.propertyPath, out int builderIndex))
+            {
+                ProjectEffectiveImportSettingBuilder builder = new ProjectEffectiveImportSettingBuilder(contribution);
+                builderIndexByPropertyPath[contribution.propertyPath] = builders.Count;
+                builders.Add(builder);
+                continue;
+            }
+
+            builders[builderIndex].Merge(contribution);
         }
 
-        indexByPropertyPath[propertyPath] = effectiveSettings.Count;
-        effectiveSettings.Add(setting);
+        List<ProjectEffectiveImportSetting> resolvedSettings = new List<ProjectEffectiveImportSetting>();
+        List<ProjectEffectiveImportConflict> resolvedConflicts = new List<ProjectEffectiveImportConflict>();
+        foreach (ProjectEffectiveImportSettingBuilder builder in builders)
+        {
+            if (builder.HasConflict)
+                resolvedConflicts.Add(builder.ToConflict());
+            else
+                resolvedSettings.Add(builder.ToSetting());
+        }
+
+        settings = resolvedSettings.ToArray();
+        conflicts = resolvedConflicts.ToArray();
+    }
+
+    private static string BuildConflictLog(string assetPath, ProjectEffectiveImportSettings settings)
+    {
+        StringBuilder builder = new StringBuilder();
+        builder.Append("Asset import rules conflict on ")
+            .Append(assetPath)
+            .AppendLine(". Import settings were not applied.");
+
+        ProjectEffectiveImportConflict[] conflicts = settings?.conflicts ?? Array.Empty<ProjectEffectiveImportConflict>();
+        foreach (ProjectEffectiveImportConflict conflict in conflicts)
+        {
+            builder.Append("  ")
+                .Append(conflict.propertyPath)
+                .Append(" (")
+                .Append(conflict.priorityLabel)
+                .AppendLine(")");
+
+            foreach (ProjectEffectiveImportConflictValue value in conflict.values ?? Array.Empty<ProjectEffectiveImportConflictValue>())
+            {
+                builder.Append("    ")
+                    .Append(value.value)
+                    .Append(" <- ")
+                    .AppendLine(value.sourceRuleName);
+            }
+        }
+
+        return builder.ToString();
     }
 
     private static ProjectAssetImportRule Rule(
