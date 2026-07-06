@@ -178,6 +178,9 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
     {
         foreach (ProjectAssetImportSettingDefinition definition in definitions)
         {
+            if (!ShouldDrawDefinition(rule, definition))
+                continue;
+
             if (definition.isSection)
             {
                 DrawSettingSection(definition.label);
@@ -186,6 +189,36 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
 
             DrawImportSettingRow(rule, definition);
         }
+    }
+
+    private static bool ShouldDrawDefinition(SerializedProperty rule, ProjectAssetImportSettingDefinition definition)
+    {
+        if (definition == null || string.IsNullOrWhiteSpace(definition.visibleWhenSettingPath))
+            return true;
+
+        SerializedProperty dependency = FindRelative(rule, definition.visibleWhenSettingPath);
+        if (dependency == null)
+            return true;
+
+        SerializedProperty dependencyOverride = dependency.FindPropertyRelative("overrideEnabled");
+        SerializedProperty dependencyValue = dependency.FindPropertyRelative("value");
+        ProjectAssetImportSettingDefinition dependencyDefinition =
+            ProjectAssetImportSettingCatalog.FindBySettingPath(definition.visibleWhenSettingPath);
+
+        string currentValue = dependencyOverride != null && dependencyOverride.boolValue
+            ? dependencyValue?.stringValue
+            : dependencyDefinition?.defaultValue;
+
+        if (string.IsNullOrEmpty(currentValue))
+            currentValue = dependencyDefinition?.defaultValue ?? string.Empty;
+
+        foreach (string acceptedValue in definition.visibleWhenValues)
+        {
+            if (string.Equals(currentValue, acceptedValue, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     private static void DrawImportSettingRow(SerializedProperty rule, ProjectAssetImportSettingDefinition definition)

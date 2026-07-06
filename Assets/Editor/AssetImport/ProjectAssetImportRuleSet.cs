@@ -327,6 +327,8 @@ public sealed class ProjectAssetImportSettingDefinition
     public readonly ProjectAssetPropertyValueKind valueKind;
     public readonly string defaultValue;
     public readonly string[] options;
+    public readonly string visibleWhenSettingPath;
+    public readonly string[] visibleWhenValues;
 
     private ProjectAssetImportSettingDefinition(
         bool isSection,
@@ -337,7 +339,9 @@ public sealed class ProjectAssetImportSettingDefinition
         string label,
         ProjectAssetPropertyValueKind valueKind,
         string defaultValue,
-        string[] options)
+        string[] options,
+        string visibleWhenSettingPath = null,
+        string[] visibleWhenValues = null)
     {
         this.isSection = isSection;
         this.assetClass = assetClass;
@@ -348,6 +352,8 @@ public sealed class ProjectAssetImportSettingDefinition
         this.valueKind = valueKind;
         this.defaultValue = defaultValue;
         this.options = options ?? Array.Empty<string>();
+        this.visibleWhenSettingPath = visibleWhenSettingPath;
+        this.visibleWhenValues = visibleWhenValues ?? Array.Empty<string>();
     }
 
     public static ProjectAssetImportSettingDefinition Section(ProjectAssetClass assetClass, string tab, string label)
@@ -416,6 +422,22 @@ public sealed class ProjectAssetImportSettingDefinition
             defaultValue,
             options);
     }
+
+    public ProjectAssetImportSettingDefinition VisibleWhen(string dependencySettingPath, params string[] acceptedValues)
+    {
+        return new ProjectAssetImportSettingDefinition(
+            isSection,
+            assetClass,
+            tab,
+            settingPath,
+            propertyPath,
+            label,
+            valueKind,
+            defaultValue,
+            options,
+            dependencySettingPath,
+            acceptedValues);
+    }
 }
 
 public static class ProjectAssetImportSettingCatalog
@@ -432,8 +454,10 @@ public static class ProjectAssetImportSettingCatalog
         Bool(ProjectAssetClass.Model, "Model", "modelImportSettings.model.useFileUnits", "ModelImporter.useFileUnits", "转换单位", "true"),
         Bool(ProjectAssetClass.Model, "Model", "modelImportSettings.model.bakeAxisConversion", "ModelImporter.bakeAxisConversion", "烘焙轴转换", "false"),
         Bool(ProjectAssetClass.Model, "Model", "modelImportSettings.model.importBlendShapes", "ModelImporter.importBlendShapes", "导入 BlendShapes", "false"),
-        Enum<ModelImporterNormals>(ProjectAssetClass.Model, "Model", "modelImportSettings.model.importBlendShapeNormals", "ModelImporter.importBlendShapeNormals", "BlendShape 法线", "None"),
-        Bool(ProjectAssetClass.Model, "Model", "modelImportSettings.model.importBlendShapeDeformPercent", "ModelImporter.importBlendShapeDeformPercent", "BlendShape Deform Percent", "false"),
+        Enum<ModelImporterNormals>(ProjectAssetClass.Model, "Model", "modelImportSettings.model.importBlendShapeNormals", "ModelImporter.importBlendShapeNormals", "BlendShape 法线", "None")
+            .VisibleWhen("modelImportSettings.model.importBlendShapes", "true"),
+        Bool(ProjectAssetClass.Model, "Model", "modelImportSettings.model.importBlendShapeDeformPercent", "ModelImporter.importBlendShapeDeformPercent", "BlendShape Deform Percent", "false")
+            .VisibleWhen("modelImportSettings.model.importBlendShapes", "true"),
         Bool(ProjectAssetClass.Model, "Model", "modelImportSettings.model.importVisibility", "ModelImporter.importVisibility", "导入可见性", "true"),
         Bool(ProjectAssetClass.Model, "Model", "modelImportSettings.model.importCameras", "ModelImporter.importCameras", "导入相机", "false"),
         Bool(ProjectAssetClass.Model, "Model", "modelImportSettings.model.importLights", "ModelImporter.importLights", "导入灯光", "false"),
@@ -463,53 +487,88 @@ public static class ProjectAssetImportSettingCatalog
         Bool(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.strictVertexDataChecks", "ModelImporter.strictVertexDataChecks", "严格顶点数据检查", "false"),
         Section(ProjectAssetClass.Model, "Model", "光照贴图 UV 设置"),
         Bool(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.generateSecondaryUV", "ModelImporter.generateSecondaryUV", "生成光照贴图 UVs", "false"),
-        Enum<ModelImporterSecondaryUVMarginMethod>(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVMarginMethod", "ModelImporter.secondaryUVMarginMethod", "边距方法", "Calculate"),
-        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVHardAngle", "ModelImporter.secondaryUVHardAngle", "硬角度", "88"),
-        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVPackMargin", "ModelImporter.secondaryUVPackMargin", "打包边距", "4"),
-        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVAngleDistortion", "ModelImporter.secondaryUVAngleDistortion", "角度误差", "8"),
-        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVAreaDistortion", "ModelImporter.secondaryUVAreaDistortion", "面积误差", "15"),
-        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVMinLightmapResolution", "ModelImporter.secondaryUVMinLightmapResolution", "最小光照贴图分辨率", "40"),
-        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVMinObjectScale", "ModelImporter.secondaryUVMinObjectScale", "最小物体缩放", "1"),
+        Enum<ModelImporterSecondaryUVMarginMethod>(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVMarginMethod", "ModelImporter.secondaryUVMarginMethod", "边距方法", "Calculate")
+            .VisibleWhen("modelImportSettings.meshes.generateSecondaryUV", "true"),
+        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVHardAngle", "ModelImporter.secondaryUVHardAngle", "硬角度", "88")
+            .VisibleWhen("modelImportSettings.meshes.generateSecondaryUV", "true"),
+        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVPackMargin", "ModelImporter.secondaryUVPackMargin", "打包边距", "4")
+            .VisibleWhen("modelImportSettings.meshes.generateSecondaryUV", "true"),
+        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVAngleDistortion", "ModelImporter.secondaryUVAngleDistortion", "角度误差", "8")
+            .VisibleWhen("modelImportSettings.meshes.generateSecondaryUV", "true"),
+        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVAreaDistortion", "ModelImporter.secondaryUVAreaDistortion", "面积误差", "15")
+            .VisibleWhen("modelImportSettings.meshes.generateSecondaryUV", "true"),
+        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVMinLightmapResolution", "ModelImporter.secondaryUVMinLightmapResolution", "最小光照贴图分辨率", "40")
+            .VisibleWhen("modelImportSettings.meshes.generateSecondaryUV", "true"),
+        Float(ProjectAssetClass.Model, "Model", "modelImportSettings.meshes.secondaryUVMinObjectScale", "ModelImporter.secondaryUVMinObjectScale", "最小物体缩放", "1")
+            .VisibleWhen("modelImportSettings.meshes.generateSecondaryUV", "true"),
 
         Enum<ModelImporterAnimationType>(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.animationType", "ModelImporter.animationType", "动画类型", "None"),
-        Enum<ModelImporterAvatarSetup>(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.avatarSetup", "ModelImporter.avatarSetup", "Avatar 定义", "CreateFromThisModel"),
-        Enum<ModelImporterSkinWeights>(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.skinWeights", "ModelImporter.skinWeights", "蒙皮权重", "Standard"),
-        Int(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.maxBonesPerVertex", "ModelImporter.maxBonesPerVertex", "每顶点最大骨骼数", "4"),
-        Float(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.minBoneWeight", "ModelImporter.minBoneWeight", "最小骨骼权重", "0.001"),
-        Bool(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.optimizeGameObjects", "ModelImporter.optimizeGameObjects", "优化游戏对象", "false"),
-        Bool(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.optimizeBones", "ModelImporter.optimizeBones", "优化骨骼", "true"),
-        Bool(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.autoGenerateAvatarMappingIfUnspecified", "ModelImporter.autoGenerateAvatarMappingIfUnspecified", "自动生成 Avatar 映射", "true"),
-        Enum<ModelImporterHumanoidOversampling>(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.humanoidOversampling", "ModelImporter.humanoidOversampling", "人形采样", "X1"),
-        Bool(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.bakeIK", "ModelImporter.bakeIK", "烘焙 IK", "false"),
+        Enum<ModelImporterAvatarSetup>(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.avatarSetup", "ModelImporter.avatarSetup", "Avatar 定义", "CreateFromThisModel")
+            .VisibleWhen("modelImportSettings.rig.animationType", "Generic", "Human"),
+        Enum<ModelImporterSkinWeights>(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.skinWeights", "ModelImporter.skinWeights", "蒙皮权重", "Standard")
+            .VisibleWhen("modelImportSettings.rig.animationType", "Generic", "Human"),
+        Int(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.maxBonesPerVertex", "ModelImporter.maxBonesPerVertex", "每顶点最大骨骼数", "4")
+            .VisibleWhen("modelImportSettings.rig.animationType", "Generic", "Human"),
+        Float(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.minBoneWeight", "ModelImporter.minBoneWeight", "最小骨骼权重", "0.001")
+            .VisibleWhen("modelImportSettings.rig.animationType", "Generic", "Human"),
+        Bool(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.optimizeGameObjects", "ModelImporter.optimizeGameObjects", "优化游戏对象", "false")
+            .VisibleWhen("modelImportSettings.rig.animationType", "Human"),
+        Bool(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.optimizeBones", "ModelImporter.optimizeBones", "优化骨骼", "true")
+            .VisibleWhen("modelImportSettings.rig.animationType", "Generic", "Human"),
+        Bool(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.autoGenerateAvatarMappingIfUnspecified", "ModelImporter.autoGenerateAvatarMappingIfUnspecified", "自动生成 Avatar 映射", "true")
+            .VisibleWhen("modelImportSettings.rig.animationType", "Human"),
+        Enum<ModelImporterHumanoidOversampling>(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.humanoidOversampling", "ModelImporter.humanoidOversampling", "人形采样", "X1")
+            .VisibleWhen("modelImportSettings.rig.animationType", "Human"),
+        Bool(ProjectAssetClass.Model, "Rig", "modelImportSettings.rig.bakeIK", "ModelImporter.bakeIK", "烘焙 IK", "false")
+            .VisibleWhen("modelImportSettings.rig.animationType", "Human"),
 
         Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.importAnimation", "ModelImporter.importAnimation", "导入动画", "false"),
-        Enum<ModelImporterAnimationCompression>(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.animationCompression", "ModelImporter.animationCompression", "动画压缩", "Optimal"),
-        Float(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.animationRotationError", "ModelImporter.animationRotationError", "旋转误差", "0.5"),
-        Float(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.animationPositionError", "ModelImporter.animationPositionError", "位置误差", "0.5"),
-        Float(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.animationScaleError", "ModelImporter.animationScaleError", "缩放误差", "0.5"),
-        Enum<WrapMode>(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.animationWrapMode", "ModelImporter.animationWrapMode", "循环模式", "Default"),
-        Enum<ModelImporterGenerateAnimations>(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.generateAnimations", "ModelImporter.generateAnimations", "生成动画", "None"),
-        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.importConstraints", "ModelImporter.importConstraints", "导入约束", "false"),
-        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.importAnimatedCustomProperties", "ModelImporter.importAnimatedCustomProperties", "导入动画自定义属性", "false"),
-        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.resampleCurves", "ModelImporter.resampleCurves", "重采样曲线", "true"),
-        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.resampleRotations", "ModelImporter.resampleRotations", "重采样旋转", "true"),
-        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.removeConstantScaleCurves", "ModelImporter.removeConstantScaleCurves", "移除常量缩放曲线", "true"),
-        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.splitAnimations", "ModelImporter.splitAnimations", "分割动画", "false"),
-        String(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.motionNodeName", "ModelImporter.motionNodeName", "Motion Node", string.Empty),
-        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.clipNameFromAsset", "ModelImporter.clipNameFromAsset", "Clip Name From Asset", "false"),
+        Enum<ModelImporterAnimationCompression>(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.animationCompression", "ModelImporter.animationCompression", "动画压缩", "Optimal")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Float(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.animationRotationError", "ModelImporter.animationRotationError", "旋转误差", "0.5")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Float(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.animationPositionError", "ModelImporter.animationPositionError", "位置误差", "0.5")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Float(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.animationScaleError", "ModelImporter.animationScaleError", "缩放误差", "0.5")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Enum<WrapMode>(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.animationWrapMode", "ModelImporter.animationWrapMode", "循环模式", "Default")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Enum<ModelImporterGenerateAnimations>(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.generateAnimations", "ModelImporter.generateAnimations", "生成动画", "None")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.importConstraints", "ModelImporter.importConstraints", "导入约束", "false")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.importAnimatedCustomProperties", "ModelImporter.importAnimatedCustomProperties", "导入动画自定义属性", "false")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.resampleCurves", "ModelImporter.resampleCurves", "重采样曲线", "true")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.resampleRotations", "ModelImporter.resampleRotations", "重采样旋转", "true")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.removeConstantScaleCurves", "ModelImporter.removeConstantScaleCurves", "移除常量缩放曲线", "true")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.splitAnimations", "ModelImporter.splitAnimations", "分割动画", "false")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        String(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.motionNodeName", "ModelImporter.motionNodeName", "Motion Node", string.Empty)
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
+        Bool(ProjectAssetClass.Model, "Animation", "modelImportSettings.animation.clipNameFromAsset", "ModelImporter.clipNameFromAsset", "Clip Name From Asset", "false")
+            .VisibleWhen("modelImportSettings.animation.importAnimation", "true"),
 
         Enum<ModelImporterMaterialImportMode>(ProjectAssetClass.Model, "Materials", "modelImportSettings.materials.materialImportMode", "ModelImporter.materialImportMode", "材质创建模式", "ImportStandard"),
-        Enum<ModelImporterMaterialLocation>(ProjectAssetClass.Model, "Materials", "modelImportSettings.materials.materialLocation", "ModelImporter.materialLocation", "位置", "InPrefab"),
-        Enum<ModelImporterMaterialName>(ProjectAssetClass.Model, "Materials", "modelImportSettings.materials.materialName", "ModelImporter.materialName", "命名", "BasedOnMaterialName"),
-        Enum<ModelImporterMaterialSearch>(ProjectAssetClass.Model, "Materials", "modelImportSettings.materials.materialSearch", "ModelImporter.materialSearch", "搜索", "Local"),
-        Bool(ProjectAssetClass.Model, "Materials", "modelImportSettings.materials.useSRGBMaterialColor", "ModelImporter.useSRGBMaterialColor", "使用 sRGB 材质颜色", "true"),
+        Enum<ModelImporterMaterialLocation>(ProjectAssetClass.Model, "Materials", "modelImportSettings.materials.materialLocation", "ModelImporter.materialLocation", "位置", "InPrefab")
+            .VisibleWhen("modelImportSettings.materials.materialImportMode", "ImportStandard", "ImportViaMaterialDescription"),
+        Enum<ModelImporterMaterialName>(ProjectAssetClass.Model, "Materials", "modelImportSettings.materials.materialName", "ModelImporter.materialName", "命名", "BasedOnMaterialName")
+            .VisibleWhen("modelImportSettings.materials.materialImportMode", "ImportStandard", "ImportViaMaterialDescription"),
+        Enum<ModelImporterMaterialSearch>(ProjectAssetClass.Model, "Materials", "modelImportSettings.materials.materialSearch", "ModelImporter.materialSearch", "搜索", "Local")
+            .VisibleWhen("modelImportSettings.materials.materialImportMode", "ImportStandard", "ImportViaMaterialDescription"),
+        Bool(ProjectAssetClass.Model, "Materials", "modelImportSettings.materials.useSRGBMaterialColor", "ModelImporter.useSRGBMaterialColor", "使用 sRGB 材质颜色", "true")
+            .VisibleWhen("modelImportSettings.materials.materialImportMode", "ImportStandard", "ImportViaMaterialDescription"),
 
         Section(ProjectAssetClass.Texture2D, "Texture", "纹理"),
         Enum<TextureImporterType>(ProjectAssetClass.Texture2D, "Texture", "textureImportSettings.texture.textureType", "TextureImporter.textureType", "纹理类型", "Default"),
         Enum<TextureImporterShape>(ProjectAssetClass.Texture2D, "Texture", "textureImportSettings.texture.textureShape", "TextureImporter.textureShape", "纹理形状", "Texture2D"),
         Bool(ProjectAssetClass.Texture2D, "Texture", "textureImportSettings.texture.sRGBTexture", "TextureImporter.sRGBTexture", "sRGB 颜色纹理", "true"),
         Enum<TextureImporterAlphaSource>(ProjectAssetClass.Texture2D, "Texture", "textureImportSettings.texture.alphaSource", "TextureImporter.alphaSource", "Alpha 源", "FromInput"),
-        Bool(ProjectAssetClass.Texture2D, "Texture", "textureImportSettings.texture.alphaIsTransparency", "TextureImporter.alphaIsTransparency", "Alpha 是透明度", "false"),
+        Bool(ProjectAssetClass.Texture2D, "Texture", "textureImportSettings.texture.alphaIsTransparency", "TextureImporter.alphaIsTransparency", "Alpha 是透明度", "false")
+            .VisibleWhen("textureImportSettings.texture.alphaSource", "FromInput"),
         Bool(ProjectAssetClass.Texture2D, "Texture", "textureImportSettings.texture.ignorePngGamma", "TextureImporter.ignorePngGamma", "忽略 PNG Gamma", "false"),
         Bool(ProjectAssetClass.Texture2D, "Texture", "textureImportSettings.texture.isReadable", "TextureImporter.isReadable", "读取/写入", "false"),
         Bool(ProjectAssetClass.Texture2D, "Texture", "textureImportSettings.texture.vtOnly", "TextureImporter.vtOnly", "仅虚拟纹理", "false"),
@@ -524,23 +583,38 @@ public static class ProjectAssetImportSettingCatalog
 
         Section(ProjectAssetClass.Texture2D, "Advanced", "Mip Maps"),
         Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipmapEnabled", "TextureImporter.mipmapEnabled", "生成 Mip Maps", "true"),
-        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.borderMipmap", "TextureImporter.borderMipmap", "Border Mip Maps", "false"),
-        Enum<TextureImporterMipFilter>(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipmapFilter", "TextureImporter.mipmapFilter", "Mip Map 过滤", "BoxFilter"),
-        Float(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipMapBias", "TextureImporter.mipMapBias", "Mip Map Bias", "0"),
-        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipMapsPreserveCoverage", "TextureImporter.mipMapsPreserveCoverage", "保持覆盖率", "false"),
-        Float(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.alphaTestReferenceValue", "TextureImporter.alphaTestReferenceValue", "Alpha Cutoff", "0.5"),
-        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.fadeout", "TextureImporter.fadeout", "Fadeout Mip Maps", "false"),
-        Int(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipmapFadeDistanceStart", "TextureImporter.mipmapFadeDistanceStart", "Fade Range Start", "1"),
-        Int(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipmapFadeDistanceEnd", "TextureImporter.mipmapFadeDistanceEnd", "Fade Range End", "3"),
-        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.generateMipsInLinearSpace", "TextureImporter.generateMipsInLinearSpace", "在线性空间生成 Mips", "false"),
-        String(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipmapLimitGroupName", "TextureImporter.mipmapLimitGroupName", "Mipmap Limit Group", string.Empty),
-        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.ignoreMipmapLimit", "TextureImporter.ignoreMipmapLimit", "忽略 Mipmap Limit", "false"),
-        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.streamingMipmaps", "TextureImporter.streamingMipmaps", "Streaming Mip Maps", "false"),
-        Int(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.streamingMipmapsPriority", "TextureImporter.streamingMipmapsPriority", "Streaming Priority", "0"),
+        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.borderMipmap", "TextureImporter.borderMipmap", "Border Mip Maps", "false")
+            .VisibleWhen("textureImportSettings.advanced.mipmapEnabled", "true"),
+        Enum<TextureImporterMipFilter>(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipmapFilter", "TextureImporter.mipmapFilter", "Mip Map 过滤", "BoxFilter")
+            .VisibleWhen("textureImportSettings.advanced.mipmapEnabled", "true"),
+        Float(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipMapBias", "TextureImporter.mipMapBias", "Mip Map Bias", "0")
+            .VisibleWhen("textureImportSettings.advanced.mipmapEnabled", "true"),
+        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipMapsPreserveCoverage", "TextureImporter.mipMapsPreserveCoverage", "保持覆盖率", "false")
+            .VisibleWhen("textureImportSettings.advanced.mipmapEnabled", "true"),
+        Float(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.alphaTestReferenceValue", "TextureImporter.alphaTestReferenceValue", "Alpha Cutoff", "0.5")
+            .VisibleWhen("textureImportSettings.advanced.mipMapsPreserveCoverage", "true"),
+        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.fadeout", "TextureImporter.fadeout", "Fadeout Mip Maps", "false")
+            .VisibleWhen("textureImportSettings.advanced.mipmapEnabled", "true"),
+        Int(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipmapFadeDistanceStart", "TextureImporter.mipmapFadeDistanceStart", "Fade Range Start", "1")
+            .VisibleWhen("textureImportSettings.advanced.fadeout", "true"),
+        Int(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipmapFadeDistanceEnd", "TextureImporter.mipmapFadeDistanceEnd", "Fade Range End", "3")
+            .VisibleWhen("textureImportSettings.advanced.fadeout", "true"),
+        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.generateMipsInLinearSpace", "TextureImporter.generateMipsInLinearSpace", "在线性空间生成 Mips", "false")
+            .VisibleWhen("textureImportSettings.advanced.mipmapEnabled", "true"),
+        String(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.mipmapLimitGroupName", "TextureImporter.mipmapLimitGroupName", "Mipmap Limit Group", string.Empty)
+            .VisibleWhen("textureImportSettings.advanced.mipmapEnabled", "true"),
+        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.ignoreMipmapLimit", "TextureImporter.ignoreMipmapLimit", "忽略 Mipmap Limit", "false")
+            .VisibleWhen("textureImportSettings.advanced.mipmapEnabled", "true"),
+        Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.streamingMipmaps", "TextureImporter.streamingMipmaps", "Streaming Mip Maps", "false")
+            .VisibleWhen("textureImportSettings.advanced.mipmapEnabled", "true"),
+        Int(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.streamingMipmapsPriority", "TextureImporter.streamingMipmapsPriority", "Streaming Priority", "0")
+            .VisibleWhen("textureImportSettings.advanced.streamingMipmaps", "true"),
         Section(ProjectAssetClass.Texture2D, "Advanced", "法线贴图"),
         Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.convertToNormalmap", "TextureImporter.convertToNormalmap", "从灰度创建", "false"),
-        Float(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.heightmapScale", "TextureImporter.heightmapScale", "凹凸强度", "0.25"),
-        Enum<TextureImporterNormalFilter>(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.normalmapFilter", "TextureImporter.normalmapFilter", "过滤", "Standard"),
+        Float(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.heightmapScale", "TextureImporter.heightmapScale", "凹凸强度", "0.25")
+            .VisibleWhen("textureImportSettings.advanced.convertToNormalmap", "true"),
+        Enum<TextureImporterNormalFilter>(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.normalmapFilter", "TextureImporter.normalmapFilter", "过滤", "Standard")
+            .VisibleWhen("textureImportSettings.advanced.convertToNormalmap", "true"),
         Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.flipGreenChannel", "TextureImporter.flipGreenChannel", "翻转绿色通道", "false"),
         Section(ProjectAssetClass.Texture2D, "Advanced", "平铺和过滤"),
         Enum<TextureWrapMode>(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.wrapMode", "TextureImporter.wrapMode", "平铺模式", "Repeat"),
@@ -558,10 +632,14 @@ public static class ProjectAssetImportSettingCatalog
         Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.linearTexture", "TextureImporter.linearTexture", "线性纹理", "false"),
         Bool(ProjectAssetClass.Texture2D, "Advanced", "textureImportSettings.advanced.normalmap", "TextureImporter.normalmap", "Normal Map", "false"),
 
-        Enum<SpriteImportMode>(ProjectAssetClass.Texture2D, "Sprite", "textureImportSettings.sprite.spriteImportMode", "TextureImporter.spriteImportMode", "Sprite 模式", "None"),
-        Float(ProjectAssetClass.Texture2D, "Sprite", "textureImportSettings.sprite.spritePixelsPerUnit", "TextureImporter.spritePixelsPerUnit", "每单位像素", "100"),
-        Float(ProjectAssetClass.Texture2D, "Sprite", "textureImportSettings.sprite.spritePixelsToUnits", "TextureImporter.spritePixelsToUnits", "Pixels To Units", "100"),
-        String(ProjectAssetClass.Texture2D, "Sprite", "textureImportSettings.sprite.spritePackingTag", "TextureImporter.spritePackingTag", "Packing Tag", string.Empty),
+        Enum<SpriteImportMode>(ProjectAssetClass.Texture2D, "Sprite", "textureImportSettings.sprite.spriteImportMode", "TextureImporter.spriteImportMode", "Sprite 模式", "None")
+            .VisibleWhen("textureImportSettings.texture.textureType", "Sprite"),
+        Float(ProjectAssetClass.Texture2D, "Sprite", "textureImportSettings.sprite.spritePixelsPerUnit", "TextureImporter.spritePixelsPerUnit", "每单位像素", "100")
+            .VisibleWhen("textureImportSettings.sprite.spriteImportMode", "Single", "Multiple"),
+        Float(ProjectAssetClass.Texture2D, "Sprite", "textureImportSettings.sprite.spritePixelsToUnits", "TextureImporter.spritePixelsToUnits", "Pixels To Units", "100")
+            .VisibleWhen("textureImportSettings.sprite.spriteImportMode", "Single", "Multiple"),
+        String(ProjectAssetClass.Texture2D, "Sprite", "textureImportSettings.sprite.spritePackingTag", "TextureImporter.spritePackingTag", "Packing Tag", string.Empty)
+            .VisibleWhen("textureImportSettings.sprite.spriteImportMode", "Single", "Multiple"),
 
         Enum<TextureImporterSwizzle>(ProjectAssetClass.Texture2D, "Swizzle", "textureImportSettings.swizzle.swizzleR", "TextureImporter.swizzleR", "R 通道", "R"),
         Enum<TextureImporterSwizzle>(ProjectAssetClass.Texture2D, "Swizzle", "textureImportSettings.swizzle.swizzleG", "TextureImporter.swizzleG", "G 通道", "G"),
@@ -617,6 +695,20 @@ public static class ProjectAssetImportSettingCatalog
         foreach (ProjectAssetImportSettingDefinition definition in Definitions)
         {
             if (!definition.isSection && string.Equals(definition.propertyPath, propertyPath, StringComparison.OrdinalIgnoreCase))
+                return definition;
+        }
+
+        return null;
+    }
+
+    public static ProjectAssetImportSettingDefinition FindBySettingPath(string settingPath)
+    {
+        if (string.IsNullOrWhiteSpace(settingPath))
+            return null;
+
+        foreach (ProjectAssetImportSettingDefinition definition in Definitions)
+        {
+            if (!definition.isSection && string.Equals(definition.settingPath, settingPath, StringComparison.OrdinalIgnoreCase))
                 return definition;
         }
 
