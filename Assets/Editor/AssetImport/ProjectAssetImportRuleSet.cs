@@ -864,6 +864,32 @@ public sealed class ProjectAssetImportRule
         return current as ProjectAssetImportSetting;
     }
 
+    public bool ShouldIncludeSetting(ProjectAssetImportSettingDefinition definition)
+    {
+        if (definition == null || string.IsNullOrWhiteSpace(definition.visibleWhenSettingPath))
+            return true;
+
+        string currentValue = ResolveSettingValue(definition.visibleWhenSettingPath);
+        foreach (string acceptedValue in definition.visibleWhenValues)
+        {
+            if (string.Equals(currentValue, acceptedValue, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    public string ResolveSettingValue(string settingPath)
+    {
+        ProjectAssetImportSetting dependency = FindSetting(settingPath);
+        ProjectAssetImportSettingDefinition dependencyDefinition = ProjectAssetImportSettingCatalog.FindBySettingPath(settingPath);
+        string value = dependency != null && dependency.overrideEnabled
+            ? dependency.value
+            : dependencyDefinition?.defaultValue;
+
+        return string.IsNullOrEmpty(value) ? dependencyDefinition?.defaultValue ?? string.Empty : value;
+    }
+
     private void EnsureInitialized()
     {
         filter ??= new ProjectAssetRuleFilter();
@@ -1116,6 +1142,25 @@ public sealed class ProjectAssetImportRuleSet : ScriptableObject
         };
     }
 
+    public ProjectEffectiveImportSettings BuildRuleImportSettings(ProjectAssetImportRule rule, ProjectAssetRuleContext context)
+    {
+        List<ProjectEffectiveImportSetting> effectiveSettings = new List<ProjectEffectiveImportSetting>();
+        Dictionary<string, int> indexByPropertyPath = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        if (rule != null)
+        {
+            rule.EnsureMigrated();
+            MergeStrongSettings(rule, context, effectiveSettings, indexByPropertyPath);
+            MergeCustomSettings(rule, effectiveSettings, indexByPropertyPath);
+        }
+
+        return new ProjectEffectiveImportSettings
+        {
+            matchedRules = rule != null ? new[] { rule } : Array.Empty<ProjectAssetImportRule>(),
+            settings = effectiveSettings.ToArray()
+        };
+    }
+
     public void Apply(AssetImporter importer, string assetPath)
     {
         if (importer == null)
@@ -1152,6 +1197,9 @@ public sealed class ProjectAssetImportRuleSet : ScriptableObject
         ProjectAssetClass assetClass = context?.assetClass ?? ProjectAssetClass.Any;
         foreach (ProjectAssetImportSettingDefinition definition in ProjectAssetImportSettingCatalog.GetDefinitionsForAssetClass(assetClass))
         {
+            if (!rule.ShouldIncludeSetting(definition))
+                continue;
+
             ProjectAssetImportSetting setting = rule.FindSetting(definition.settingPath);
             if (setting == null || !setting.overrideEnabled)
                 continue;

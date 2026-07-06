@@ -28,6 +28,16 @@ Assets/Editor/AssetImport/ProjectAssetImportRuleSet.asset
 - 资产筛选器：`Directory`、`Package Name`、`Asset Class`。
 - 导入设置：按 Unity 导入器习惯分成页签，字段左侧勾选表示这条规则负责写入该字段。
 
+每条规则标题右侧有三颗执行按钮：
+
+| 按钮 | 作用 |
+|---|---|
+| `列` | 列出符合当前规则筛选条件的资产 |
+| `查` | 检查匹配资产中哪些导入属性不符合当前规则，并列出将被修改的字段 |
+| `改` | 应用当前规则，重导入被修改的资产，并生成执行报告 |
+
+这些按钮用于在配置面板里主动执行规则；资源导入时仍会自动应用所有命中规则合并后的 Effective Import Settings。
+
 顶部的 Global Settings、Regex Tester、Export、Import 已移除，避免把规则编辑入口藏得太深。
 
 ## 规则匹配

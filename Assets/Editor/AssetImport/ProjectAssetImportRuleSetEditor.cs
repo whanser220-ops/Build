@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
@@ -11,6 +13,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
     private const float LabelWidth = 178f;
     private const float RowHeight = 22f;
     private const float SmallButtonWidth = 26f;
+    private const float RuleProcessorButtonWidth = 28f;
 
     private ProjectAssetImportRuleSet _ruleSet;
     private SerializedObject _serializedRuleSet;
@@ -117,8 +120,11 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         header.width -= EditorGUI.indentLevel * 15f;
         EditorGUI.DrawRect(header, HeaderColor(0.52f));
 
-        Rect foldoutRect = new Rect(header.x + 6f, header.y + 1f, header.width - 154f, header.height);
+        Rect foldoutRect = new Rect(header.x + 6f, header.y + 1f, header.width - 244f, header.height);
         _ruleExpanded[index] = EditorGUI.Foldout(foldoutRect, _ruleExpanded[index], BuildRuleSummary(rule), true);
+
+        Rect processorButtons = new Rect(header.xMax - 234f, header.y + 1f, 84f, header.height - 2f);
+        DrawRuleProcessorButtons(processorButtons, index, enabled.boolValue);
 
         Rect toggleRect = new Rect(header.xMax - 146f, header.y + 2f, 18f, header.height - 4f);
         enabled.boolValue = EditorGUI.Toggle(toggleRect, enabled.boolValue);
@@ -524,6 +530,67 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         }
     }
 
+    private void DrawRuleProcessorButtons(Rect rect, int index, bool enabled)
+    {
+        Rect listRect = new Rect(rect.x, rect.y, RuleProcessorButtonWidth, rect.height);
+        Rect checkRect = new Rect(listRect.xMax, rect.y, RuleProcessorButtonWidth, rect.height);
+        Rect applyRect = new Rect(checkRect.xMax, rect.y, RuleProcessorButtonWidth, rect.height);
+
+        using (new EditorGUI.DisabledScope(!enabled))
+        {
+            if (GUI.Button(listRect, new GUIContent("列", "列出符合当前规则筛选条件的资产"), EditorStyles.miniButtonLeft))
+            {
+                RunRuleProcessorAction(index, ProjectAssetProcessorAction.List);
+                GUIUtility.ExitGUI();
+            }
+
+            if (GUI.Button(checkRect, new GUIContent("查", "检查会被当前规则修改的属性"), EditorStyles.miniButtonMid))
+            {
+                RunRuleProcessorAction(index, ProjectAssetProcessorAction.Check);
+                GUIUtility.ExitGUI();
+            }
+
+            if (GUI.Button(applyRect, new GUIContent("改", "应用当前规则并列出修改结果"), EditorStyles.miniButtonRight))
+            {
+                RunRuleProcessorAction(index, ProjectAssetProcessorAction.Apply);
+                GUIUtility.ExitGUI();
+            }
+        }
+    }
+
+    private void RunRuleProcessorAction(int ruleIndex, ProjectAssetProcessorAction action)
+    {
+        CommitSerializedRuleSet();
+        if (_ruleSet == null || _ruleSet.rules == null || ruleIndex < 0 || ruleIndex >= _ruleSet.rules.Length)
+            return;
+
+        ProjectAssetImportRule rule = _ruleSet.rules[ruleIndex];
+        string report = ProjectAssetProcessorRunner.Run(_ruleSet, rule, action);
+        ProjectAssetProcessorReportWindow.ShowReport(ResolveReportTitle(action, rule), report);
+    }
+
+    private void CommitSerializedRuleSet()
+    {
+        if (_serializedRuleSet == null)
+            return;
+
+        _serializedRuleSet.ApplyModifiedProperties();
+        _ruleSet.EnsureMigrated();
+        EditorUtility.SetDirty(_ruleSet);
+    }
+
+    private static string ResolveReportTitle(ProjectAssetProcessorAction action, ProjectAssetImportRule rule)
+    {
+        string ruleName = string.IsNullOrWhiteSpace(rule?.name) ? "Unnamed Rule" : rule.name;
+        return action switch
+        {
+            ProjectAssetProcessorAction.List => $"匹配资产 - {ruleName}",
+            ProjectAssetProcessorAction.Check => $"检查报告 - {ruleName}",
+            ProjectAssetProcessorAction.Apply => $"应用报告 - {ruleName}",
+            _ => ruleName
+        };
+    }
+
     private void ShowAddRuleMenu(Rect buttonRect)
     {
         GenericMenu menu = new GenericMenu();
@@ -891,6 +958,558 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
 
             current = next;
         }
+    }
+}
+
+internal enum ProjectAssetProcessorAction
+{
+    List,
+    Check,
+    Apply
+}
+
+internal static class ProjectAssetProcessorRunner
+{
+    private const string SpecialWriteOnlyClipName = "modelimporter.clipnamefromasset";
+
+    public static string Run(ProjectAssetImportRuleSet ruleSet, ProjectAssetImportRule rule, ProjectAssetProcessorAction action)
+    {
+        StringBuilder report = new StringBuilder();
+        string ruleName = string.IsNullOrWhiteSpace(rule?.name) ? "Unnamed Rule" : rule.name;
+        AppendHeader(report, action, ruleName);
+
+        if (ruleSet == null || rule == null)
+        {
+            report.AppendLine("规则不存在。");
+            return report.ToString();
+        }
+
+        List<ProjectAssetRuleContext> matches = FindMatchingAssets(rule, report);
+        report.AppendLine($"匹配资产数量: {matches.Count}");
+        report.AppendLine();
+
+        if (action == ProjectAssetProcessorAction.List)
+        {
+            AppendAssetList(report, matches);
+            return report.ToString();
+        }
+
+        if (action == ProjectAssetProcessorAction.Apply &&
+            !EditorUtility.DisplayDialog(
+                "应用资产导入规则",
+                $"将对 {matches.Count} 个匹配资产应用规则 \"{ruleName}\"。继续？",
+                "应用",
+                "取消"))
+        {
+            report.AppendLine("用户取消应用。");
+            return report.ToString();
+        }
+
+        int changedAssetCount = 0;
+        int changedPropertyCount = 0;
+        int appliedAssetCount = 0;
+        int skippedPropertyCount = 0;
+
+        try
+        {
+            for (int i = 0; i < matches.Count; i++)
+            {
+                ProjectAssetRuleContext context = matches[i];
+                if (EditorUtility.DisplayCancelableProgressBar(
+                    ResolveProgressTitle(action),
+                    context.assetPath,
+                    matches.Count == 0 ? 1f : (float)i / matches.Count))
+                {
+                    report.AppendLine("用户取消执行。");
+                    break;
+                }
+
+                ProjectAssetPropertyItem[] targetItems = ruleSet
+                    .BuildRuleImportSettings(rule, context)
+                    .ToPropertyItems();
+                List<ProjectAssetProcessorPropertyChange> changes = BuildPropertyChanges(context.importer, targetItems);
+
+                if (changes.Count == 0)
+                    continue;
+
+                changedAssetCount++;
+                changedPropertyCount += CountApplicableChanges(changes);
+                skippedPropertyCount += CountSkippedChanges(changes);
+                AppendChanges(report, context.assetPath, changes, action);
+
+                if (action == ProjectAssetProcessorAction.Apply)
+                {
+                    ProjectAssetPropertyItem[] itemsToApply = BuildItemsToApply(changes);
+                    if (itemsToApply.Length == 0)
+                        continue;
+
+                    try
+                    {
+                        ProjectAssetPropertyApplier.Apply(context.importer, context.assetPath, itemsToApply);
+                        context.importer.SaveAndReimport();
+                        appliedAssetCount++;
+                    }
+                    catch (Exception exception)
+                    {
+                        report.AppendLine($"  [ERROR] 应用失败: {exception.Message}");
+                        report.AppendLine();
+                    }
+                }
+            }
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
+        }
+
+        report.AppendLine();
+        report.AppendLine("Summary");
+        report.AppendLine($"需要修改的资产: {changedAssetCount}");
+        report.AppendLine($"需要修改的属性: {changedPropertyCount}");
+        if (skippedPropertyCount > 0)
+            report.AppendLine($"无法自动检查/应用的属性: {skippedPropertyCount}");
+        if (action == ProjectAssetProcessorAction.Apply)
+            report.AppendLine($"已应用资产: {appliedAssetCount}");
+
+        return report.ToString();
+    }
+
+    private static List<ProjectAssetRuleContext> FindMatchingAssets(ProjectAssetImportRule rule, StringBuilder report)
+    {
+        List<ProjectAssetRuleContext> matches = new List<ProjectAssetRuleContext>();
+        string[] assetPaths = AssetDatabase.GetAllAssetPaths();
+
+        try
+        {
+            for (int i = 0; i < assetPaths.Length; i++)
+            {
+                string assetPath = NormalizeAssetPath(assetPaths[i]);
+                if (i % 64 == 0 &&
+                    EditorUtility.DisplayCancelableProgressBar(
+                        "扫描匹配资产",
+                        assetPath,
+                        assetPaths.Length == 0 ? 1f : (float)i / assetPaths.Length))
+                {
+                    report.AppendLine("用户取消扫描。");
+                    break;
+                }
+
+                if (!assetPath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) ||
+                    AssetDatabase.IsValidFolder(assetPath))
+                    continue;
+
+                AssetImporter importer = AssetImporter.GetAtPath(assetPath);
+                if (importer == null)
+                    continue;
+
+                ProjectAssetRuleContext context = ProjectAssetRuleContext.FromImporter(assetPath, importer);
+                if (rule.Matches(context))
+                    matches.Add(context);
+            }
+        }
+        finally
+        {
+            EditorUtility.ClearProgressBar();
+        }
+
+        return matches;
+    }
+
+    private static List<ProjectAssetProcessorPropertyChange> BuildPropertyChanges(
+        AssetImporter importer,
+        ProjectAssetPropertyItem[] targetItems)
+    {
+        List<ProjectAssetProcessorPropertyChange> changes = new List<ProjectAssetProcessorPropertyChange>();
+        if (importer == null || targetItems == null)
+            return changes;
+
+        foreach (ProjectAssetPropertyItem item in targetItems)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(item.propertyPath))
+                continue;
+
+            if (TryReadImporterProperty(importer, item, out string currentValue, out string readError))
+            {
+                if (!ValuesEqual(item, currentValue, item.value))
+                {
+                    changes.Add(new ProjectAssetProcessorPropertyChange
+                    {
+                        item = item,
+                        currentValue = currentValue,
+                        targetValue = item.value,
+                        canApply = true
+                    });
+                }
+
+                continue;
+            }
+
+            if (CanApplyWithoutRead(item))
+            {
+                changes.Add(new ProjectAssetProcessorPropertyChange
+                {
+                    item = item,
+                    currentValue = "(special)",
+                    targetValue = item.value,
+                    canApply = true,
+                    note = readError
+                });
+                continue;
+            }
+
+            changes.Add(new ProjectAssetProcessorPropertyChange
+            {
+                item = item,
+                currentValue = "(unknown)",
+                targetValue = item.value,
+                canApply = false,
+                note = readError
+            });
+        }
+
+        return changes;
+    }
+
+    private static bool TryReadImporterProperty(
+        AssetImporter importer,
+        ProjectAssetPropertyItem item,
+        out string value,
+        out string error)
+    {
+        value = null;
+        error = null;
+
+        string normalized = NormalizePropertyKey(item.propertyPath);
+        if (string.Equals(normalized, SpecialWriteOnlyClipName, StringComparison.OrdinalIgnoreCase))
+        {
+            error = "特殊操作：根据资源名修正 Animation Clip 名称，无法直接读取当前值。";
+            return false;
+        }
+
+        if (string.Equals(normalized, "modelimporter.extrauserproperties", StringComparison.OrdinalIgnoreCase) &&
+            importer is ModelImporter modelImporter)
+        {
+            value = string.Join(";", modelImporter.extraUserProperties ?? Array.Empty<string>());
+            return true;
+        }
+
+        if (TryReadPublicImporterProperty(importer, item, "ModelImporter", out value) ||
+            TryReadPublicImporterProperty(importer, item, "TextureImporter", out value))
+            return true;
+
+        SerializedObject serializedObject = new SerializedObject(importer);
+        SerializedProperty property = serializedObject.FindProperty(item.propertyPath);
+        if (property == null)
+        {
+            error = "找不到 importer 属性。";
+            return false;
+        }
+
+        return TryReadSerializedProperty(property, out value, out error);
+    }
+
+    private static bool TryReadPublicImporterProperty(
+        AssetImporter importer,
+        ProjectAssetPropertyItem item,
+        string prefix,
+        out string value)
+    {
+        value = null;
+        string propertyPath = item.propertyPath?.Trim();
+        string prefixWithDot = prefix + ".";
+        if (string.IsNullOrWhiteSpace(propertyPath) ||
+            !propertyPath.StartsWith(prefixWithDot, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        string propertyName = propertyPath.Substring(prefixWithDot.Length);
+        PropertyInfo property = importer.GetType().GetProperty(
+            propertyName,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);
+        if (property == null || property.GetMethod == null)
+            return false;
+
+        object rawValue = property.GetValue(importer);
+        value = ConvertValueToReportString(rawValue);
+        return true;
+    }
+
+    private static bool TryReadSerializedProperty(SerializedProperty property, out string value, out string error)
+    {
+        error = null;
+        switch (property.propertyType)
+        {
+            case SerializedPropertyType.Boolean:
+                value = property.boolValue ? "true" : "false";
+                return true;
+            case SerializedPropertyType.Integer:
+                value = property.intValue.ToString(CultureInfo.InvariantCulture);
+                return true;
+            case SerializedPropertyType.Float:
+                value = property.floatValue.ToString(CultureInfo.InvariantCulture);
+                return true;
+            case SerializedPropertyType.String:
+                value = property.stringValue ?? string.Empty;
+                return true;
+            case SerializedPropertyType.Enum:
+                value = property.enumValueIndex >= 0 && property.enumValueIndex < property.enumNames.Length
+                    ? property.enumNames[property.enumValueIndex]
+                    : property.enumValueIndex.ToString(CultureInfo.InvariantCulture);
+                return true;
+            default:
+                value = null;
+                error = $"不支持读取的 serialized property 类型: {property.propertyType}";
+                return false;
+        }
+    }
+
+    private static bool ValuesEqual(ProjectAssetPropertyItem item, string currentValue, string targetValue)
+    {
+        string normalized = NormalizePropertyKey(item.propertyPath);
+        if (string.Equals(normalized, "modelimporter.extrauserproperties", StringComparison.OrdinalIgnoreCase))
+            return ContainsAllTokens(currentValue, targetValue);
+
+        switch (item.valueKind)
+        {
+            case ProjectAssetPropertyValueKind.Bool:
+                if (TryParseBool(currentValue, out bool currentBool) && TryParseBool(targetValue, out bool targetBool))
+                    return currentBool == targetBool;
+                break;
+            case ProjectAssetPropertyValueKind.Int:
+                if (int.TryParse(currentValue, out int currentInt) && int.TryParse(targetValue, out int targetInt))
+                    return currentInt == targetInt;
+                break;
+            case ProjectAssetPropertyValueKind.Float:
+                if (TryParseFloat(currentValue, out float currentFloat) && TryParseFloat(targetValue, out float targetFloat))
+                    return Mathf.Abs(currentFloat - targetFloat) <= 0.0001f;
+                break;
+            case ProjectAssetPropertyValueKind.Enum:
+                return string.Equals(currentValue, targetValue, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return string.Equals(currentValue ?? string.Empty, targetValue ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    private static bool ContainsAllTokens(string currentValue, string requiredValue)
+    {
+        string[] currentTokens = SplitTokens(currentValue);
+        foreach (string requiredToken in SplitTokens(requiredValue))
+        {
+            bool found = false;
+            foreach (string currentToken in currentTokens)
+            {
+                if (string.Equals(currentToken, requiredToken, StringComparison.Ordinal))
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static ProjectAssetPropertyItem[] BuildItemsToApply(List<ProjectAssetProcessorPropertyChange> changes)
+    {
+        List<ProjectAssetPropertyItem> items = new List<ProjectAssetPropertyItem>();
+        foreach (ProjectAssetProcessorPropertyChange change in changes)
+        {
+            if (change.canApply && change.item != null)
+                items.Add(change.item);
+        }
+
+        return items.ToArray();
+    }
+
+    private static int CountApplicableChanges(List<ProjectAssetProcessorPropertyChange> changes)
+    {
+        int count = 0;
+        foreach (ProjectAssetProcessorPropertyChange change in changes)
+        {
+            if (change.canApply)
+                count++;
+        }
+
+        return count;
+    }
+
+    private static int CountSkippedChanges(List<ProjectAssetProcessorPropertyChange> changes)
+    {
+        int count = 0;
+        foreach (ProjectAssetProcessorPropertyChange change in changes)
+        {
+            if (!change.canApply)
+                count++;
+        }
+
+        return count;
+    }
+
+    private static void AppendHeader(StringBuilder report, ProjectAssetProcessorAction action, string ruleName)
+    {
+        report.AppendLine("Asset Processor Report");
+        report.AppendLine($"Action: {action}");
+        report.AppendLine($"Rule: {ruleName}");
+        report.AppendLine($"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        report.AppendLine(new string('-', 72));
+    }
+
+    private static void AppendAssetList(StringBuilder report, List<ProjectAssetRuleContext> matches)
+    {
+        if (matches.Count == 0)
+        {
+            report.AppendLine("没有资产符合当前规则。");
+            return;
+        }
+
+        foreach (ProjectAssetRuleContext context in matches)
+            report.AppendLine(context.assetPath);
+    }
+
+    private static void AppendChanges(
+        StringBuilder report,
+        string assetPath,
+        List<ProjectAssetProcessorPropertyChange> changes,
+        ProjectAssetProcessorAction action)
+    {
+        report.AppendLine(assetPath);
+        foreach (ProjectAssetProcessorPropertyChange change in changes)
+        {
+            string state = change.canApply
+                ? action == ProjectAssetProcessorAction.Apply ? "APPLIED" : "WILL MODIFY"
+                : "SKIPPED";
+            report.Append("  [")
+                .Append(state)
+                .Append("] ")
+                .Append(change.item.propertyPath)
+                .Append(": ")
+                .Append(change.currentValue)
+                .Append(" -> ")
+                .AppendLine(change.targetValue);
+
+            if (!string.IsNullOrWhiteSpace(change.note))
+                report.AppendLine("    Note: " + change.note);
+        }
+
+        report.AppendLine();
+    }
+
+    private static string ResolveProgressTitle(ProjectAssetProcessorAction action)
+    {
+        return action == ProjectAssetProcessorAction.Apply ? "应用资产导入规则" : "检查资产导入规则";
+    }
+
+    private static bool CanApplyWithoutRead(ProjectAssetPropertyItem item)
+    {
+        return string.Equals(NormalizePropertyKey(item.propertyPath), SpecialWriteOnlyClipName, StringComparison.OrdinalIgnoreCase) &&
+            TryParseBool(item.value, out bool enabled) &&
+            enabled;
+    }
+
+    private static string ConvertValueToReportString(object rawValue)
+    {
+        if (rawValue == null)
+            return string.Empty;
+
+        if (rawValue is bool boolValue)
+            return boolValue ? "true" : "false";
+        if (rawValue is float floatValue)
+            return floatValue.ToString(CultureInfo.InvariantCulture);
+        if (rawValue is double doubleValue)
+            return doubleValue.ToString(CultureInfo.InvariantCulture);
+        if (rawValue is int intValue)
+            return intValue.ToString(CultureInfo.InvariantCulture);
+        if (rawValue is Array array)
+        {
+            List<string> values = new List<string>();
+            foreach (object item in array)
+                values.Add(ConvertValueToReportString(item));
+
+            return string.Join(";", values);
+        }
+
+        return Convert.ToString(rawValue, CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private static bool TryParseBool(string value, out bool result)
+    {
+        if (bool.TryParse(value, out result))
+            return true;
+        if (int.TryParse(value, out int intValue))
+        {
+            result = intValue != 0;
+            return true;
+        }
+
+        result = false;
+        return false;
+    }
+
+    private static bool TryParseFloat(string value, out float result)
+    {
+        return float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result) ||
+            float.TryParse(value, out result);
+    }
+
+    private static string[] SplitTokens(string value)
+    {
+        return (value ?? string.Empty)
+            .Split(new[] { ';', ',', '|' }, StringSplitOptions.RemoveEmptyEntries);
+    }
+
+    private static string NormalizeAssetPath(string assetPath)
+    {
+        return (assetPath ?? string.Empty).Replace('\\', '/');
+    }
+
+    private static string NormalizePropertyKey(string propertyPath)
+    {
+        return (propertyPath ?? string.Empty)
+            .Trim()
+            .Replace(" ", string.Empty)
+            .ToLowerInvariant();
+    }
+}
+
+internal sealed class ProjectAssetProcessorPropertyChange
+{
+    public ProjectAssetPropertyItem item;
+    public string currentValue;
+    public string targetValue;
+    public bool canApply;
+    public string note;
+}
+
+public sealed class ProjectAssetProcessorReportWindow : EditorWindow
+{
+    private string _report;
+    private Vector2 _scroll;
+
+    public static void ShowReport(string title, string report)
+    {
+        ProjectAssetProcessorReportWindow window = GetWindow<ProjectAssetProcessorReportWindow>("Asset Processor Report");
+        window.titleContent = new GUIContent(string.IsNullOrWhiteSpace(title) ? "Asset Processor Report" : title);
+        window._report = report ?? string.Empty;
+        window._scroll = Vector2.zero;
+        window.minSize = new Vector2(720f, 420f);
+        window.Show();
+    }
+
+    private void OnGUI()
+    {
+        using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+        {
+            if (GUILayout.Button("复制报告", EditorStyles.toolbarButton, GUILayout.Width(82f)))
+                GUIUtility.systemCopyBuffer = _report ?? string.Empty;
+
+            GUILayout.FlexibleSpace();
+        }
+
+        _scroll = EditorGUILayout.BeginScrollView(_scroll);
+        EditorGUILayout.TextArea(_report ?? string.Empty, GUILayout.ExpandHeight(true));
+        EditorGUILayout.EndScrollView();
     }
 }
 
