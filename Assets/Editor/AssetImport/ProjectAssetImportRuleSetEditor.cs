@@ -524,6 +524,9 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
             if (EditorUtility.DisplayDialog("Remove Rule", "Remove this rule item?", "Remove", "Cancel"))
             {
                 rules.DeleteArrayElementAtIndex(index);
+                _ruleExpanded = RemoveFoldoutState(_ruleExpanded, index);
+                _ruleTabIndices = RemoveTabState(_ruleTabIndices, index);
+                CommitSerializedRuleSet();
                 SyncFoldoutState();
                 GUIUtility.ExitGUI();
             }
@@ -720,6 +723,9 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
             return;
 
         rules.arraySize = 0;
+        _ruleExpanded = Array.Empty<bool>();
+        _ruleTabIndices = Array.Empty<int>();
+        CommitSerializedRuleSet();
         SyncFoldoutState();
     }
 
@@ -794,6 +800,46 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
                 result[i] = insertedValue;
             else
                 result[i] = values[i - 1];
+        }
+
+        return result;
+    }
+
+    private static bool[] RemoveFoldoutState(bool[] values, int index)
+    {
+        if (values == null || values.Length == 0)
+            return Array.Empty<bool>();
+
+        if (index < 0 || index >= values.Length)
+            return values;
+
+        bool[] result = new bool[values.Length - 1];
+        for (int source = 0, target = 0; source < values.Length; source++)
+        {
+            if (source == index)
+                continue;
+
+            result[target++] = values[source];
+        }
+
+        return result;
+    }
+
+    private static int[] RemoveTabState(int[] values, int index)
+    {
+        if (values == null || values.Length == 0)
+            return Array.Empty<int>();
+
+        if (index < 0 || index >= values.Length)
+            return values;
+
+        int[] result = new int[values.Length - 1];
+        for (int source = 0, target = 0; source < values.Length; source++)
+        {
+            if (source == index)
+                continue;
+
+            result[target++] = values[source];
         }
 
         return result;
