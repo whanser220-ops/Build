@@ -33,12 +33,6 @@ public enum ProjectAssetPropertyValueKind
     Enum
 }
 
-public enum ProjectAssetRuleOnSaveMode
-{
-    Disable,
-    Enable
-}
-
 [Serializable]
 public sealed class ProjectAssetRuleFilter
 {
@@ -128,7 +122,6 @@ public sealed class ProjectAssetImportRuleSet : ScriptableObject
 {
     public const string DefaultAssetPath = "Assets/Editor/AssetImport/ProjectAssetImportRuleSet.asset";
 
-    public ProjectAssetRuleOnSaveMode applyRuleOnSave = ProjectAssetRuleOnSaveMode.Disable;
     public bool applyAllMatchingRules = true;
     public ProjectAssetImportRule[] rules = Array.Empty<ProjectAssetImportRule>();
 
@@ -141,7 +134,6 @@ public sealed class ProjectAssetImportRuleSet : ScriptableObject
     public static ProjectAssetImportRuleSet CreateDefaultInstance()
     {
         ProjectAssetImportRuleSet ruleSet = CreateInstance<ProjectAssetImportRuleSet>();
-        ruleSet.applyRuleOnSave = ProjectAssetRuleOnSaveMode.Disable;
         ruleSet.applyAllMatchingRules = true;
         ruleSet.rules = CreateDefaultRules();
         return ruleSet;
@@ -432,6 +424,15 @@ internal static class ProjectAssetPropertyApplier
     {
         switch (key)
         {
+            case "modelimporter.globalscale":
+                importer.globalScale = ParseFloat(item.value);
+                return true;
+            case "modelimporter.usefilescale":
+                importer.useFileScale = ParseBool(item.value);
+                return true;
+            case "modelimporter.bakeaxisconversion":
+                importer.bakeAxisConversion = ParseBool(item.value);
+                return true;
             case "modelimporter.importcameras":
                 importer.importCameras = ParseBool(item.value);
                 return true;
