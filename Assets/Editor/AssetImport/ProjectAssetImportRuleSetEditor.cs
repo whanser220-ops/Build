@@ -203,13 +203,14 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         rect.x += indentOffset;
         rect.width -= indentOffset;
 
-        Rect toggleRect = new Rect(rect.x + 18f, rect.y + 2f, 16f, rect.height - 4f);
-        Rect labelRect = new Rect(toggleRect.xMax + 6f, rect.y + 2f, LabelWidth - 42f, rect.height - 4f);
+        Rect overrideRect = new Rect(rect.x + 18f, rect.y + 1f, LabelWidth - 24f, rect.height - 2f);
         Rect valueRect = new Rect(rect.x + LabelWidth, rect.y + 1f, rect.width - LabelWidth - 10f, rect.height - 2f);
 
         bool wasEnabled = overrideEnabled.boolValue;
-        bool isEnabled = EditorGUI.Toggle(toggleRect, wasEnabled);
-        EditorGUI.LabelField(labelRect, definition.label);
+        bool isEnabled = EditorGUI.ToggleLeft(
+            overrideRect,
+            new GUIContent(definition.label, "勾选后当前规则会覆盖这个导入字段"),
+            wasEnabled);
 
         if (isEnabled != wasEnabled)
         {
