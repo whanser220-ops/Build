@@ -16,9 +16,12 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
     {
         ImportSettingDefinition.Section("Scene"),
         ImportSettingDefinition.Float("ModelImporter.globalScale", "Scale Factor", "1"),
-        ImportSettingDefinition.Bool("ModelImporter.useFileScale", "Convert Units", "true"),
+        ImportSettingDefinition.Bool("ModelImporter.useFileScale", "Use File Scale", "true"),
+        ImportSettingDefinition.Bool("ModelImporter.useFileUnits", "Convert Units", "true"),
         ImportSettingDefinition.Bool("ModelImporter.bakeAxisConversion", "Bake Axis Conversion", "false"),
         ImportSettingDefinition.Bool("ModelImporter.importBlendShapes", "Import BlendShapes", "false"),
+        ImportSettingDefinition.Enum<ModelImporterNormals>("ModelImporter.importBlendShapeNormals", "Blend Shape Normals", "None"),
+        ImportSettingDefinition.Bool("ModelImporter.importBlendShapeDeformPercent", "Blend Shape Deform Percent", "false"),
         ImportSettingDefinition.Bool("ModelImporter.importVisibility", "Import Visibility", "true"),
         ImportSettingDefinition.Bool("ModelImporter.importCameras", "Import Cameras", "false"),
         ImportSettingDefinition.Bool("ModelImporter.importLights", "Import Lights", "false"),
@@ -26,46 +29,153 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         ImportSettingDefinition.Bool("ModelImporter.sortHierarchyByName", "Sort Hierarchy By Name", "true"),
         ImportSettingDefinition.String("ModelImporter.extraUserProperties", "Extra User Properties", string.Empty),
         ImportSettingDefinition.Section("Meshes"),
-        ImportSettingDefinition.Enum("ModelImporter.meshCompression", "Mesh Compression", "Low", "Off", "Low", "Medium", "High"),
+        ImportSettingDefinition.Enum<ModelImporterMeshCompression>("ModelImporter.meshCompression", "Mesh Compression", "Low"),
         ImportSettingDefinition.Bool("ModelImporter.isReadable", "Read/Write", "false"),
+        ImportSettingDefinition.Bool("ModelImporter.optimizeMesh", "Optimize Mesh", "true"),
+        ImportSettingDefinition.Bool("ModelImporter.optimizeMeshPolygons", "Optimize Polygon Order", "true"),
+        ImportSettingDefinition.Bool("ModelImporter.optimizeMeshVertices", "Optimize Vertex Order", "true"),
+        ImportSettingDefinition.Enum<MeshOptimizationFlags>("ModelImporter.meshOptimizationFlags", "Mesh Optimization Flags", "Everything"),
         ImportSettingDefinition.Bool("ModelImporter.addCollider", "Generate Colliders", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.generateSecondaryUV", "Generate Lightmap UVs", "false")
+        ImportSettingDefinition.Bool("ModelImporter.keepQuads", "Keep Quads", "false"),
+        ImportSettingDefinition.Bool("ModelImporter.weldVertices", "Weld Vertices", "true"),
+        ImportSettingDefinition.Enum<ModelImporterIndexFormat>("ModelImporter.indexFormat", "Index Format", "Auto"),
+        ImportSettingDefinition.Enum<ModelImporterNormals>("ModelImporter.importNormals", "Normals", "Import"),
+        ImportSettingDefinition.Enum<ModelImporterTangentSpaceMode>("ModelImporter.normalImportMode", "Normal Import Mode", "Import"),
+        ImportSettingDefinition.Enum<ModelImporterNormalCalculationMode>("ModelImporter.normalCalculationMode", "Normal Calculation Mode", "AreaAndAngleWeighted"),
+        ImportSettingDefinition.Enum<ModelImporterNormalSmoothingSource>("ModelImporter.normalSmoothingSource", "Smoothing Source", "PreferSmoothingGroups"),
+        ImportSettingDefinition.Float("ModelImporter.normalSmoothingAngle", "Smoothing Angle", "60"),
+        ImportSettingDefinition.Enum<ModelImporterTangents>("ModelImporter.importTangents", "Tangents", "CalculateMikk"),
+        ImportSettingDefinition.Enum<ModelImporterTangentSpaceMode>("ModelImporter.tangentImportMode", "Tangent Import Mode", "Calculate"),
+        ImportSettingDefinition.Bool("ModelImporter.splitTangentsAcrossSeams", "Split Tangents Across Seams", "false"),
+        ImportSettingDefinition.Bool("ModelImporter.swapUVChannels", "Swap UVs", "false"),
+        ImportSettingDefinition.Bool("ModelImporter.strictVertexDataChecks", "Strict Vertex Data Checks", "false"),
+        ImportSettingDefinition.Section("Lightmap UVs"),
+        ImportSettingDefinition.Bool("ModelImporter.generateSecondaryUV", "Generate Lightmap UVs", "false"),
+        ImportSettingDefinition.Enum<ModelImporterSecondaryUVMarginMethod>("ModelImporter.secondaryUVMarginMethod", "Margin Method", "Calculate"),
+        ImportSettingDefinition.Float("ModelImporter.secondaryUVHardAngle", "Hard Angle", "88"),
+        ImportSettingDefinition.Float("ModelImporter.secondaryUVPackMargin", "Pack Margin", "4"),
+        ImportSettingDefinition.Float("ModelImporter.secondaryUVAngleDistortion", "Angle Error", "8"),
+        ImportSettingDefinition.Float("ModelImporter.secondaryUVAreaDistortion", "Area Error", "15"),
+        ImportSettingDefinition.Float("ModelImporter.secondaryUVMinLightmapResolution", "Min Lightmap Resolution", "40"),
+        ImportSettingDefinition.Float("ModelImporter.secondaryUVMinObjectScale", "Min Object Scale", "1")
     };
 
     private static readonly ImportSettingDefinition[] RigSettings =
     {
-        ImportSettingDefinition.Enum("ModelImporter.animationType", "Animation Type", "None", "None", "Generic", "Human"),
-        ImportSettingDefinition.Enum("ModelImporter.avatarSetup", "Avatar Definition", "CreateFromThisModel", "NoAvatar", "CreateFromThisModel", "CopyFromOther")
+        ImportSettingDefinition.Enum<ModelImporterAnimationType>("ModelImporter.animationType", "Animation Type", "None"),
+        ImportSettingDefinition.Enum<ModelImporterAvatarSetup>("ModelImporter.avatarSetup", "Avatar Definition", "CreateFromThisModel"),
+        ImportSettingDefinition.Enum<ModelImporterSkinWeights>("ModelImporter.skinWeights", "Skin Weights", "Standard"),
+        ImportSettingDefinition.Int("ModelImporter.maxBonesPerVertex", "Max Bones/Vertex", "4"),
+        ImportSettingDefinition.Float("ModelImporter.minBoneWeight", "Min Bone Weight", "0.001"),
+        ImportSettingDefinition.Bool("ModelImporter.optimizeGameObjects", "Optimize Game Objects", "false"),
+        ImportSettingDefinition.Bool("ModelImporter.optimizeBones", "Optimize Bones", "true"),
+        ImportSettingDefinition.Bool("ModelImporter.autoGenerateAvatarMappingIfUnspecified", "Auto Generate Avatar Mapping", "true"),
+        ImportSettingDefinition.Enum<ModelImporterHumanoidOversampling>("ModelImporter.humanoidOversampling", "Humanoid Oversampling", "X1"),
+        ImportSettingDefinition.Bool("ModelImporter.bakeIK", "Bake IK", "false")
     };
 
     private static readonly ImportSettingDefinition[] AnimationSettings =
     {
         ImportSettingDefinition.Bool("ModelImporter.importAnimation", "Import Animation", "false"),
-        ImportSettingDefinition.Enum("ModelImporter.animationCompression", "Anim. Compression", "Optimal", "Off", "KeyframeReduction", "Optimal"),
+        ImportSettingDefinition.Enum<ModelImporterAnimationCompression>("ModelImporter.animationCompression", "Anim. Compression", "Optimal"),
+        ImportSettingDefinition.Float("ModelImporter.animationRotationError", "Rotation Error", "0.5"),
+        ImportSettingDefinition.Float("ModelImporter.animationPositionError", "Position Error", "0.5"),
+        ImportSettingDefinition.Float("ModelImporter.animationScaleError", "Scale Error", "0.5"),
+        ImportSettingDefinition.Enum<WrapMode>("ModelImporter.animationWrapMode", "Wrap Mode", "Default"),
+        ImportSettingDefinition.Enum<ModelImporterGenerateAnimations>("ModelImporter.generateAnimations", "Generate Animations", "None"),
+        ImportSettingDefinition.Bool("ModelImporter.importConstraints", "Import Constraints", "false"),
+        ImportSettingDefinition.Bool("ModelImporter.importAnimatedCustomProperties", "Import Animated Custom Properties", "false"),
+        ImportSettingDefinition.Bool("ModelImporter.resampleCurves", "Resample Curves", "true"),
+        ImportSettingDefinition.Bool("ModelImporter.resampleRotations", "Resample Rotations", "true"),
+        ImportSettingDefinition.Bool("ModelImporter.removeConstantScaleCurves", "Remove Constant Scale Curves", "true"),
+        ImportSettingDefinition.Bool("ModelImporter.splitAnimations", "Split Animations", "false"),
+        ImportSettingDefinition.String("ModelImporter.motionNodeName", "Motion Node", string.Empty),
         ImportSettingDefinition.Bool("ModelImporter.clipNameFromAsset", "Clip Name From Asset", "false")
     };
 
     private static readonly ImportSettingDefinition[] MaterialSettings =
     {
-        ImportSettingDefinition.Bool("m_ImportMaterials", "Import Materials", "true")
+        ImportSettingDefinition.Enum<ModelImporterMaterialImportMode>("ModelImporter.materialImportMode", "Material Creation Mode", "ImportStandard"),
+        ImportSettingDefinition.Enum<ModelImporterMaterialLocation>("ModelImporter.materialLocation", "Location", "InPrefab"),
+        ImportSettingDefinition.Enum<ModelImporterMaterialName>("ModelImporter.materialName", "Naming", "BasedOnMaterialName"),
+        ImportSettingDefinition.Enum<ModelImporterMaterialSearch>("ModelImporter.materialSearch", "Search", "Local"),
+        ImportSettingDefinition.Bool("ModelImporter.useSRGBMaterialColor", "Use sRGB Material Color", "true")
     };
 
     private static readonly ImportSettingDefinition[] TextureSettings =
     {
         ImportSettingDefinition.Section("Texture"),
-        ImportSettingDefinition.Enum("TextureImporter.textureType", "Texture Type", "Default", "Default", "NormalMap", "Sprite"),
-        ImportSettingDefinition.Enum("TextureImporter.textureCompression", "Compression", "Compressed", "Uncompressed", "Compressed", "CompressedHQ", "CompressedLQ"),
+        ImportSettingDefinition.Enum<TextureImporterType>("TextureImporter.textureType", "Texture Type", "Default"),
+        ImportSettingDefinition.Enum<TextureImporterShape>("TextureImporter.textureShape", "Texture Shape", "Texture2D"),
         ImportSettingDefinition.Bool("TextureImporter.sRGBTexture", "sRGB", "true"),
-        ImportSettingDefinition.Bool("TextureImporter.mipmapEnabled", "Generate Mip Maps", "true"),
-        ImportSettingDefinition.Bool("TextureImporter.isReadable", "Read/Write", "false")
+        ImportSettingDefinition.Enum<TextureImporterAlphaSource>("TextureImporter.alphaSource", "Alpha Source", "FromInput"),
+        ImportSettingDefinition.Bool("TextureImporter.alphaIsTransparency", "Alpha Is Transparency", "false"),
+        ImportSettingDefinition.Bool("TextureImporter.ignorePngGamma", "Ignore PNG Gamma", "false"),
+        ImportSettingDefinition.Bool("TextureImporter.isReadable", "Read/Write", "false"),
+        ImportSettingDefinition.Bool("TextureImporter.vtOnly", "Virtual Texture Only", "false"),
+        ImportSettingDefinition.Section("Compression"),
+        ImportSettingDefinition.Int("TextureImporter.maxTextureSize", "Max Size", "2048"),
+        ImportSettingDefinition.Enum<TextureImporterCompression>("TextureImporter.textureCompression", "Compression", "Compressed"),
+        ImportSettingDefinition.Int("TextureImporter.compressionQuality", "Compression Quality", "50"),
+        ImportSettingDefinition.Bool("TextureImporter.crunchedCompression", "Use Crunch Compression", "false"),
+        ImportSettingDefinition.Enum<TextureImporterFormat>("TextureImporter.textureFormat", "Format", "Automatic"),
+        ImportSettingDefinition.Enum<AndroidETC2FallbackOverride>("TextureImporter.androidETC2FallbackOverride", "ETC2 Fallback", "UseBuildSettings"),
+        ImportSettingDefinition.Bool("TextureImporter.allowAlphaSplitting", "Allow Alpha Splitting", "false")
     };
 
     private static readonly ImportSettingDefinition[] TextureAdvancedSettings =
     {
-        ImportSettingDefinition.Enum("TextureImporter.wrapMode", "Wrap Mode", "Repeat", "Repeat", "Clamp", "Mirror", "MirrorOnce"),
-        ImportSettingDefinition.Enum("TextureImporter.wrapModeU", "Wrap Mode U", "Repeat", "Repeat", "Clamp", "Mirror", "MirrorOnce"),
-        ImportSettingDefinition.Enum("TextureImporter.wrapModeV", "Wrap Mode V", "Repeat", "Repeat", "Clamp", "Mirror", "MirrorOnce"),
-        ImportSettingDefinition.Enum("TextureImporter.wrapModeW", "Wrap Mode W", "Repeat", "Repeat", "Clamp", "Mirror", "MirrorOnce")
+        ImportSettingDefinition.Section("Mip Maps"),
+        ImportSettingDefinition.Bool("TextureImporter.mipmapEnabled", "Generate Mip Maps", "true"),
+        ImportSettingDefinition.Bool("TextureImporter.borderMipmap", "Border Mip Maps", "false"),
+        ImportSettingDefinition.Enum<TextureImporterMipFilter>("TextureImporter.mipmapFilter", "Mip Map Filtering", "BoxFilter"),
+        ImportSettingDefinition.Float("TextureImporter.mipMapBias", "Mip Map Bias", "0"),
+        ImportSettingDefinition.Bool("TextureImporter.mipMapsPreserveCoverage", "Preserve Coverage", "false"),
+        ImportSettingDefinition.Float("TextureImporter.alphaTestReferenceValue", "Alpha Cutoff", "0.5"),
+        ImportSettingDefinition.Bool("TextureImporter.fadeout", "Fadeout Mip Maps", "false"),
+        ImportSettingDefinition.Int("TextureImporter.mipmapFadeDistanceStart", "Fade Range Start", "1"),
+        ImportSettingDefinition.Int("TextureImporter.mipmapFadeDistanceEnd", "Fade Range End", "3"),
+        ImportSettingDefinition.Bool("TextureImporter.generateMipsInLinearSpace", "Generate Mips In Linear Space", "false"),
+        ImportSettingDefinition.String("TextureImporter.mipmapLimitGroupName", "Mipmap Limit Group", string.Empty),
+        ImportSettingDefinition.Bool("TextureImporter.ignoreMipmapLimit", "Ignore Mipmap Limit", "false"),
+        ImportSettingDefinition.Bool("TextureImporter.streamingMipmaps", "Streaming Mip Maps", "false"),
+        ImportSettingDefinition.Int("TextureImporter.streamingMipmapsPriority", "Streaming Priority", "0"),
+        ImportSettingDefinition.Section("Normal Map"),
+        ImportSettingDefinition.Bool("TextureImporter.convertToNormalmap", "Create From Grayscale", "false"),
+        ImportSettingDefinition.Float("TextureImporter.heightmapScale", "Bumpiness", "0.25"),
+        ImportSettingDefinition.Enum<TextureImporterNormalFilter>("TextureImporter.normalmapFilter", "Filtering", "Standard"),
+        ImportSettingDefinition.Bool("TextureImporter.flipGreenChannel", "Flip Green Channel", "false"),
+        ImportSettingDefinition.Section("Wrap / Filter"),
+        ImportSettingDefinition.Enum<TextureWrapMode>("TextureImporter.wrapMode", "Wrap Mode", "Repeat"),
+        ImportSettingDefinition.Enum<TextureWrapMode>("TextureImporter.wrapModeU", "Wrap Mode U", "Repeat"),
+        ImportSettingDefinition.Enum<TextureWrapMode>("TextureImporter.wrapModeV", "Wrap Mode V", "Repeat"),
+        ImportSettingDefinition.Enum<TextureWrapMode>("TextureImporter.wrapModeW", "Wrap Mode W", "Repeat"),
+        ImportSettingDefinition.Enum<FilterMode>("TextureImporter.filterMode", "Filter Mode", "Bilinear"),
+        ImportSettingDefinition.Int("TextureImporter.anisoLevel", "Aniso Level", "1"),
+        ImportSettingDefinition.Enum<TextureImporterNPOTScale>("TextureImporter.npotScale", "Non Power of 2", "ToNearest"),
+        ImportSettingDefinition.Section("Shape"),
+        ImportSettingDefinition.Enum<TextureImporterGenerateCubemap>("TextureImporter.generateCubemap", "Mapping", "AutoCubemap"),
+        ImportSettingDefinition.Bool("TextureImporter.correctGamma", "Correct Gamma", "false"),
+        ImportSettingDefinition.Bool("TextureImporter.grayscaleToAlpha", "Grayscale To Alpha", "false"),
+        ImportSettingDefinition.Bool("TextureImporter.lightmap", "Lightmap", "false"),
+        ImportSettingDefinition.Bool("TextureImporter.linearTexture", "Linear Texture", "false"),
+        ImportSettingDefinition.Bool("TextureImporter.normalmap", "Normal Map", "false")
+    };
+
+    private static readonly ImportSettingDefinition[] TextureSpriteSettings =
+    {
+        ImportSettingDefinition.Enum<SpriteImportMode>("TextureImporter.spriteImportMode", "Sprite Mode", "None"),
+        ImportSettingDefinition.Float("TextureImporter.spritePixelsPerUnit", "Pixels Per Unit", "100"),
+        ImportSettingDefinition.Float("TextureImporter.spritePixelsToUnits", "Pixels To Units", "100"),
+        ImportSettingDefinition.String("TextureImporter.spritePackingTag", "Packing Tag", string.Empty)
+    };
+
+    private static readonly ImportSettingDefinition[] TextureSwizzleSettings =
+    {
+        ImportSettingDefinition.Enum<TextureImporterSwizzle>("TextureImporter.swizzleR", "R Channel", "R"),
+        ImportSettingDefinition.Enum<TextureImporterSwizzle>("TextureImporter.swizzleG", "G Channel", "G"),
+        ImportSettingDefinition.Enum<TextureImporterSwizzle>("TextureImporter.swizzleB", "B Channel", "B"),
+        ImportSettingDefinition.Enum<TextureImporterSwizzle>("TextureImporter.swizzleA", "A Channel", "A")
     };
 
     private ProjectAssetImportRuleSet _ruleSet;
@@ -225,6 +335,12 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
                     break;
                 case "Advanced":
                     DrawSettingDefinitions(propertyItems, TextureAdvancedSettings);
+                    break;
+                case "Sprite":
+                    DrawSettingDefinitions(propertyItems, TextureSpriteSettings);
+                    break;
+                case "Swizzle":
+                    DrawSettingDefinitions(propertyItems, TextureSwizzleSettings);
                     break;
                 case "Custom":
                     DrawCustomSettings(propertyItems);
@@ -689,8 +805,8 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         return assetClass switch
         {
             ProjectAssetClass.Model => new[] { "Model", "Rig", "Animation", "Materials", "Custom" },
-            ProjectAssetClass.Texture2D => new[] { "Texture", "Advanced", "Custom" },
-            _ => new[] { "Model", "Rig", "Animation", "Materials", "Texture", "Advanced", "Custom" }
+            ProjectAssetClass.Texture2D => new[] { "Texture", "Advanced", "Sprite", "Swizzle", "Custom" },
+            _ => new[] { "Model", "Rig", "Animation", "Materials", "Texture", "Advanced", "Sprite", "Swizzle", "Custom" }
         };
     }
 
@@ -714,7 +830,9 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
             IsKnownProperty(propertyPath, AnimationSettings) ||
             IsKnownProperty(propertyPath, MaterialSettings) ||
             IsKnownProperty(propertyPath, TextureSettings) ||
-            IsKnownProperty(propertyPath, TextureAdvancedSettings);
+            IsKnownProperty(propertyPath, TextureAdvancedSettings) ||
+            IsKnownProperty(propertyPath, TextureSpriteSettings) ||
+            IsKnownProperty(propertyPath, TextureSwizzleSettings);
     }
 
     private static bool IsKnownProperty(string propertyPath, ImportSettingDefinition[] definitions)
@@ -905,6 +1023,12 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         public static ImportSettingDefinition Enum(string propertyPath, string label, string defaultValue, params string[] options)
         {
             return new ImportSettingDefinition(false, propertyPath, label, ProjectAssetPropertyValueKind.Enum, defaultValue, options);
+        }
+
+        public static ImportSettingDefinition Enum<TEnum>(string propertyPath, string label, string defaultValue)
+            where TEnum : struct
+        {
+            return Enum(propertyPath, label, defaultValue, System.Enum.GetNames(typeof(TEnum)));
         }
     }
 }

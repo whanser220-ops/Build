@@ -23,7 +23,7 @@ Tools/Asset Import/Asset Processor
 
 也可以在 Project 面板选中 `ProjectAssetImportRuleSet.asset`，Inspector 顶部点击 `Open Asset Processor`。
 
-窗口直接显示 `Rule Items`。每条规则展开后先编辑 `Directory`、`Package Name`、`Asset Class`，再用类似 Unity 导入设置的 `Model / Rig / Animation / Materials / Texture / Advanced` 页签勾选并配置需要写入的 importer 属性。
+窗口直接显示 `Rule Items`。每条规则展开后先编辑 `Directory`、`Package Name`、`Asset Class`，再用类似 Unity 导入设置的页签勾选并配置需要写入的 importer 属性。内置页签覆盖 Unity `ModelImporter` / `TextureImporter` 的基础可写导入设置；复杂对象或数组类设置可在 `Custom` 页签里手动填写 property path。
 
 ## 通用规则结构
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using UnityEditor;
@@ -416,8 +417,34 @@ internal static class ProjectAssetPropertyApplier
             return true;
         if (importer is TextureImporter textureImporter && TryApplyTextureImporter(textureImporter, key, item))
             return true;
+        if (importer is ModelImporter reflectedModelImporter && TryApplyPublicImporterProperty(reflectedModelImporter, item, "ModelImporter"))
+            return true;
+        if (importer is TextureImporter reflectedTextureImporter && TryApplyPublicImporterProperty(reflectedTextureImporter, item, "TextureImporter"))
+            return true;
 
         return false;
+    }
+
+    private static bool TryApplyPublicImporterProperty(AssetImporter importer, ProjectAssetPropertyItem item, string prefix)
+    {
+        string propertyPath = item.propertyPath?.Trim();
+        string prefixWithDot = prefix + ".";
+        if (string.IsNullOrWhiteSpace(propertyPath) ||
+            !propertyPath.StartsWith(prefixWithDot, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        string propertyName = propertyPath.Substring(prefixWithDot.Length);
+        PropertyInfo property = importer.GetType().GetProperty(
+            propertyName,
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.IgnoreCase);
+        if (property == null || property.SetMethod == null)
+            return false;
+
+        if (!TryConvertPublicPropertyValue(property.PropertyType, item.value, out object convertedValue))
+            return false;
+
+        property.SetValue(importer, convertedValue);
+        return true;
     }
 
     private static bool TryApplyModelImporter(ModelImporter importer, string assetPath, string key, ProjectAssetPropertyItem item)
@@ -586,6 +613,51 @@ internal static class ProjectAssetPropertyApplier
             return result;
 
         throw new ArgumentException($"Unsupported {typeof(TEnum).Name} value: {value}");
+    }
+
+    private static bool TryConvertPublicPropertyValue(Type propertyType, string value, out object convertedValue)
+    {
+        convertedValue = null;
+
+        try
+        {
+            if (propertyType == typeof(bool))
+            {
+                convertedValue = ParseBool(value);
+                return true;
+            }
+
+            if (propertyType == typeof(int))
+            {
+                convertedValue = ParseInt(value);
+                return true;
+            }
+
+            if (propertyType == typeof(float))
+            {
+                convertedValue = ParseFloat(value);
+                return true;
+            }
+
+            if (propertyType == typeof(string))
+            {
+                convertedValue = value ?? string.Empty;
+                return true;
+            }
+
+            if (propertyType.IsEnum)
+            {
+                convertedValue = Enum.Parse(propertyType, value ?? string.Empty, true);
+                return true;
+            }
+        }
+        catch
+        {
+            convertedValue = null;
+            return false;
+        }
+
+        return false;
     }
 
     private static bool ParseBool(string value)
