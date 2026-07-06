@@ -970,6 +970,7 @@ internal enum ProjectAssetProcessorAction
 
 internal static class ProjectAssetProcessorRunner
 {
+    private const string ProcessorRootPath = "Assets/GameResources";
     private const string SpecialWriteOnlyClipName = "modelimporter.clipnamefromasset";
 
     public static string Run(ProjectAssetImportRuleSet ruleSet, ProjectAssetImportRule rule, ProjectAssetProcessorAction action)
@@ -1077,24 +1078,30 @@ internal static class ProjectAssetProcessorRunner
     private static List<ProjectAssetRuleContext> FindMatchingAssets(ProjectAssetImportRule rule, StringBuilder report)
     {
         List<ProjectAssetRuleContext> matches = new List<ProjectAssetRuleContext>();
-        string[] assetPaths = AssetDatabase.GetAllAssetPaths();
+        if (!AssetDatabase.IsValidFolder(ProcessorRootPath))
+        {
+            report.AppendLine($"扫描目录不存在: {ProcessorRootPath}");
+            return matches;
+        }
+
+        string[] assetGuids = AssetDatabase.FindAssets(string.Empty, new[] { ProcessorRootPath });
 
         try
         {
-            for (int i = 0; i < assetPaths.Length; i++)
+            for (int i = 0; i < assetGuids.Length; i++)
             {
-                string assetPath = NormalizeAssetPath(assetPaths[i]);
+                string assetPath = NormalizeAssetPath(AssetDatabase.GUIDToAssetPath(assetGuids[i]));
                 if (i % 64 == 0 &&
                     EditorUtility.DisplayCancelableProgressBar(
                         "扫描匹配资产",
                         assetPath,
-                        assetPaths.Length == 0 ? 1f : (float)i / assetPaths.Length))
+                        assetGuids.Length == 0 ? 1f : (float)i / assetGuids.Length))
                 {
                     report.AppendLine("用户取消扫描。");
                     break;
                 }
 
-                if (!assetPath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) ||
+                if (!IsUnderProcessorRoot(assetPath) ||
                     AssetDatabase.IsValidFolder(assetPath))
                     continue;
 
@@ -1352,6 +1359,7 @@ internal static class ProjectAssetProcessorRunner
         report.AppendLine("Asset Processor Report");
         report.AppendLine($"Action: {action}");
         report.AppendLine($"Rule: {ruleName}");
+        report.AppendLine($"Scope: {ProcessorRootPath}");
         report.AppendLine($"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         report.AppendLine(new string('-', 72));
     }
@@ -1462,6 +1470,13 @@ internal static class ProjectAssetProcessorRunner
     private static string NormalizeAssetPath(string assetPath)
     {
         return (assetPath ?? string.Empty).Replace('\\', '/');
+    }
+
+    private static bool IsUnderProcessorRoot(string assetPath)
+    {
+        string normalizedPath = NormalizeAssetPath(assetPath);
+        return string.Equals(normalizedPath, ProcessorRootPath, StringComparison.OrdinalIgnoreCase) ||
+            normalizedPath.StartsWith(ProcessorRootPath + "/", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizePropertyKey(string propertyPath)

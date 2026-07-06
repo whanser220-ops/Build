@@ -38,6 +38,14 @@ Assets/Editor/AssetImport/ProjectAssetImportRuleSet.asset
 
 这些按钮用于在配置面板里主动执行规则；资源导入时仍会自动应用所有命中规则合并后的 Effective Import Settings。
 
+主动执行按钮只扫描：
+
+```text
+Assets/GameResources
+```
+
+不会列出、检查或修改该目录之外的资源。
+
 顶部的 Global Settings、Regex Tester、Export、Import 已移除，避免把规则编辑入口藏得太深。
 
 ## 规则匹配
