@@ -14,6 +14,9 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
     private const float RowHeight = 22f;
     private const float SmallButtonWidth = 26f;
     private const float RuleProcessorButtonWidth = 28f;
+    private static readonly Color DirectoryTagColor = new Color(0.22f, 0.58f, 0.95f, 1f);
+    private static readonly Color PackageTagColor = new Color(0.95f, 0.62f, 0.2f, 1f);
+    private static readonly Color AssetClassTagColor = new Color(0.38f, 0.78f, 0.38f, 1f);
 
     private ProjectAssetImportRuleSet _ruleSet;
     private SerializedObject _serializedRuleSet;
@@ -121,7 +124,15 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         EditorGUI.DrawRect(header, HeaderColor(0.52f));
 
         Rect foldoutRect = new Rect(header.x + 6f, header.y + 1f, header.width - 244f, header.height);
-        _ruleExpanded[index] = EditorGUI.Foldout(foldoutRect, _ruleExpanded[index], BuildRuleSummary(rule), true);
+        Rect foldoutArrowRect = new Rect(foldoutRect.x, foldoutRect.y, 18f, foldoutRect.height);
+        Rect summaryRect = new Rect(foldoutArrowRect.xMax, foldoutRect.y, foldoutRect.width - 18f, foldoutRect.height);
+        _ruleExpanded[index] = EditorGUI.Foldout(foldoutArrowRect, _ruleExpanded[index], GUIContent.none, true);
+        DrawRuleSummary(summaryRect, rule);
+        if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && summaryRect.Contains(Event.current.mousePosition))
+        {
+            _ruleExpanded[index] = !_ruleExpanded[index];
+            Event.current.Use();
+        }
 
         Rect processorButtons = new Rect(header.xMax - 234f, header.y + 1f, 84f, header.height - 2f);
         DrawRuleProcessorButtons(processorButtons, index, enabled.boolValue);
@@ -916,7 +927,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         return 0f;
     }
 
-    private static string BuildRuleSummary(SerializedProperty rule)
+    private static void DrawRuleSummary(Rect rect, SerializedProperty rule)
     {
         SerializedProperty name = rule.FindPropertyRelative("name");
         SerializedProperty filter = rule.FindPropertyRelative("filter");
@@ -926,28 +937,58 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         SerializedProperty packageNamePattern = filter.FindPropertyRelative("packageNamePattern");
         SerializedProperty assetClass = filter.FindPropertyRelative("assetClass");
 
-        StringBuilder builder = new StringBuilder();
-        builder.Append(string.IsNullOrWhiteSpace(name.stringValue) ? "Rule" : name.stringValue);
-        AppendMatchSummary(builder, "Dir", directoryMatch, directoryPattern);
-        AppendMatchSummary(builder, "Pkg", packageNameMatch, packageNamePattern);
-        builder.Append("  [Class: ").Append(GetEnumName(assetClass)).Append(']');
-        return builder.ToString();
+        float x = rect.x;
+        string ruleName = name.stringValue;
+        if (!string.IsNullOrWhiteSpace(ruleName))
+            DrawRuleSummaryText(ref x, rect, ruleName, EditorGUIUtility.isProSkin ? new Color(0.84f, 0.84f, 0.84f, 1f) : new Color(0.18f, 0.18f, 0.18f, 1f), false);
+
+        DrawRuleSummaryText(ref x, rect, BuildMatchSummary("Dir", directoryMatch, directoryPattern), DirectoryTagColor, true);
+        DrawRuleSummaryText(ref x, rect, BuildMatchSummary("Pkg", packageNameMatch, packageNamePattern), PackageTagColor, true);
+        DrawRuleSummaryText(ref x, rect, "[Class: " + GetEnumName(assetClass) + "]", AssetClassTagColor, true);
     }
 
-    private static void AppendMatchSummary(StringBuilder builder, string label, SerializedProperty matchMode, SerializedProperty pattern)
+    private static string BuildMatchSummary(string label, SerializedProperty matchMode, SerializedProperty pattern)
     {
         ProjectAssetStringMatchMode mode = (ProjectAssetStringMatchMode)matchMode.enumValueIndex;
         if (mode == ProjectAssetStringMatchMode.Any)
-        {
-            builder.Append("  [").Append(label).Append(": Any]");
+            return "[" + label + ": Any]";
+
+        string value = string.IsNullOrWhiteSpace(pattern.stringValue) ? "Empty" : pattern.stringValue;
+        return "[" + label + ": " + value + "]";
+    }
+
+    private static void DrawRuleSummaryText(ref float x, Rect row, string text, Color color, bool drawBackground)
+    {
+        if (string.IsNullOrEmpty(text) || x >= row.xMax)
             return;
+
+        GUIStyle style = new GUIStyle(EditorStyles.label)
+        {
+            alignment = TextAnchor.MiddleLeft,
+            clipping = TextClipping.Clip
+        };
+        style.normal.textColor = color;
+
+        GUIContent content = new GUIContent(text);
+        float padding = drawBackground ? 8f : 0f;
+        float width = Mathf.Min(style.CalcSize(content).x + padding, row.xMax - x);
+        if (width <= 0f)
+            return;
+
+        Rect segmentRect = new Rect(x, row.y + 2f, width, row.height - 4f);
+        Rect labelRect = drawBackground
+            ? new Rect(segmentRect.x + 4f, segmentRect.y, Mathf.Max(0f, segmentRect.width - 8f), segmentRect.height)
+            : segmentRect;
+
+        if (drawBackground)
+        {
+            Color background = color;
+            background.a = EditorGUIUtility.isProSkin ? 0.16f : 0.1f;
+            EditorGUI.DrawRect(segmentRect, background);
         }
 
-        builder.Append("  [")
-            .Append(label)
-            .Append(": ")
-            .Append(pattern.stringValue)
-            .Append(']');
+        GUI.Label(labelRect, content, style);
+        x += width + 6f;
     }
 
     private static string GetEnumName(SerializedProperty property)
