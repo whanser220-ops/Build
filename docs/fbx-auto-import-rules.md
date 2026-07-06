@@ -1,48 +1,44 @@
 # 资产导入规则与 FBX DCC JSON 装配
 
-本文档说明当前资产规范工具的两层职责：
+本文档说明当前资产处理器的两层职责：
 
-- 通用资产导入规则：按“资产筛选器 + 属性修改列表”自动设置 importer。
-- FBX DCC JSON 装配：只处理模型导入后的 Prefab、LODGroup、Collider、材质绑定。
+- 导入设置：由项目级规则资产控制，在资源导入时写入 `ModelImporter` / `TextureImporter`。
+- 导入后装配：由 DCC 导出的 sidecar JSON 控制，只负责 FBX 导入后的 Prefab、LODGroup、Collider、材质绑定。
 
-入口：
+旧的“从 FBX 节点名、路径、材质槽自动猜测装配”的逻辑已经停用。LOD、Collider、Prefab 输出等装配行为必须由 JSON 明确描述。
 
-- 导入器脚本：`Assets/Editor/AssetImport/ProjectFbxAutoImporter.cs`
-- 通用规则资产：`Assets/Editor/AssetImport/ProjectAssetImportRuleSet.asset`
-- 规则资产类型：`Assets/Editor/AssetImport/ProjectAssetImportRuleSet.cs`
-- 规则编辑器 UI：`Tools/Asset Import/Asset Processor`
-- 说明文档菜单：`Tools/Asset Import/FBX Auto Import Rules`
+## 在哪看规则
 
-## 编辑器 UI
-
-在 Unity 菜单打开：
+Unity 菜单：
 
 ```text
 Tools/Asset Import/Asset Processor
 ```
 
-也可以在 Project 面板选中 `ProjectAssetImportRuleSet.asset`，Inspector 顶部点击 `Open Asset Processor`。
+也可以在 Project 面板选中：
 
-窗口直接显示 `Rule Items`。每条规则展开后先编辑 `Directory`、`Package Name`、`Asset Class`，再用类似 Unity 导入设置的页签勾选并配置需要写入的 importer 属性。内置页签覆盖 Unity `ModelImporter` / `TextureImporter` 的基础可写导入设置；复杂对象或数组类设置可在 `Custom` 页签里手动填写 property path。
+```text
+Assets/Editor/AssetImport/ProjectAssetImportRuleSet.asset
+```
 
-## 通用规则结构
+然后在 Inspector 点击 `Open Asset Processor`。
 
-每条规则由两部分组成：
+窗口打开后直接显示 `Rule Items`。每条规则由两部分组成：
 
-- `filter`：资产筛选器。
-- `propertyItems`：属性修改列表。
+- 资产筛选器：`Directory`、`Package Name`、`Asset Class`。
+- 导入设置：按 Unity 导入器习惯分成页签，字段左侧勾选表示这条规则负责写入该字段。
 
-规则资产中的 `applyAllMatchingRules = true` 表示同一资产可以命中多条规则，并按列表顺序依次应用。建议把通用默认规则放前面，把更具体的项目规则放后面，让后者覆盖同名属性。
+顶部的 Global Settings、Regex Tester、Export、Import 已移除，避免把规则编辑入口藏得太深。
 
-## 资产筛选器
+## 规则匹配
 
-筛选器包含：
+筛选器字段：
 
-| 字段 | 说明 |
+| 字段 | 作用 |
 |---|---|
-| `directoryMatch` + `directoryPattern` | 按资产目录筛选 |
-| `packageNameMatch` + `packageNamePattern` | 按资产名筛选，不含扩展名 |
-| `assetClass` | 按资产类型筛选，例如 `Model`、`Texture2D` |
+| `Directory` | 按资源目录匹配，统一使用 `/` 路径分隔 |
+| `Package Name` | 按资源名匹配，不含扩展名 |
+| `Asset Class` | 按资产类型匹配，如 `Model`、`Texture2D` |
 
 `Directory` 和 `Package Name` 支持：
 
@@ -54,47 +50,65 @@ Tools/Asset Import/Asset Processor
 - `Regex`
 - `Glob`
 
-示例：筛选整个项目里以 `_N` 结尾的贴图：
+例如筛选全项目所有以 `_N` 结尾的贴图：
 
 ```text
-directoryMatch: Any
-packageNameMatch: EndsWith
-packageNamePattern: _N
-assetClass: Texture2D
+Directory: Any
+Package Name: EndsWith _N
+Asset Class: Texture2D
 ```
 
-## 属性修改列表
+## 导入设置面板
 
-每个属性项包含：
+规则的导入设置不是裸 `propertyItems` 列表，而是类似 Unity Import Settings 的面板。
 
-| 字段 | 说明 |
-|---|---|
-| `propertyPath` | 要修改的 importer 属性 |
-| `valueKind` | `Bool`、`Int`、`Float`、`String`、`Enum` |
-| `value` | 目标值 |
+`Model` 资产页签：
 
-法线贴图示例：
+- `Model`
+- `Rig`
+- `Animation`
+- `Materials`
+- `Custom`
 
-```text
-TextureImporter.textureType = NormalMap
-TextureImporter.wrapModeU = Clamp
-TextureImporter.wrapModeV = Clamp
-```
+`Texture2D` 资产页签：
 
-FBX 模型示例：
+- `Texture`
+- `Advanced`
+- `Sprite`
+- `Swizzle`
+- `Custom`
 
-```text
-ModelImporter.animationType = Human
-ModelImporter.avatarSetup = CreateFromThisModel
-ModelImporter.importAnimation = true
-ModelImporter.importBlendShapes = true
-```
+每个字段都有：
 
-当前代码对常用 `ModelImporter` 和 `TextureImporter` 属性有显式映射；找不到显式映射时，会尝试按 Unity serialized property path 写入。找不到属性或类型不支持时会记录 warning 并跳过该属性。
+- 左侧 override 勾选：勾选后该字段进入最终导入设置。
+- 右侧目标值：写入 Unity importer 的值。
+
+没有勾选的字段不会参与规则合并，也不会写入 importer。`Custom` 页签保留 property path 写入能力，用于迁移旧字段或处理暂未做成强类型 UI 的字段。
+
+## Effective Import Settings
+
+同一个资源可以命中多条规则。当前行为是：
+
+1. 找到所有启用且匹配的规则。
+2. 按规则列表顺序逐条合并字段。
+3. 同一个字段被多条规则勾选时，后面的规则覆盖前面的规则。
+4. 最终只把合并后的 Effective Import Settings 写入 importer。
+
+窗口底部的 `Effective Import Settings Preview` 可输入资产路径和资产类型，查看：
+
+- 命中的规则列表。
+- 最终字段值。
+- 每个字段来自哪条规则。
 
 ## 默认规则
 
-`ProjectAssetImportRuleSet.asset` 当前内置：
+默认规则资产位于：
+
+```text
+Assets/Editor/AssetImport/ProjectAssetImportRuleSet.asset
+```
+
+当前默认规则覆盖：
 
 - `Common Model Defaults`：模型通用默认设置。
 - `Characters`：角色模型路径规则。
@@ -106,18 +120,20 @@ ModelImporter.importBlendShapes = true
 - `Character Source Animations`：角色 `SourceAnimations` 路径下的动画 FBX。
 - `Normal Textures`：以 `_N` 结尾的 `Texture2D` 设置为 NormalMap，并将 U/V wrap 设为 Clamp。
 
-## FBX DCC JSON 装配
+旧资产中的 `propertyItems` 会自动迁移到强类型导入设置字段；无法识别的字段会进入 `Custom` 页签，避免丢失数据。
 
-需要导入后装配的 FBX 可以在同目录放同名 JSON：
+## FBX DCC JSON
+
+FBX 旁边可以放同名 JSON：
 
 ```text
 Assets/.../zzz.fbx
 Assets/.../zzz.fbx.json
 ```
 
-缺少 sidecar JSON 时，导入器只记录 warning 并跳过装配；通用导入规则仍会执行。
+缺少 JSON 时，导入规则仍会执行；导入器只记录 warning 并跳过装配。
 
-JSON v1 只描述装配，不描述导入设置。旧 JSON 中如果仍带 `importSettings` 字段，Unity 会忽略它。
+JSON v1 只描述装配，不描述导入设置。旧 JSON 如果仍带 `importSettings` 字段，Unity 会忽略它。
 
 ```json
 {
@@ -148,18 +164,4 @@ JSON v1 只描述装配，不描述导入设置。旧 JSON 中如果仍带 `impo
 }
 ```
 
-## 装配字段
-
-`schemaVersion` 当前必须为 `1`。
-
-`sourceFbx` 必须等于当前 FBX 文件名，例如 `zzz.fbx`。
-
-`assembly.prefab` 控制 Prefab 输出。`enabled = true` 时，`outputPath` 必须是 `Assets/.../*.prefab`。`overwrite = false` 时，如果目标 Prefab 已存在，则跳过生成。
-
-`assembly.lodGroup` 控制单个主 `LODGroup`。`rootPath` 是放置 `LODGroup` 的节点路径，空字符串表示导入根节点。`levels` 会按 `index` 排序，并使用每个 `nodePath` 下的 Renderer 生成 LOD。
-
-`assembly.colliders` 控制碰撞体生成。`type` 支持 `Box`、`Mesh`、`Sphere`、`Capsule`。`disableRenderer = true` 时，会禁用该节点及子节点的 Renderer。
-
-`assembly.materials` 控制材质槽绑定。`slotName` 匹配 FBX 材质槽名，`materialPath` 指向项目内已有 `.mat` 资源。
-
-`nodePath` 使用 Unity 导入后的 Transform 层级路径。节点名中包含 `LOD0`、`UCX_` 等字样不会自动触发装配，必须由 JSON 明确引用。
+`nodePath` 使用 Unity 导入后的 Transform 层级路径。节点名里包含 `LOD0`、`UCX_` 等字样不会自动触发装配，必须由 JSON 明确引用。

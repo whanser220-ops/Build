@@ -12,178 +12,15 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
     private const float RowHeight = 22f;
     private const float SmallButtonWidth = 26f;
 
-    private static readonly ImportSettingDefinition[] ModelSettings =
-    {
-        ImportSettingDefinition.Section("Scene"),
-        ImportSettingDefinition.Float("ModelImporter.globalScale", "Scale Factor", "1"),
-        ImportSettingDefinition.Bool("ModelImporter.useFileScale", "Use File Scale", "true"),
-        ImportSettingDefinition.Bool("ModelImporter.useFileUnits", "Convert Units", "true"),
-        ImportSettingDefinition.Bool("ModelImporter.bakeAxisConversion", "Bake Axis Conversion", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.importBlendShapes", "Import BlendShapes", "false"),
-        ImportSettingDefinition.Enum<ModelImporterNormals>("ModelImporter.importBlendShapeNormals", "Blend Shape Normals", "None"),
-        ImportSettingDefinition.Bool("ModelImporter.importBlendShapeDeformPercent", "Blend Shape Deform Percent", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.importVisibility", "Import Visibility", "true"),
-        ImportSettingDefinition.Bool("ModelImporter.importCameras", "Import Cameras", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.importLights", "Import Lights", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.preserveHierarchy", "Preserve Hierarchy", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.sortHierarchyByName", "Sort Hierarchy By Name", "true"),
-        ImportSettingDefinition.String("ModelImporter.extraUserProperties", "Extra User Properties", string.Empty),
-        ImportSettingDefinition.Section("Meshes"),
-        ImportSettingDefinition.Enum<ModelImporterMeshCompression>("ModelImporter.meshCompression", "Mesh Compression", "Low"),
-        ImportSettingDefinition.Bool("ModelImporter.isReadable", "Read/Write", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.optimizeMesh", "Optimize Mesh", "true"),
-        ImportSettingDefinition.Bool("ModelImporter.optimizeMeshPolygons", "Optimize Polygon Order", "true"),
-        ImportSettingDefinition.Bool("ModelImporter.optimizeMeshVertices", "Optimize Vertex Order", "true"),
-        ImportSettingDefinition.Enum<MeshOptimizationFlags>("ModelImporter.meshOptimizationFlags", "Mesh Optimization Flags", "Everything"),
-        ImportSettingDefinition.Bool("ModelImporter.addCollider", "Generate Colliders", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.keepQuads", "Keep Quads", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.weldVertices", "Weld Vertices", "true"),
-        ImportSettingDefinition.Enum<ModelImporterIndexFormat>("ModelImporter.indexFormat", "Index Format", "Auto"),
-        ImportSettingDefinition.Enum<ModelImporterNormals>("ModelImporter.importNormals", "Normals", "Import"),
-        ImportSettingDefinition.Enum<ModelImporterTangentSpaceMode>("ModelImporter.normalImportMode", "Normal Import Mode", "Import"),
-        ImportSettingDefinition.Enum<ModelImporterNormalCalculationMode>("ModelImporter.normalCalculationMode", "Normal Calculation Mode", "AreaAndAngleWeighted"),
-        ImportSettingDefinition.Enum<ModelImporterNormalSmoothingSource>("ModelImporter.normalSmoothingSource", "Smoothing Source", "PreferSmoothingGroups"),
-        ImportSettingDefinition.Float("ModelImporter.normalSmoothingAngle", "Smoothing Angle", "60"),
-        ImportSettingDefinition.Enum<ModelImporterTangents>("ModelImporter.importTangents", "Tangents", "CalculateMikk"),
-        ImportSettingDefinition.Enum<ModelImporterTangentSpaceMode>("ModelImporter.tangentImportMode", "Tangent Import Mode", "Calculate"),
-        ImportSettingDefinition.Bool("ModelImporter.splitTangentsAcrossSeams", "Split Tangents Across Seams", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.swapUVChannels", "Swap UVs", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.strictVertexDataChecks", "Strict Vertex Data Checks", "false"),
-        ImportSettingDefinition.Section("Lightmap UVs"),
-        ImportSettingDefinition.Bool("ModelImporter.generateSecondaryUV", "Generate Lightmap UVs", "false"),
-        ImportSettingDefinition.Enum<ModelImporterSecondaryUVMarginMethod>("ModelImporter.secondaryUVMarginMethod", "Margin Method", "Calculate"),
-        ImportSettingDefinition.Float("ModelImporter.secondaryUVHardAngle", "Hard Angle", "88"),
-        ImportSettingDefinition.Float("ModelImporter.secondaryUVPackMargin", "Pack Margin", "4"),
-        ImportSettingDefinition.Float("ModelImporter.secondaryUVAngleDistortion", "Angle Error", "8"),
-        ImportSettingDefinition.Float("ModelImporter.secondaryUVAreaDistortion", "Area Error", "15"),
-        ImportSettingDefinition.Float("ModelImporter.secondaryUVMinLightmapResolution", "Min Lightmap Resolution", "40"),
-        ImportSettingDefinition.Float("ModelImporter.secondaryUVMinObjectScale", "Min Object Scale", "1")
-    };
-
-    private static readonly ImportSettingDefinition[] RigSettings =
-    {
-        ImportSettingDefinition.Enum<ModelImporterAnimationType>("ModelImporter.animationType", "Animation Type", "None"),
-        ImportSettingDefinition.Enum<ModelImporterAvatarSetup>("ModelImporter.avatarSetup", "Avatar Definition", "CreateFromThisModel"),
-        ImportSettingDefinition.Enum<ModelImporterSkinWeights>("ModelImporter.skinWeights", "Skin Weights", "Standard"),
-        ImportSettingDefinition.Int("ModelImporter.maxBonesPerVertex", "Max Bones/Vertex", "4"),
-        ImportSettingDefinition.Float("ModelImporter.minBoneWeight", "Min Bone Weight", "0.001"),
-        ImportSettingDefinition.Bool("ModelImporter.optimizeGameObjects", "Optimize Game Objects", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.optimizeBones", "Optimize Bones", "true"),
-        ImportSettingDefinition.Bool("ModelImporter.autoGenerateAvatarMappingIfUnspecified", "Auto Generate Avatar Mapping", "true"),
-        ImportSettingDefinition.Enum<ModelImporterHumanoidOversampling>("ModelImporter.humanoidOversampling", "Humanoid Oversampling", "X1"),
-        ImportSettingDefinition.Bool("ModelImporter.bakeIK", "Bake IK", "false")
-    };
-
-    private static readonly ImportSettingDefinition[] AnimationSettings =
-    {
-        ImportSettingDefinition.Bool("ModelImporter.importAnimation", "Import Animation", "false"),
-        ImportSettingDefinition.Enum<ModelImporterAnimationCompression>("ModelImporter.animationCompression", "Anim. Compression", "Optimal"),
-        ImportSettingDefinition.Float("ModelImporter.animationRotationError", "Rotation Error", "0.5"),
-        ImportSettingDefinition.Float("ModelImporter.animationPositionError", "Position Error", "0.5"),
-        ImportSettingDefinition.Float("ModelImporter.animationScaleError", "Scale Error", "0.5"),
-        ImportSettingDefinition.Enum<WrapMode>("ModelImporter.animationWrapMode", "Wrap Mode", "Default"),
-        ImportSettingDefinition.Enum<ModelImporterGenerateAnimations>("ModelImporter.generateAnimations", "Generate Animations", "None"),
-        ImportSettingDefinition.Bool("ModelImporter.importConstraints", "Import Constraints", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.importAnimatedCustomProperties", "Import Animated Custom Properties", "false"),
-        ImportSettingDefinition.Bool("ModelImporter.resampleCurves", "Resample Curves", "true"),
-        ImportSettingDefinition.Bool("ModelImporter.resampleRotations", "Resample Rotations", "true"),
-        ImportSettingDefinition.Bool("ModelImporter.removeConstantScaleCurves", "Remove Constant Scale Curves", "true"),
-        ImportSettingDefinition.Bool("ModelImporter.splitAnimations", "Split Animations", "false"),
-        ImportSettingDefinition.String("ModelImporter.motionNodeName", "Motion Node", string.Empty),
-        ImportSettingDefinition.Bool("ModelImporter.clipNameFromAsset", "Clip Name From Asset", "false")
-    };
-
-    private static readonly ImportSettingDefinition[] MaterialSettings =
-    {
-        ImportSettingDefinition.Enum<ModelImporterMaterialImportMode>("ModelImporter.materialImportMode", "Material Creation Mode", "ImportStandard"),
-        ImportSettingDefinition.Enum<ModelImporterMaterialLocation>("ModelImporter.materialLocation", "Location", "InPrefab"),
-        ImportSettingDefinition.Enum<ModelImporterMaterialName>("ModelImporter.materialName", "Naming", "BasedOnMaterialName"),
-        ImportSettingDefinition.Enum<ModelImporterMaterialSearch>("ModelImporter.materialSearch", "Search", "Local"),
-        ImportSettingDefinition.Bool("ModelImporter.useSRGBMaterialColor", "Use sRGB Material Color", "true")
-    };
-
-    private static readonly ImportSettingDefinition[] TextureSettings =
-    {
-        ImportSettingDefinition.Section("Texture"),
-        ImportSettingDefinition.Enum<TextureImporterType>("TextureImporter.textureType", "Texture Type", "Default"),
-        ImportSettingDefinition.Enum<TextureImporterShape>("TextureImporter.textureShape", "Texture Shape", "Texture2D"),
-        ImportSettingDefinition.Bool("TextureImporter.sRGBTexture", "sRGB", "true"),
-        ImportSettingDefinition.Enum<TextureImporterAlphaSource>("TextureImporter.alphaSource", "Alpha Source", "FromInput"),
-        ImportSettingDefinition.Bool("TextureImporter.alphaIsTransparency", "Alpha Is Transparency", "false"),
-        ImportSettingDefinition.Bool("TextureImporter.ignorePngGamma", "Ignore PNG Gamma", "false"),
-        ImportSettingDefinition.Bool("TextureImporter.isReadable", "Read/Write", "false"),
-        ImportSettingDefinition.Bool("TextureImporter.vtOnly", "Virtual Texture Only", "false"),
-        ImportSettingDefinition.Section("Compression"),
-        ImportSettingDefinition.Int("TextureImporter.maxTextureSize", "Max Size", "2048"),
-        ImportSettingDefinition.Enum<TextureImporterCompression>("TextureImporter.textureCompression", "Compression", "Compressed"),
-        ImportSettingDefinition.Int("TextureImporter.compressionQuality", "Compression Quality", "50"),
-        ImportSettingDefinition.Bool("TextureImporter.crunchedCompression", "Use Crunch Compression", "false"),
-        ImportSettingDefinition.Enum<TextureImporterFormat>("TextureImporter.textureFormat", "Format", "Automatic"),
-        ImportSettingDefinition.Enum<AndroidETC2FallbackOverride>("TextureImporter.androidETC2FallbackOverride", "ETC2 Fallback", "UseBuildSettings"),
-        ImportSettingDefinition.Bool("TextureImporter.allowAlphaSplitting", "Allow Alpha Splitting", "false")
-    };
-
-    private static readonly ImportSettingDefinition[] TextureAdvancedSettings =
-    {
-        ImportSettingDefinition.Section("Mip Maps"),
-        ImportSettingDefinition.Bool("TextureImporter.mipmapEnabled", "Generate Mip Maps", "true"),
-        ImportSettingDefinition.Bool("TextureImporter.borderMipmap", "Border Mip Maps", "false"),
-        ImportSettingDefinition.Enum<TextureImporterMipFilter>("TextureImporter.mipmapFilter", "Mip Map Filtering", "BoxFilter"),
-        ImportSettingDefinition.Float("TextureImporter.mipMapBias", "Mip Map Bias", "0"),
-        ImportSettingDefinition.Bool("TextureImporter.mipMapsPreserveCoverage", "Preserve Coverage", "false"),
-        ImportSettingDefinition.Float("TextureImporter.alphaTestReferenceValue", "Alpha Cutoff", "0.5"),
-        ImportSettingDefinition.Bool("TextureImporter.fadeout", "Fadeout Mip Maps", "false"),
-        ImportSettingDefinition.Int("TextureImporter.mipmapFadeDistanceStart", "Fade Range Start", "1"),
-        ImportSettingDefinition.Int("TextureImporter.mipmapFadeDistanceEnd", "Fade Range End", "3"),
-        ImportSettingDefinition.Bool("TextureImporter.generateMipsInLinearSpace", "Generate Mips In Linear Space", "false"),
-        ImportSettingDefinition.String("TextureImporter.mipmapLimitGroupName", "Mipmap Limit Group", string.Empty),
-        ImportSettingDefinition.Bool("TextureImporter.ignoreMipmapLimit", "Ignore Mipmap Limit", "false"),
-        ImportSettingDefinition.Bool("TextureImporter.streamingMipmaps", "Streaming Mip Maps", "false"),
-        ImportSettingDefinition.Int("TextureImporter.streamingMipmapsPriority", "Streaming Priority", "0"),
-        ImportSettingDefinition.Section("Normal Map"),
-        ImportSettingDefinition.Bool("TextureImporter.convertToNormalmap", "Create From Grayscale", "false"),
-        ImportSettingDefinition.Float("TextureImporter.heightmapScale", "Bumpiness", "0.25"),
-        ImportSettingDefinition.Enum<TextureImporterNormalFilter>("TextureImporter.normalmapFilter", "Filtering", "Standard"),
-        ImportSettingDefinition.Bool("TextureImporter.flipGreenChannel", "Flip Green Channel", "false"),
-        ImportSettingDefinition.Section("Wrap / Filter"),
-        ImportSettingDefinition.Enum<TextureWrapMode>("TextureImporter.wrapMode", "Wrap Mode", "Repeat"),
-        ImportSettingDefinition.Enum<TextureWrapMode>("TextureImporter.wrapModeU", "Wrap Mode U", "Repeat"),
-        ImportSettingDefinition.Enum<TextureWrapMode>("TextureImporter.wrapModeV", "Wrap Mode V", "Repeat"),
-        ImportSettingDefinition.Enum<TextureWrapMode>("TextureImporter.wrapModeW", "Wrap Mode W", "Repeat"),
-        ImportSettingDefinition.Enum<FilterMode>("TextureImporter.filterMode", "Filter Mode", "Bilinear"),
-        ImportSettingDefinition.Int("TextureImporter.anisoLevel", "Aniso Level", "1"),
-        ImportSettingDefinition.Enum<TextureImporterNPOTScale>("TextureImporter.npotScale", "Non Power of 2", "ToNearest"),
-        ImportSettingDefinition.Section("Shape"),
-        ImportSettingDefinition.Enum<TextureImporterGenerateCubemap>("TextureImporter.generateCubemap", "Mapping", "AutoCubemap"),
-        ImportSettingDefinition.Bool("TextureImporter.correctGamma", "Correct Gamma", "false"),
-        ImportSettingDefinition.Bool("TextureImporter.grayscaleToAlpha", "Grayscale To Alpha", "false"),
-        ImportSettingDefinition.Bool("TextureImporter.lightmap", "Lightmap", "false"),
-        ImportSettingDefinition.Bool("TextureImporter.linearTexture", "Linear Texture", "false"),
-        ImportSettingDefinition.Bool("TextureImporter.normalmap", "Normal Map", "false")
-    };
-
-    private static readonly ImportSettingDefinition[] TextureSpriteSettings =
-    {
-        ImportSettingDefinition.Enum<SpriteImportMode>("TextureImporter.spriteImportMode", "Sprite Mode", "None"),
-        ImportSettingDefinition.Float("TextureImporter.spritePixelsPerUnit", "Pixels Per Unit", "100"),
-        ImportSettingDefinition.Float("TextureImporter.spritePixelsToUnits", "Pixels To Units", "100"),
-        ImportSettingDefinition.String("TextureImporter.spritePackingTag", "Packing Tag", string.Empty)
-    };
-
-    private static readonly ImportSettingDefinition[] TextureSwizzleSettings =
-    {
-        ImportSettingDefinition.Enum<TextureImporterSwizzle>("TextureImporter.swizzleR", "R Channel", "R"),
-        ImportSettingDefinition.Enum<TextureImporterSwizzle>("TextureImporter.swizzleG", "G Channel", "G"),
-        ImportSettingDefinition.Enum<TextureImporterSwizzle>("TextureImporter.swizzleB", "B Channel", "B"),
-        ImportSettingDefinition.Enum<TextureImporterSwizzle>("TextureImporter.swizzleA", "A Channel", "A")
-    };
-
     private ProjectAssetImportRuleSet _ruleSet;
     private SerializedObject _serializedRuleSet;
     private Vector2 _scroll;
     private bool _ruleItemsExpanded = true;
+    private bool _previewExpanded = true;
     private bool[] _ruleExpanded = Array.Empty<bool>();
     private int[] _ruleTabIndices = Array.Empty<int>();
+    private string _previewAssetPath = "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/zzz.fbx";
+    private ProjectAssetClass _previewAssetClass = ProjectAssetClass.Model;
 
     [MenuItem(MenuPath)]
     public static void OpenDefault()
@@ -200,14 +37,14 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
     public static void Open(ProjectAssetImportRuleSet ruleSet)
     {
         ProjectAssetImportRuleSetWindow window = GetWindow<ProjectAssetImportRuleSetWindow>("Asset Processor");
-        window.minSize = new Vector2(880f, 520f);
+        window.minSize = new Vector2(920f, 620f);
         window.SetRuleSet(ruleSet != null ? ruleSet : LoadOrCreateDefaultAsset());
         window.Show();
     }
 
     private void OnEnable()
     {
-        minSize = new Vector2(880f, 520f);
+        minSize = new Vector2(920f, 620f);
         if (_ruleSet == null)
             SetRuleSet(LoadOrCreateDefaultAsset());
     }
@@ -229,12 +66,23 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         EditorGUILayout.EndScrollView();
 
         if (_serializedRuleSet.ApplyModifiedProperties())
+        {
+            _ruleSet.EnsureMigrated();
             EditorUtility.SetDirty(_ruleSet);
+        }
+
+        DrawPreviewPanel();
     }
 
     private void SetRuleSet(ProjectAssetImportRuleSet ruleSet)
     {
         _ruleSet = ruleSet;
+        if (_ruleSet != null)
+        {
+            _ruleSet.EnsureMigrated();
+            EditorUtility.SetDirty(_ruleSet);
+        }
+
         BuildSerializedState();
         Repaint();
     }
@@ -283,8 +131,8 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
 
         using (new EditorGUI.IndentLevelScope())
         {
-            DrawPropertyRow("Rule Name", name);
-            DrawPropertyRow("Enabled", enabled);
+            DrawPropertyRow("规则名称", name);
+            DrawPropertyRow("启用", enabled);
 
             SerializedProperty filter = rule.FindPropertyRelative("filter");
             DrawMatchRow(
@@ -296,77 +144,59 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
                 filter.FindPropertyRelative("packageNameMatch"),
                 filter.FindPropertyRelative("packageNamePattern"));
             DrawAssetClassRow(filter.FindPropertyRelative("assetClass"));
-            DrawImportSettingsPanel(rule.FindPropertyRelative("propertyItems"), filter.FindPropertyRelative("assetClass"), index);
+            DrawImportSettingsPanel(rule, filter.FindPropertyRelative("assetClass"), index);
         }
     }
 
-    private void DrawImportSettingsPanel(SerializedProperty propertyItems, SerializedProperty assetClass, int ruleIndex)
+    private void DrawImportSettingsPanel(SerializedProperty rule, SerializedProperty assetClass, int ruleIndex)
     {
         ProjectAssetClass currentClass = (ProjectAssetClass)assetClass.enumValueIndex;
-        string[] tabs = ResolveTabs(currentClass);
+        string[] tabs = ProjectAssetImportSettingCatalog.GetTabs(currentClass);
         _ruleTabIndices[ruleIndex] = Mathf.Clamp(_ruleTabIndices[ruleIndex], 0, tabs.Length - 1);
 
         Rect tabRect = EditorGUILayout.GetControlRect(false, 26f);
         float indentOffset = EditorGUI.indentLevel * 15f;
-        tabRect.x += indentOffset;
-        tabRect.width -= indentOffset;
-        tabRect.x += LabelWidth;
-        tabRect.width = Mathf.Min(tabRect.width - LabelWidth, tabs.Length * 96f);
+        tabRect.x += indentOffset + LabelWidth;
+        tabRect.width -= indentOffset + LabelWidth + 8f;
+        tabRect.width = Mathf.Min(tabRect.width, tabs.Length * 96f);
         _ruleTabIndices[ruleIndex] = GUI.Toolbar(tabRect, _ruleTabIndices[ruleIndex], tabs);
 
+        string tab = tabs[_ruleTabIndices[ruleIndex]];
         using (new EditorGUI.IndentLevelScope())
         {
-            switch (tabs[_ruleTabIndices[ruleIndex]])
+            if (string.Equals(tab, "Custom", StringComparison.OrdinalIgnoreCase))
             {
-                case "Model":
-                    DrawSettingDefinitions(propertyItems, ModelSettings);
-                    break;
-                case "Rig":
-                    DrawSettingDefinitions(propertyItems, RigSettings);
-                    break;
-                case "Animation":
-                    DrawSettingDefinitions(propertyItems, AnimationSettings);
-                    break;
-                case "Materials":
-                    DrawSettingDefinitions(propertyItems, MaterialSettings);
-                    break;
-                case "Texture":
-                    DrawSettingDefinitions(propertyItems, TextureSettings);
-                    break;
-                case "Advanced":
-                    DrawSettingDefinitions(propertyItems, TextureAdvancedSettings);
-                    break;
-                case "Sprite":
-                    DrawSettingDefinitions(propertyItems, TextureSpriteSettings);
-                    break;
-                case "Swizzle":
-                    DrawSettingDefinitions(propertyItems, TextureSwizzleSettings);
-                    break;
-                case "Custom":
-                    DrawCustomSettings(propertyItems);
-                    break;
+                DrawCustomSettings(rule.FindPropertyRelative("customImportSettings").FindPropertyRelative("propertyItems"));
+                return;
             }
+
+            DrawSettingDefinitions(rule, ProjectAssetImportSettingCatalog.GetDefinitions(currentClass, tab));
         }
     }
 
-    private static void DrawSettingDefinitions(SerializedProperty propertyItems, ImportSettingDefinition[] definitions)
+    private static void DrawSettingDefinitions(SerializedProperty rule, ProjectAssetImportSettingDefinition[] definitions)
     {
-        foreach (ImportSettingDefinition definition in definitions)
+        foreach (ProjectAssetImportSettingDefinition definition in definitions)
         {
-            if (definition.IsSection)
+            if (definition.isSection)
             {
-                DrawSettingSection(definition.Label);
+                DrawSettingSection(definition.label);
                 continue;
             }
 
-            DrawImportSettingRow(propertyItems, definition);
+            DrawImportSettingRow(rule, definition);
         }
     }
 
-    private static void DrawImportSettingRow(SerializedProperty propertyItems, ImportSettingDefinition definition)
+    private static void DrawImportSettingRow(SerializedProperty rule, ProjectAssetImportSettingDefinition definition)
     {
-        int propertyIndex = FindPropertyItemIndex(propertyItems, definition.PropertyPath);
-        bool enabled = propertyIndex >= 0;
+        SerializedProperty setting = FindRelative(rule, definition.settingPath);
+        if (setting == null)
+            return;
+
+        SerializedProperty overrideEnabled = setting.FindPropertyRelative("overrideEnabled");
+        SerializedProperty valueKind = setting.FindPropertyRelative("valueKind");
+        SerializedProperty value = setting.FindPropertyRelative("value");
 
         Rect rect = EditorGUILayout.GetControlRect(false, RowHeight);
         float indentOffset = EditorGUI.indentLevel * 15f;
@@ -377,53 +207,44 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         Rect labelRect = new Rect(toggleRect.xMax + 6f, rect.y + 2f, LabelWidth - 42f, rect.height - 4f);
         Rect valueRect = new Rect(rect.x + LabelWidth, rect.y + 1f, rect.width - LabelWidth - 10f, rect.height - 2f);
 
-        bool nextEnabled = EditorGUI.Toggle(toggleRect, enabled);
-        EditorGUI.LabelField(labelRect, definition.Label);
+        bool wasEnabled = overrideEnabled.boolValue;
+        bool isEnabled = EditorGUI.Toggle(toggleRect, wasEnabled);
+        EditorGUI.LabelField(labelRect, definition.label);
 
-        if (nextEnabled != enabled)
+        if (isEnabled != wasEnabled)
         {
-            if (nextEnabled)
-                propertyIndex = AddPropertyItem(propertyItems, definition.PropertyPath, definition.ValueKind, definition.DefaultValue);
-            else
-                propertyItems.DeleteArrayElementAtIndex(propertyIndex);
-
-            enabled = nextEnabled;
+            overrideEnabled.boolValue = isEnabled;
+            valueKind.enumValueIndex = (int)definition.valueKind;
+            if (isEnabled && string.IsNullOrEmpty(value.stringValue))
+                value.stringValue = definition.defaultValue;
         }
 
-        using (new EditorGUI.DisabledScope(!enabled))
+        using (new EditorGUI.DisabledScope(!isEnabled))
         {
-            if (!enabled)
+            string currentValue = isEnabled ? value.stringValue : definition.defaultValue;
+            string nextValue = DrawDefinitionValue(valueRect, definition, currentValue);
+            if (isEnabled)
             {
-                DrawDefinitionValue(valueRect, definition, definition.DefaultValue);
-                return;
+                valueKind.enumValueIndex = (int)definition.valueKind;
+                value.stringValue = nextValue;
             }
-
-            SerializedProperty item = propertyItems.GetArrayElementAtIndex(propertyIndex);
-            item.FindPropertyRelative("valueKind").enumValueIndex = (int)definition.ValueKind;
-            item.FindPropertyRelative("value").stringValue = DrawDefinitionValue(
-                valueRect,
-                definition,
-                item.FindPropertyRelative("value").stringValue);
         }
     }
 
-    private static string DrawDefinitionValue(Rect rect, ImportSettingDefinition definition, string currentValue)
+    private static string DrawDefinitionValue(Rect rect, ProjectAssetImportSettingDefinition definition, string currentValue)
     {
-        switch (definition.ValueKind)
+        switch (definition.valueKind)
         {
             case ProjectAssetPropertyValueKind.Bool:
-                bool boolValue = ParseBool(currentValue);
-                return EditorGUI.Toggle(rect, boolValue) ? "true" : "false";
+                return EditorGUI.Toggle(rect, ParseBool(currentValue)) ? "true" : "false";
             case ProjectAssetPropertyValueKind.Int:
-                int intValue = ParseInt(currentValue);
-                return EditorGUI.IntField(rect, intValue).ToString(CultureInfo.InvariantCulture);
+                return EditorGUI.IntField(rect, ParseInt(currentValue)).ToString(CultureInfo.InvariantCulture);
             case ProjectAssetPropertyValueKind.Float:
-                float floatValue = ParseFloat(currentValue);
-                return EditorGUI.FloatField(rect, floatValue).ToString(CultureInfo.InvariantCulture);
+                return EditorGUI.FloatField(rect, ParseFloat(currentValue)).ToString(CultureInfo.InvariantCulture);
             case ProjectAssetPropertyValueKind.Enum:
-                int optionIndex = ResolveOptionIndex(definition.Options, currentValue, definition.DefaultValue);
-                int nextIndex = EditorGUI.Popup(rect, optionIndex, definition.Options);
-                return definition.Options[Mathf.Clamp(nextIndex, 0, definition.Options.Length - 1)];
+                int optionIndex = ResolveOptionIndex(definition.options, currentValue, definition.defaultValue);
+                int nextIndex = EditorGUI.Popup(rect, optionIndex, definition.options);
+                return definition.options[Mathf.Clamp(nextIndex, 0, definition.options.Length - 1)];
             case ProjectAssetPropertyValueKind.String:
             default:
                 return EditorGUI.TextField(rect, currentValue ?? string.Empty);
@@ -432,23 +253,18 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
 
     private static void DrawCustomSettings(SerializedProperty propertyItems)
     {
-        int customCount = 0;
-        for (int i = 0; i < propertyItems.arraySize; i++)
-        {
-            SerializedProperty item = propertyItems.GetArrayElementAtIndex(i);
-            if (IsKnownProperty(item.FindPropertyRelative("propertyPath").stringValue))
-                continue;
+        if (propertyItems == null)
+            return;
 
-            customCount++;
+        for (int i = 0; i < propertyItems.arraySize; i++)
             DrawCustomPropertyRow(propertyItems, i);
-        }
 
         Rect rect = EditorGUILayout.GetControlRect(false, RowHeight);
         float indentOffset = EditorGUI.indentLevel * 15f;
         rect.x += indentOffset + LabelWidth;
         rect.width = 126f;
 
-        if (GUI.Button(rect, customCount == 0 ? "Add Custom" : "Add More", EditorStyles.miniButton))
+        if (GUI.Button(rect, propertyItems.arraySize == 0 ? "添加 Custom" : "继续添加", EditorStyles.miniButton))
             AddPropertyItem(propertyItems, "Custom.Property", ProjectAssetPropertyValueKind.String, string.Empty);
     }
 
@@ -477,6 +293,75 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
             propertyItems.DeleteArrayElementAtIndex(index);
             GUIUtility.ExitGUI();
         }
+    }
+
+    private void DrawPreviewPanel()
+    {
+        if (!DrawSectionHeader("Effective Import Settings Preview", ref _previewExpanded))
+            return;
+
+        using (new EditorGUI.IndentLevelScope())
+        {
+            _previewAssetPath = EditorGUILayout.TextField("资产路径", _previewAssetPath);
+            _previewAssetClass = (ProjectAssetClass)EditorGUILayout.EnumPopup("资产类型", _previewAssetClass);
+
+            ProjectAssetRuleContext context = CreatePreviewContext(_previewAssetPath, _previewAssetClass);
+            ProjectEffectiveImportSettings effective = _ruleSet.BuildEffectiveImportSettings(context);
+            DrawMatchedRules(effective);
+            DrawEffectiveSettings(effective);
+        }
+    }
+
+    private static void DrawMatchedRules(ProjectEffectiveImportSettings effective)
+    {
+        StringBuilder builder = new StringBuilder();
+        ProjectAssetImportRule[] rules = effective?.matchedRules ?? Array.Empty<ProjectAssetImportRule>();
+        for (int i = 0; i < rules.Length; i++)
+        {
+            if (i > 0)
+                builder.Append("  >  ");
+
+            builder.Append(string.IsNullOrWhiteSpace(rules[i]?.name) ? "Unnamed Rule" : rules[i].name);
+        }
+
+        EditorGUILayout.LabelField("命中规则", rules.Length == 0 ? "无" : builder.ToString());
+    }
+
+    private static void DrawEffectiveSettings(ProjectEffectiveImportSettings effective)
+    {
+        ProjectEffectiveImportSetting[] settings = effective?.settings ?? Array.Empty<ProjectEffectiveImportSetting>();
+        EditorGUILayout.LabelField("最终字段", settings.Length == 0 ? "无启用字段" : $"{settings.Length} 项");
+
+        using (new EditorGUI.IndentLevelScope())
+        {
+            for (int i = 0; i < settings.Length; i++)
+            {
+                ProjectEffectiveImportSetting setting = settings[i];
+                Rect rect = EditorGUILayout.GetControlRect(false, RowHeight);
+                float indentOffset = EditorGUI.indentLevel * 15f;
+                rect.x += indentOffset;
+                rect.width -= indentOffset;
+
+                Rect pathRect = new Rect(rect.x + 18f, rect.y + 2f, Mathf.Min(300f, rect.width * 0.42f), rect.height - 4f);
+                Rect valueRect = new Rect(pathRect.xMax + 8f, rect.y + 2f, Mathf.Min(180f, rect.width * 0.24f), rect.height - 4f);
+                Rect sourceRect = new Rect(valueRect.xMax + 8f, rect.y + 2f, rect.xMax - valueRect.xMax - 12f, rect.height - 4f);
+                EditorGUI.LabelField(pathRect, setting.propertyPath);
+                EditorGUI.LabelField(valueRect, setting.value);
+                EditorGUI.LabelField(sourceRect, setting.sourceRuleName);
+            }
+        }
+    }
+
+    private static ProjectAssetRuleContext CreatePreviewContext(string assetPath, ProjectAssetClass assetClass)
+    {
+        string normalizedPath = (assetPath ?? string.Empty).Replace('\\', '/');
+        return new ProjectAssetRuleContext
+        {
+            assetPath = normalizedPath,
+            directory = Path.GetDirectoryName(normalizedPath)?.Replace('\\', '/') ?? string.Empty,
+            packageName = Path.GetFileNameWithoutExtension(normalizedPath),
+            assetClass = assetClass
+        };
     }
 
     private static void DrawSettingSection(string label)
@@ -618,12 +503,11 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
     private void AddStaticModelRule()
     {
         SerializedProperty rule = AddRule("Static Model Rule", ProjectAssetClass.Model);
-        SerializedProperty propertyItems = rule.FindPropertyRelative("propertyItems");
-        AddPropertyItem(propertyItems, "ModelImporter.animationType", ProjectAssetPropertyValueKind.Enum, "None");
-        AddPropertyItem(propertyItems, "ModelImporter.importAnimation", ProjectAssetPropertyValueKind.Bool, "false");
-        AddPropertyItem(propertyItems, "ModelImporter.importBlendShapes", ProjectAssetPropertyValueKind.Bool, "false");
-        AddPropertyItem(propertyItems, "ModelImporter.addCollider", ProjectAssetPropertyValueKind.Bool, "true");
-        AddPropertyItem(propertyItems, "ModelImporter.generateSecondaryUV", ProjectAssetPropertyValueKind.Bool, "true");
+        SetKnownSetting(rule, "ModelImporter.animationType", "None");
+        SetKnownSetting(rule, "ModelImporter.importAnimation", "false");
+        SetKnownSetting(rule, "ModelImporter.importBlendShapes", "false");
+        SetKnownSetting(rule, "ModelImporter.addCollider", "true");
+        SetKnownSetting(rule, "ModelImporter.generateSecondaryUV", "true");
     }
 
     private void AddCharacterModelRule()
@@ -633,12 +517,11 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         filter.FindPropertyRelative("directoryMatch").enumValueIndex = (int)ProjectAssetStringMatchMode.Contains;
         filter.FindPropertyRelative("directoryPattern").stringValue = "Characters/";
 
-        SerializedProperty propertyItems = rule.FindPropertyRelative("propertyItems");
-        AddPropertyItem(propertyItems, "ModelImporter.animationType", ProjectAssetPropertyValueKind.Enum, "Human");
-        AddPropertyItem(propertyItems, "ModelImporter.avatarSetup", ProjectAssetPropertyValueKind.Enum, "CreateFromThisModel");
-        AddPropertyItem(propertyItems, "ModelImporter.importAnimation", ProjectAssetPropertyValueKind.Bool, "true");
-        AddPropertyItem(propertyItems, "ModelImporter.importBlendShapes", ProjectAssetPropertyValueKind.Bool, "true");
-        AddPropertyItem(propertyItems, "ModelImporter.meshCompression", ProjectAssetPropertyValueKind.Enum, "Off");
+        SetKnownSetting(rule, "ModelImporter.animationType", "Human");
+        SetKnownSetting(rule, "ModelImporter.avatarSetup", "CreateFromThisModel");
+        SetKnownSetting(rule, "ModelImporter.importAnimation", "true");
+        SetKnownSetting(rule, "ModelImporter.importBlendShapes", "true");
+        SetKnownSetting(rule, "ModelImporter.meshCompression", "Off");
     }
 
     private void AddNormalTextureRule()
@@ -648,10 +531,9 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         filter.FindPropertyRelative("packageNameMatch").enumValueIndex = (int)ProjectAssetStringMatchMode.EndsWith;
         filter.FindPropertyRelative("packageNamePattern").stringValue = "_N";
 
-        SerializedProperty propertyItems = rule.FindPropertyRelative("propertyItems");
-        AddPropertyItem(propertyItems, "TextureImporter.textureType", ProjectAssetPropertyValueKind.Enum, "NormalMap");
-        AddPropertyItem(propertyItems, "TextureImporter.wrapModeU", ProjectAssetPropertyValueKind.Enum, "Clamp");
-        AddPropertyItem(propertyItems, "TextureImporter.wrapModeV", ProjectAssetPropertyValueKind.Enum, "Clamp");
+        SetKnownSetting(rule, "TextureImporter.textureType", "NormalMap");
+        SetKnownSetting(rule, "TextureImporter.wrapModeU", "Clamp");
+        SetKnownSetting(rule, "TextureImporter.wrapModeV", "Clamp");
     }
 
     private SerializedProperty AddRule(string ruleName, ProjectAssetClass assetClass)
@@ -665,6 +547,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         _ruleExpanded = InsertFoldoutState(_ruleExpanded, index, true);
         _ruleTabIndices = InsertTabState(_ruleTabIndices, index, 0);
         _serializedRuleSet.ApplyModifiedProperties();
+        _ruleSet.EnsureMigrated();
         EditorUtility.SetDirty(_ruleSet);
         return rules.GetArrayElementAtIndex(index);
     }
@@ -673,6 +556,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
     {
         rule.FindPropertyRelative("name").stringValue = ruleName;
         rule.FindPropertyRelative("enabled").boolValue = true;
+        rule.FindPropertyRelative("legacyPropertyItemsMigrated").boolValue = true;
 
         SerializedProperty filter = rule.FindPropertyRelative("filter");
         filter.FindPropertyRelative("directoryMatch").enumValueIndex = (int)ProjectAssetStringMatchMode.Any;
@@ -681,7 +565,37 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         filter.FindPropertyRelative("packageNamePattern").stringValue = string.Empty;
         filter.FindPropertyRelative("assetClass").enumValueIndex = (int)assetClass;
 
+        foreach (ProjectAssetImportSettingDefinition definition in ProjectAssetImportSettingCatalog.GetDefinitionsForAssetClass(ProjectAssetClass.Any))
+            ClearKnownSetting(rule, definition);
+
+        rule.FindPropertyRelative("customImportSettings").FindPropertyRelative("propertyItems").arraySize = 0;
         rule.FindPropertyRelative("propertyItems").arraySize = 0;
+    }
+
+    private static void ClearKnownSetting(SerializedProperty rule, ProjectAssetImportSettingDefinition definition)
+    {
+        SerializedProperty setting = FindRelative(rule, definition.settingPath);
+        if (setting == null)
+            return;
+
+        setting.FindPropertyRelative("overrideEnabled").boolValue = false;
+        setting.FindPropertyRelative("valueKind").enumValueIndex = (int)definition.valueKind;
+        setting.FindPropertyRelative("value").stringValue = definition.defaultValue;
+    }
+
+    private static void SetKnownSetting(SerializedProperty rule, string propertyPath, string value)
+    {
+        ProjectAssetImportSettingDefinition definition = ProjectAssetImportSettingCatalog.FindByPropertyPath(propertyPath);
+        if (definition == null)
+            return;
+
+        SerializedProperty setting = FindRelative(rule, definition.settingPath);
+        if (setting == null)
+            return;
+
+        setting.FindPropertyRelative("overrideEnabled").boolValue = true;
+        setting.FindPropertyRelative("valueKind").enumValueIndex = (int)definition.valueKind;
+        setting.FindPropertyRelative("value").stringValue = value;
     }
 
     private static int AddPropertyItem(
@@ -800,50 +714,21 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         (values[first], values[second]) = (values[second], values[first]);
     }
 
-    private static string[] ResolveTabs(ProjectAssetClass assetClass)
+    private static SerializedProperty FindRelative(SerializedProperty root, string relativePath)
     {
-        return assetClass switch
-        {
-            ProjectAssetClass.Model => new[] { "Model", "Rig", "Animation", "Materials", "Custom" },
-            ProjectAssetClass.Texture2D => new[] { "Texture", "Advanced", "Sprite", "Swizzle", "Custom" },
-            _ => new[] { "Model", "Rig", "Animation", "Materials", "Texture", "Advanced", "Sprite", "Swizzle", "Custom" }
-        };
-    }
+        if (root == null || string.IsNullOrWhiteSpace(relativePath))
+            return null;
 
-    private static int FindPropertyItemIndex(SerializedProperty propertyItems, string propertyPath)
-    {
-        for (int i = 0; i < propertyItems.arraySize; i++)
+        SerializedProperty current = root;
+        string[] segments = relativePath.Split('.');
+        foreach (string segment in segments)
         {
-            SerializedProperty item = propertyItems.GetArrayElementAtIndex(i);
-            string candidate = item.FindPropertyRelative("propertyPath").stringValue;
-            if (string.Equals(candidate, propertyPath, StringComparison.Ordinal))
-                return i;
+            current = current.FindPropertyRelative(segment);
+            if (current == null)
+                return null;
         }
 
-        return -1;
-    }
-
-    private static bool IsKnownProperty(string propertyPath)
-    {
-        return IsKnownProperty(propertyPath, ModelSettings) ||
-            IsKnownProperty(propertyPath, RigSettings) ||
-            IsKnownProperty(propertyPath, AnimationSettings) ||
-            IsKnownProperty(propertyPath, MaterialSettings) ||
-            IsKnownProperty(propertyPath, TextureSettings) ||
-            IsKnownProperty(propertyPath, TextureAdvancedSettings) ||
-            IsKnownProperty(propertyPath, TextureSpriteSettings) ||
-            IsKnownProperty(propertyPath, TextureSwizzleSettings);
-    }
-
-    private static bool IsKnownProperty(string propertyPath, ImportSettingDefinition[] definitions)
-    {
-        foreach (ImportSettingDefinition definition in definitions)
-        {
-            if (!definition.IsSection && string.Equals(definition.PropertyPath, propertyPath, StringComparison.Ordinal))
-                return true;
-        }
-
-        return false;
+        return current;
     }
 
     private static int ResolveOptionIndex(string[] options, string currentValue, string defaultValue)
@@ -939,7 +824,11 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         ProjectAssetImportRuleSet ruleSet = AssetDatabase.LoadAssetAtPath<ProjectAssetImportRuleSet>(
             ProjectAssetImportRuleSet.DefaultAssetPath);
         if (ruleSet != null)
+        {
+            ruleSet.EnsureMigrated();
+            EditorUtility.SetDirty(ruleSet);
             return ruleSet;
+        }
 
         EnsureAssetFolder(Path.GetDirectoryName(ProjectAssetImportRuleSet.DefaultAssetPath)?.Replace('\\', '/'));
 
@@ -969,68 +858,6 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
             current = next;
         }
     }
-
-    private readonly struct ImportSettingDefinition
-    {
-        public readonly bool IsSection;
-        public readonly string PropertyPath;
-        public readonly string Label;
-        public readonly ProjectAssetPropertyValueKind ValueKind;
-        public readonly string DefaultValue;
-        public readonly string[] Options;
-
-        private ImportSettingDefinition(
-            bool isSection,
-            string propertyPath,
-            string label,
-            ProjectAssetPropertyValueKind valueKind,
-            string defaultValue,
-            string[] options)
-        {
-            IsSection = isSection;
-            PropertyPath = propertyPath;
-            Label = label;
-            ValueKind = valueKind;
-            DefaultValue = defaultValue;
-            Options = options ?? Array.Empty<string>();
-        }
-
-        public static ImportSettingDefinition Section(string label)
-        {
-            return new ImportSettingDefinition(true, string.Empty, label, ProjectAssetPropertyValueKind.String, string.Empty, Array.Empty<string>());
-        }
-
-        public static ImportSettingDefinition Bool(string propertyPath, string label, string defaultValue)
-        {
-            return new ImportSettingDefinition(false, propertyPath, label, ProjectAssetPropertyValueKind.Bool, defaultValue, Array.Empty<string>());
-        }
-
-        public static ImportSettingDefinition Int(string propertyPath, string label, string defaultValue)
-        {
-            return new ImportSettingDefinition(false, propertyPath, label, ProjectAssetPropertyValueKind.Int, defaultValue, Array.Empty<string>());
-        }
-
-        public static ImportSettingDefinition Float(string propertyPath, string label, string defaultValue)
-        {
-            return new ImportSettingDefinition(false, propertyPath, label, ProjectAssetPropertyValueKind.Float, defaultValue, Array.Empty<string>());
-        }
-
-        public static ImportSettingDefinition String(string propertyPath, string label, string defaultValue)
-        {
-            return new ImportSettingDefinition(false, propertyPath, label, ProjectAssetPropertyValueKind.String, defaultValue, Array.Empty<string>());
-        }
-
-        public static ImportSettingDefinition Enum(string propertyPath, string label, string defaultValue, params string[] options)
-        {
-            return new ImportSettingDefinition(false, propertyPath, label, ProjectAssetPropertyValueKind.Enum, defaultValue, options);
-        }
-
-        public static ImportSettingDefinition Enum<TEnum>(string propertyPath, string label, string defaultValue)
-            where TEnum : struct
-        {
-            return Enum(propertyPath, label, defaultValue, System.Enum.GetNames(typeof(TEnum)));
-        }
-    }
 }
 
 [CustomEditor(typeof(ProjectAssetImportRuleSet))]
@@ -1042,6 +869,6 @@ internal sealed class ProjectAssetImportRuleSetInspector : Editor
             ProjectAssetImportRuleSetWindow.Open((ProjectAssetImportRuleSet)target);
 
         EditorGUILayout.Space(6f);
-        DrawDefaultInspector();
+        EditorGUILayout.HelpBox("请通过 Asset Processor 面板编辑规则。", MessageType.Info);
     }
 }

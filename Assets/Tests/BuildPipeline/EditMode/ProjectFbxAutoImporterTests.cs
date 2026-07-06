@@ -417,21 +417,17 @@ public sealed class ProjectFbxAutoImporterTests
         object ruleSet = ruleSetType.GetMethod("CreateDefaultInstance", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
             .Invoke(null, Array.Empty<object>());
         object context = CreateRuleContext(assetPath, assetClass);
-        Array rules = (Array)ruleSetType.GetMethod("ResolveRules", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+        object effectiveSettings = ruleSetType.GetMethod("BuildEffectiveImportSettings", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
             .Invoke(ruleSet, new[] { context });
 
-        string resolvedValue = null;
-        foreach (object rule in rules)
+        Array settings = GetField<Array>(effectiveSettings, "settings");
+        foreach (object setting in settings)
         {
-            Array items = GetField<Array>(rule, "propertyItems");
-            foreach (object item in items)
-            {
-                if (string.Equals(GetField<string>(item, "propertyPath"), propertyPath, StringComparison.OrdinalIgnoreCase))
-                    resolvedValue = GetField<string>(item, "value");
-            }
+            if (string.Equals(GetField<string>(setting, "propertyPath"), propertyPath, StringComparison.OrdinalIgnoreCase))
+                return GetField<string>(setting, "value");
         }
 
-        return resolvedValue;
+        return null;
     }
 
     private static object CreateRuleContext(string assetPath, string assetClass)
