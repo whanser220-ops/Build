@@ -22,13 +22,9 @@ public sealed class ProjectFbxAutoImporter : AssetPostprocessor
         if (assetImporter is not ModelImporter importer || !ProjectFbxDccSidecar.IsFbx(assetPath))
             return;
 
-        if (!ProjectFbxDccSidecar.TryLoad(assetPath, out ProjectFbxDccManifest manifest, out string error))
-        {
-            Debug.LogError(error);
-            return;
-        }
-
-        ProjectFbxDccImportSettingsApplier.Apply(importer, manifest);
+        ProjectFbxImportRuleSet ruleSet = ProjectFbxImportRuleSet.LoadDefault();
+        ProjectFbxImportRule rule = ruleSet.ResolveRule(assetPath);
+        ProjectFbxImportSettingsApplier.Apply(importer, rule, assetPath);
     }
 
     private void OnPostprocessModel(GameObject root)
@@ -38,7 +34,7 @@ public sealed class ProjectFbxAutoImporter : AssetPostprocessor
 
         if (!ProjectFbxDccSidecar.TryLoad(assetPath, out ProjectFbxDccManifest manifest, out string error))
         {
-            Debug.LogError(error);
+            ProjectFbxDccSidecar.LogLoadFailure(error);
             return;
         }
 
@@ -77,20 +73,6 @@ internal static class ProjectFbxAutoImporterRuleDocs
     }
 }
 
-internal enum ProjectFbxDccImportKind
-{
-    StaticModel,
-    CharacterModel,
-    AnimationAsset
-}
-
-internal enum ProjectFbxDccRig
-{
-    None,
-    Generic,
-    Humanoid
-}
-
 internal enum ProjectFbxDccColliderType
 {
     Box,
@@ -104,23 +86,7 @@ internal sealed class ProjectFbxDccManifest
 {
     public int schemaVersion;
     public string sourceFbx;
-    public ProjectFbxDccImportSettings importSettings;
     public ProjectFbxDccAssembly assembly;
-}
-
-[Serializable]
-internal sealed class ProjectFbxDccImportSettings
-{
-    public string kind;
-    public string rig;
-    public bool preserveHierarchy;
-    public bool importAnimation;
-    public bool importBlendShapes;
-    public bool generateLightmapUv;
-    public bool generateColliders;
-    public bool readWrite;
-    public string meshCompression;
-    public string animationCompression;
 }
 
 [Serializable]
@@ -222,6 +188,14 @@ internal static class ProjectFbxDccSidecar
         return TryParseJson(json, fbxAssetPath, out manifest, out error);
     }
 
+    public static void LogLoadFailure(string error)
+    {
+        if (IsMissingSidecarError(error))
+            Debug.LogWarning(error);
+        else
+            Debug.LogError(error);
+    }
+
     public static bool TryParseJson(string json, string fbxAssetPath, out ProjectFbxDccManifest manifest, out string error)
     {
         manifest = null;
@@ -272,15 +246,6 @@ internal static class ProjectFbxDccSidecar
             !string.Equals(manifest.sourceFbx, expectedSourceFbx, StringComparison.OrdinalIgnoreCase))
             errors.Add($"sourceFbx must match the FBX file name: {expectedSourceFbx}.");
 
-        if (manifest.importSettings == null)
-        {
-            errors.Add("importSettings is required.");
-        }
-        else
-        {
-            ValidateImportSettings(manifest.importSettings, errors);
-        }
-
         if (manifest.assembly == null)
         {
             errors.Add("assembly is required.");
@@ -289,21 +254,6 @@ internal static class ProjectFbxDccSidecar
         {
             ValidateAssembly(manifest.assembly, errors);
         }
-    }
-
-    private static void ValidateImportSettings(ProjectFbxDccImportSettings settings, List<string> errors)
-    {
-        if (!TryParseEnum(settings.kind, out ProjectFbxDccImportKind _))
-            errors.Add("importSettings.kind must be StaticModel, CharacterModel, or AnimationAsset.");
-
-        if (!TryParseEnum(settings.rig, out ProjectFbxDccRig _))
-            errors.Add("importSettings.rig must be None, Generic, or Humanoid.");
-
-        if (!TryParseEnum(settings.meshCompression, out ModelImporterMeshCompression _))
-            errors.Add("importSettings.meshCompression must be Off, Low, Medium, or High.");
-
-        if (!TryParseEnum(settings.animationCompression, out ModelImporterAnimationCompression _))
-            errors.Add("importSettings.animationCompression must be Off, KeyframeReduction, or Optimal.");
     }
 
     private static void ValidateAssembly(ProjectFbxDccAssembly assembly, List<string> errors)
@@ -412,96 +362,11 @@ internal static class ProjectFbxDccSidecar
     {
         return (assetPath ?? string.Empty).Replace('\\', '/');
     }
-}
 
-internal static class ProjectFbxDccImportSettingsApplier
-{
-    public static void Apply(ModelImporter importer, ProjectFbxDccManifest manifest)
+    private static bool IsMissingSidecarError(string error)
     {
-        ProjectFbxDccImportSettings settings = manifest.importSettings;
-
-        importer.preserveHierarchy = settings.preserveHierarchy;
-        importer.importAnimation = settings.importAnimation;
-        importer.importBlendShapes = settings.importBlendShapes;
-        importer.addCollider = settings.generateColliders;
-        importer.generateSecondaryUV = settings.generateLightmapUv;
-        importer.isReadable = settings.readWrite;
-
-        if (ProjectFbxDccSidecar.TryParseEnum(settings.meshCompression, out ModelImporterMeshCompression meshCompression))
-            importer.meshCompression = meshCompression;
-
-        if (ProjectFbxDccSidecar.TryParseEnum(settings.animationCompression, out ModelImporterAnimationCompression animationCompression))
-            importer.animationCompression = animationCompression;
-
-        ApplyRig(importer, settings.rig);
-
-        if (ProjectFbxDccSidecar.TryParseEnum(settings.kind, out ProjectFbxDccImportKind kind) &&
-            kind == ProjectFbxDccImportKind.AnimationAsset)
-            ApplyAnimationClipDefaults(importer, manifest.sourceFbx);
-    }
-
-    private static void ApplyRig(ModelImporter importer, string rig)
-    {
-        if (!ProjectFbxDccSidecar.TryParseEnum(rig, out ProjectFbxDccRig parsedRig))
-            return;
-
-        importer.animationType = ResolveAnimationType(parsedRig);
-        if (TryResolveAvatarSetup(parsedRig, out ModelImporterAvatarSetup avatarSetup))
-            importer.avatarSetup = avatarSetup;
-    }
-
-    public static ModelImporterAnimationType ResolveAnimationType(string rig)
-    {
-        return ProjectFbxDccSidecar.TryParseEnum(rig, out ProjectFbxDccRig parsedRig)
-            ? ResolveAnimationType(parsedRig)
-            : ModelImporterAnimationType.None;
-    }
-
-    private static ModelImporterAnimationType ResolveAnimationType(ProjectFbxDccRig rig)
-    {
-        return rig switch
-        {
-            ProjectFbxDccRig.Humanoid => ModelImporterAnimationType.Human,
-            ProjectFbxDccRig.Generic => ModelImporterAnimationType.Generic,
-            _ => ModelImporterAnimationType.None
-        };
-    }
-
-    private static bool TryResolveAvatarSetup(ProjectFbxDccRig rig, out ModelImporterAvatarSetup avatarSetup)
-    {
-        if (rig == ProjectFbxDccRig.Humanoid || rig == ProjectFbxDccRig.Generic)
-        {
-            avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
-            return true;
-        }
-
-        avatarSetup = default;
-        return false;
-    }
-
-    private static void ApplyAnimationClipDefaults(ModelImporter importer, string sourceFbx)
-    {
-        ModelImporterClipAnimation[] clips = importer.clipAnimations;
-        if (clips == null || clips.Length == 0)
-            clips = importer.defaultClipAnimations;
-
-        if (clips == null || clips.Length == 0)
-            return;
-
-        string clipBaseName = Path.GetFileNameWithoutExtension(sourceFbx);
-        if (string.IsNullOrWhiteSpace(clipBaseName))
-            clipBaseName = "ImportedClip";
-
-        for (int i = 0; i < clips.Length; i++)
-        {
-            ModelImporterClipAnimation clip = clips[i];
-            if (string.IsNullOrWhiteSpace(clip.name))
-                clip.name = clips.Length > 1 ? $"{clipBaseName}_{i + 1:00}" : clipBaseName;
-
-            clips[i] = clip;
-        }
-
-        importer.clipAnimations = clips;
+        return !string.IsNullOrWhiteSpace(error) &&
+            error.StartsWith("Missing DCC FBX sidecar JSON:", StringComparison.Ordinal);
     }
 }
 

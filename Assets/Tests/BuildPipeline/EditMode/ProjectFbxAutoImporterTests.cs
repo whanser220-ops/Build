@@ -16,7 +16,7 @@ public sealed class ProjectFbxAutoImporterTests
     }
 
     [Test]
-    public void TryLoad_MissingSidecarFailsWithoutFallback()
+    public void TryLoad_MissingSidecarReturnsAssemblyMissingState()
     {
         bool result = TryLoad(
             "Assets/GameResources/Props/Missing.fbx",
@@ -29,7 +29,58 @@ public sealed class ProjectFbxAutoImporterTests
     }
 
     [Test]
-    public void TryParseJson_ValidManifestParsesImportAndAssemblySettings()
+    public void ImportRuleSet_DefaultRulesMatchProjectPaths()
+    {
+        AssertRule(
+            "Assets/GameResources/Characters/Hero/SourceAnimations/Walk/Hero_Walk.fbx",
+            expectedKind: "AnimationAsset",
+            expectedRig: "Humanoid",
+            expectedPreserveHierarchy: false);
+        AssertRule(
+            "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx",
+            expectedKind: "AnimationAsset",
+            expectedRig: "Humanoid",
+            expectedPreserveHierarchy: false);
+        AssertRule(
+            "Assets/GameResources/Characters/Hero/HeroBody.fbx",
+            expectedKind: "CharacterModel",
+            expectedRig: "Humanoid",
+            expectedPreserveHierarchy: false);
+        AssertRule(
+            "Assets/GameResources/Props/Crates/SM_Crate.fbx",
+            expectedKind: "StaticModel",
+            expectedRig: "None",
+            expectedPreserveHierarchy: false,
+            expectedLightmapUv: true,
+            expectedColliders: true);
+        AssertRule(
+            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/zzz.fbx",
+            expectedKind: "StaticModel",
+            expectedRig: "None",
+            expectedPreserveHierarchy: true);
+        AssertRule(
+            "Assets/GameResources/Environment/Trees/SM_Tree_LOD0.fbx",
+            expectedKind: "StaticModel",
+            expectedRig: "None",
+            expectedPreserveHierarchy: true);
+        AssertRule(
+            "Assets/GameResources/Environment/Rocks/SM_Rock.fbx",
+            expectedKind: "StaticModel",
+            expectedRig: "None",
+            expectedPreserveHierarchy: false);
+    }
+
+    [Test]
+    public void ImportRuleSet_GlobMatchesPathAndFileName()
+    {
+        Assert.That(GlobMatches("Characters/**/SourceAnimations/**/*.fbx", "Assets/GameResources/Characters/Hero/SourceAnimations/Walk/Hero_Walk.fbx"), Is.True);
+        Assert.That(GlobMatches("*@*.fbx", "Assets/GameResources/Characters/Hero/Hero@Walk.fbx"), Is.True);
+        Assert.That(GlobMatches("*LOD*.fbx", "Assets/GameResources/Environment/Trees/SM_Tree_LOD2.fbx"), Is.True);
+        Assert.That(GlobMatches("Props/**/*.fbx", "Assets/GameResources/Characters/Hero/HeroBody.fbx"), Is.False);
+    }
+
+    [Test]
+    public void TryParseJson_AssemblyOnlyManifestParsesAssemblySettings()
     {
         bool result = TryParseJson(ValidJson, "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error);
 
@@ -37,13 +88,18 @@ public sealed class ProjectFbxAutoImporterTests
         Assert.That(GetField<int>(manifest, "schemaVersion"), Is.EqualTo(1));
         Assert.That(GetField<string>(manifest, "sourceFbx"), Is.EqualTo("zzz.fbx"));
 
-        object importSettings = GetField<object>(manifest, "importSettings");
-        Assert.That(GetField<string>(importSettings, "kind"), Is.EqualTo("StaticModel"));
-        Assert.That(GetField<string>(importSettings, "rig"), Is.EqualTo("None"));
-
         object assembly = GetField<object>(manifest, "assembly");
         object prefab = GetField<object>(assembly, "prefab");
         Assert.That(GetField<string>(prefab, "outputPath"), Is.EqualTo("Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/P_zzz.prefab"));
+    }
+
+    [Test]
+    public void TryParseJson_LegacyImportSettingsFieldIsIgnored()
+    {
+        bool result = TryParseJson(LegacyJsonWithImportSettings, "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error);
+
+        Assert.That(result, Is.True, error);
+        Assert.That(manifest.GetType().GetField("importSettings", BindingFlags.Public | BindingFlags.Instance), Is.Null);
     }
 
     [Test]
@@ -285,9 +341,11 @@ public sealed class ProjectFbxAutoImporterTests
 
     private static ModelImporterAnimationType ResolveAnimationType(string rig)
     {
-        Type applierType = GetRequiredType("ProjectFbxDccImportSettingsApplier");
+        Type applierType = GetRequiredType("ProjectFbxImportSettingsApplier");
+        Type rigType = GetRequiredType("ProjectFbxImportRig");
+        object parsedRig = Enum.Parse(rigType, rig);
         return (ModelImporterAnimationType)applierType.GetMethod("ResolveAnimationType", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Invoke(null, new object[] { rig });
+            .Invoke(null, new[] { parsedRig });
     }
 
     private static T GetField<T>(object target, string fieldName)
@@ -341,21 +399,41 @@ public sealed class ProjectFbxAutoImporterTests
         return type;
     }
 
+    private static void AssertRule(
+        string assetPath,
+        string expectedKind,
+        string expectedRig,
+        bool expectedPreserveHierarchy,
+        bool expectedLightmapUv = false,
+        bool expectedColliders = false)
+    {
+        object rule = ResolveRule(assetPath);
+        Assert.That(GetField<object>(rule, "kind").ToString(), Is.EqualTo(expectedKind), assetPath);
+        Assert.That(GetField<object>(rule, "rig").ToString(), Is.EqualTo(expectedRig), assetPath);
+        Assert.That(GetField<bool>(rule, "preserveHierarchy"), Is.EqualTo(expectedPreserveHierarchy), assetPath);
+        Assert.That(GetField<bool>(rule, "generateLightmapUv"), Is.EqualTo(expectedLightmapUv), assetPath);
+        Assert.That(GetField<bool>(rule, "generateColliders"), Is.EqualTo(expectedColliders), assetPath);
+    }
+
+    private static object ResolveRule(string assetPath)
+    {
+        Type ruleSetType = GetRequiredType("ProjectFbxImportRuleSet");
+        object ruleSet = ruleSetType.GetMethod("CreateDefaultInstance", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, Array.Empty<object>());
+        return ruleSetType.GetMethod("ResolveRule", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            .Invoke(ruleSet, new object[] { assetPath });
+    }
+
+    private static bool GlobMatches(string glob, string assetPath)
+    {
+        Type globType = GetRequiredType("ProjectFbxImportRuleGlob");
+        return (bool)globType.GetMethod("Matches", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, new object[] { glob, assetPath });
+    }
+
     private const string ValidJson = @"{
   ""schemaVersion"": 1,
   ""sourceFbx"": ""zzz.fbx"",
-  ""importSettings"": {
-    ""kind"": ""StaticModel"",
-    ""rig"": ""None"",
-    ""preserveHierarchy"": true,
-    ""importAnimation"": false,
-    ""importBlendShapes"": false,
-    ""generateLightmapUv"": false,
-    ""generateColliders"": false,
-    ""readWrite"": false,
-    ""meshCompression"": ""Low"",
-    ""animationCompression"": ""Optimal""
-  },
   ""assembly"": {
     ""prefab"": {
       ""enabled"": true,
@@ -377,6 +455,37 @@ public sealed class ProjectFbxAutoImporterTests
     ""materials"": [
       { ""slotName"": ""M_Wood"", ""materialPath"": ""Assets/GameAssets/Materials/M_Wood.mat"" }
     ]
+  }
+}";
+
+    private const string LegacyJsonWithImportSettings = @"{
+  ""schemaVersion"": 1,
+  ""sourceFbx"": ""zzz.fbx"",
+  ""importSettings"": {
+    ""kind"": ""StaticModel"",
+    ""rig"": ""None"",
+    ""preserveHierarchy"": true,
+    ""importAnimation"": false,
+    ""importBlendShapes"": false,
+    ""generateLightmapUv"": false,
+    ""generateColliders"": false,
+    ""readWrite"": false,
+    ""meshCompression"": ""Low"",
+    ""animationCompression"": ""Optimal""
+  },
+  ""assembly"": {
+    ""prefab"": {
+      ""enabled"": false,
+      ""outputPath"": """",
+      ""overwrite"": false
+    },
+    ""lodGroup"": {
+      ""enabled"": false,
+      ""rootPath"": """",
+      ""levels"": []
+    },
+    ""colliders"": [],
+    ""materials"": []
   }
 }";
 }
