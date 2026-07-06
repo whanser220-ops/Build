@@ -2,217 +2,333 @@ using System;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
 
 public sealed class ProjectFbxAutoImporterTests
 {
     [Test]
-    public void Evaluate_CharactersPathUsesHumanoidCharacterProfile()
+    public void SidecarPath_AppendsJsonToFbxAssetPath()
     {
-        object profile = Evaluate(
-            "Assets/GameResources/Characters/Hero/HeroBody.fbx",
-            CreateSignals(hasSkeletonOrSkinning: true));
-
-        AssertProfile(profile, "CharacterModel");
-        AssertBoolean(profile, "IsCharacterPath", true);
-        AssertBoolean(profile, "UseHumanoidRig", true);
-        AssertBoolean(profile, "HasSkeletonOrSkinning", true);
+        Assert.That(
+            GetSidecarAssetPath("Assets/GameResources/Props/zzz.fbx"),
+            Is.EqualTo("Assets/GameResources/Props/zzz.fbx.json"));
     }
 
     [Test]
-    public void Evaluate_SourceAnimationsPathUsesAnimationProfile()
+    public void TryLoad_MissingSidecarFailsWithoutFallback()
     {
-        object profile = Evaluate(
-            "Assets/GameResources/Characters/Hero/SourceAnimations/Walk/Hero_Walk.fbx",
-            CreateSignals(hasSkeletonOrSkinning: true, hasAnimationStacks: true, hasMultipleAnimationStacks: true));
+        bool result = TryLoad(
+            "Assets/GameResources/Props/Missing.fbx",
+            out object manifest,
+            out string error);
 
-        AssertProfile(profile, "AnimationAsset");
-        AssertBoolean(profile, "HasMultipleAnimationStacks", true);
-        AssertBoolean(profile, "UseHumanoidRig", true);
+        Assert.That(result, Is.False);
+        Assert.That(manifest, Is.Null);
+        Assert.That(error, Does.Contain("Missing DCC FBX sidecar JSON"));
     }
 
     [Test]
-    public void Evaluate_PropsPathEnablesStaticColliderAndLightmapUvRules()
+    public void TryParseJson_ValidManifestParsesImportAndAssemblySettings()
     {
-        object profile = Evaluate(
-            "Assets/GameResources/Props/Crates/SM_Crate.fbx",
-            CreateSignals());
+        bool result = TryParseJson(ValidJson, "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error);
 
-        AssertProfile(profile, "StaticModel");
-        AssertBoolean(profile, "IsPropsPath", true);
-        AssertBoolean(profile, "GenerateColliders", true);
-        AssertBoolean(profile, "GenerateLightmapUv", true);
+        Assert.That(result, Is.True, error);
+        Assert.That(GetField<int>(manifest, "schemaVersion"), Is.EqualTo(1));
+        Assert.That(GetField<string>(manifest, "sourceFbx"), Is.EqualTo("zzz.fbx"));
+
+        object importSettings = GetField<object>(manifest, "importSettings");
+        Assert.That(GetField<string>(importSettings, "kind"), Is.EqualTo("StaticModel"));
+        Assert.That(GetField<string>(importSettings, "rig"), Is.EqualTo("None"));
+
+        object assembly = GetField<object>(manifest, "assembly");
+        object prefab = GetField<object>(assembly, "prefab");
+        Assert.That(GetField<string>(prefab, "outputPath"), Is.EqualTo("Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/P_zzz.prefab"));
     }
 
     [Test]
-    public void Evaluate_LodSignalUsesLodProfileAndKeepsColliderSignal()
+    public void TryParseJson_InvalidSchemaVersionFails()
     {
-        object profile = Evaluate(
-            "Assets/GameResources/Environment/Trees/SM_Tree.fbx",
-            CreateSignals(hasLodNodes: true, hasCollisionNodes: true));
+        string json = ValidJson.Replace("\"schemaVersion\": 1", "\"schemaVersion\": 2");
 
-        AssertProfile(profile, "LodModel");
-        AssertBoolean(profile, "HasLodNodes", true);
-        AssertBoolean(profile, "GenerateColliders", true);
+        bool result = TryParseJson(json, "Assets/GameResources/Props/zzz.fbx", out _, out string error);
+
+        Assert.That(result, Is.False);
+        Assert.That(error, Does.Contain("schemaVersion must be 1"));
     }
 
     [Test]
-    public void NamingRulesRecognizeLodAndSimpleCollisionPrefixes()
+    public void TryParseJson_EmptyPrefabPathFailsWhenPrefabEnabled()
     {
-        Assert.That(TryGetLodIndex("SM_Tree_LOD2", out int lodIndex), Is.True);
-        Assert.That(lodIndex, Is.EqualTo(2));
+        string json = ValidJson.Replace(
+            "\"outputPath\": \"Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/P_zzz.prefab\"",
+            "\"outputPath\": \"\"");
 
-        Assert.That(TryGetCollisionKind("UBX_SM_Crate_01", out string collisionKind), Is.True);
-        Assert.That(collisionKind, Is.EqualTo("Box"));
+        bool result = TryParseJson(json, "Assets/GameResources/Props/zzz.fbx", out _, out string error);
+
+        Assert.That(result, Is.False);
+        Assert.That(error, Does.Contain("assembly.prefab.outputPath is required"));
     }
 
     [Test]
-    public void NamingRulesUseLastLodTokenWhenExporterRepeatsBaseLodName()
+    public void TryParseJson_MissingLodLevelsFailsWhenLodEnabled()
     {
-        Assert.That(TryGetLodIndex("zz_LOD0_LOD0", out int lod0), Is.True);
-        Assert.That(TryGetLodIndex("zz_LOD0_LOD1", out int lod1), Is.True);
-        Assert.That(TryGetLodIndex("zz_LOD0_LOD2", out int lod2), Is.True);
+        string json = ValidJson.Replace(
+            @"""levels"": [
+        { ""index"": 0, ""nodePath"": ""zz_LOD0_LOD0"", ""screenRelativeHeight"": 0.6 },
+        { ""index"": 1, ""nodePath"": ""zz_LOD0_LOD1"", ""screenRelativeHeight"": 0.35 },
+        { ""index"": 2, ""nodePath"": ""zz_LOD0_LOD2"", ""screenRelativeHeight"": 0.18 }
+      ]",
+            @"""levels"": []");
 
-        Assert.That(lod0, Is.EqualTo(0));
-        Assert.That(lod1, Is.EqualTo(1));
-        Assert.That(lod2, Is.EqualTo(2));
+        bool result = TryParseJson(json, "Assets/GameResources/Props/zzz.fbx", out _, out string error);
+
+        Assert.That(result, Is.False);
+        Assert.That(error, Does.Contain("assembly.lodGroup.levels must contain at least one level"));
     }
 
     [Test]
-    public void MeadowPrefabRules_MapMeshFolderToSharedPrefabFolder()
+    public void AssemblyProcessor_JsonLodLevelsCreateLodGroup()
     {
-        Assert.That(TryGetMeadowPrefabPath(
-            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Flowers/SM_ZZ_1.fbx",
-            out string prefabPath), Is.True);
+        Assert.That(TryParseJson(LodOnlyJson(), "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error), Is.True, error);
 
-        Assert.That(prefabPath, Is.EqualTo(
-            "Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/Flowers/P_ZZ_1.prefab"));
+        GameObject root = CreateLodFixture();
+        try
+        {
+            ApplyAssembly(root, manifest);
+
+            LODGroup lodGroup = root.GetComponent<LODGroup>();
+            Assert.That(lodGroup, Is.Not.Null);
+            Assert.That(lodGroup.GetLODs().Length, Is.EqualTo(3));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
     }
 
     [Test]
-    public void MeadowPrefabRules_RemovesSmPrefixWhenMakingPrefabName()
+    public void AssemblyProcessor_JsonColliderCreatesRequestedColliderAndDisablesRenderer()
     {
-        Assert.That(MakeMeadowPrefabName("SM_Hill_01"), Is.EqualTo("P_Hill_01"));
+        Assert.That(TryParseJson(WithoutMaterials(ValidJson), "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error), Is.True, error);
+
+        GameObject root = CreateLodFixture();
+        GameObject colliderNode = new GameObject("UCX_body");
+        colliderNode.transform.SetParent(root.transform, false);
+        colliderNode.AddComponent<MeshFilter>().sharedMesh = CreateTriangleMesh();
+        MeshRenderer renderer = colliderNode.AddComponent<MeshRenderer>();
+
+        try
+        {
+            ApplyAssembly(root, manifest);
+
+            MeshCollider collider = colliderNode.GetComponent<MeshCollider>();
+            Assert.That(collider, Is.Not.Null);
+            Assert.That(collider.convex, Is.True);
+            Assert.That(renderer.enabled, Is.False);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
     }
 
     [Test]
-    public void MeadowPrefabRules_AddsPPrefixForNonSmModelNames()
+    public void AssemblyProcessor_JsonMaterialSlotBindsConfiguredMaterial()
     {
-        Assert.That(MakeMeadowPrefabName("zzz"), Is.EqualTo("P_zzz"));
+        const string materialPath = "Assets/Tests/BuildPipeline/EditMode/TempDccJsonMaterial.mat";
+        Material targetMaterial = CreateMaterialAsset(materialPath, "M_Wood_Target");
+        string json = WithoutColliders(ValidJson).Replace("Assets/GameAssets/Materials/M_Wood.mat", materialPath);
+        Assert.That(TryParseJson(json, "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error), Is.True, error);
+
+        GameObject root = CreateLodFixture();
+        Renderer renderer = root.transform.Find("zz_LOD0_LOD0").GetComponent<Renderer>();
+        renderer.sharedMaterial = CreateTransientMaterial("M_Wood");
+
+        try
+        {
+            ApplyAssembly(root, manifest);
+
+            Assert.That(renderer.sharedMaterial, Is.EqualTo(targetMaterial));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+            AssetDatabase.DeleteAsset(materialPath);
+        }
     }
 
     [Test]
-    public void MeadowPrefabRules_IgnoreFbxOutsideMeadowSourceMeshes()
+    public void PrefabGenerator_OverwriteFalseSkipsExistingPrefab()
     {
-        Assert.That(TryGetMeadowPrefabPath(
-            "Assets/GameResources/Characters/Qianxia/Meshs/Qianxia_Rokoko_BlenderClean.fbx",
-            out string prefabPath), Is.False);
-        Assert.That(prefabPath, Is.Null);
+        Assert.That(TryParseJson(ValidJson, "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error), Is.True, error);
+        object prefabConfig = GetField<object>(GetField<object>(manifest, "assembly"), "prefab");
+        const string prefabPath = "Assets/Tests/BuildPipeline/EditMode/TempExistingDccPrefab.prefab";
+        SetField(prefabConfig, "outputPath", prefabPath);
+
+        GameObject instance = new GameObject("TempExistingDccPrefab");
+        try
+        {
+            PrefabUtility.SaveAsPrefabAsset(instance, prefabPath);
+
+            bool shouldCreate = ShouldCreatePrefab(prefabConfig);
+
+            Assert.That(shouldCreate, Is.False);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(instance);
+            AssetDatabase.DeleteAsset(prefabPath);
+        }
     }
 
     [Test]
-    public void MeadowPrefabRules_SkipWhenTargetPrefabAlreadyExists()
+    public void ImportSettings_RigStringsMapToModelImporterAnimationTypes()
     {
-        Assert.That(ShouldCreateMeadowPrefab(
-            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Flowers/SM_Flower_10_03.fbx"), Is.False);
+        Assert.That(ResolveAnimationType("None"), Is.EqualTo(ModelImporterAnimationType.None));
+        Assert.That(ResolveAnimationType("Generic"), Is.EqualTo(ModelImporterAnimationType.Generic));
+        Assert.That(ResolveAnimationType("Humanoid"), Is.EqualTo(ModelImporterAnimationType.Human));
     }
 
-    private static object Evaluate(string assetPath, object signals)
+    private static GameObject CreateLodFixture()
     {
-        Type rulesType = GetRequiredType("ProjectFbxImportRules");
-        MethodInfo method = rulesType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Single(item =>
-                item.Name == "Evaluate" &&
-                item.GetParameters().Length == 2 &&
-                item.GetParameters()[1].ParameterType.Name == "ProjectFbxFileSignals");
-
-        return method.Invoke(null, new[] { assetPath, signals });
+        GameObject root = new GameObject("Root");
+        AddRendererChild(root.transform, "zz_LOD0_LOD0");
+        AddRendererChild(root.transform, "zz_LOD0_LOD1");
+        AddRendererChild(root.transform, "zz_LOD0_LOD2");
+        return root;
     }
 
-    private static object CreateSignals(
-        bool hasSkeletonOrSkinning = false,
-        bool hasAnimationStacks = false,
-        bool hasMultipleAnimationStacks = false,
-        bool hasLodNodes = false,
-        bool hasCollisionNodes = false,
-        bool hasCustomCollisionHint = false)
+    private static void AddRendererChild(Transform parent, string name)
     {
-        Type signalsType = GetRequiredType("ProjectFbxFileSignals");
-        object signals = Activator.CreateInstance(signalsType);
-        SetBoolean(signals, "HasSkeletonOrSkinning", hasSkeletonOrSkinning);
-        SetBoolean(signals, "HasAnimationStacks", hasAnimationStacks);
-        SetBoolean(signals, "HasMultipleAnimationStacks", hasMultipleAnimationStacks);
-        SetBoolean(signals, "HasLodNodes", hasLodNodes);
-        SetBoolean(signals, "HasCollisionNodes", hasCollisionNodes);
-        SetBoolean(signals, "HasCustomCollisionHint", hasCustomCollisionHint);
-        return signals;
+        GameObject child = new GameObject(name);
+        child.transform.SetParent(parent, false);
+        child.AddComponent<MeshFilter>().sharedMesh = CreateTriangleMesh();
+        child.AddComponent<MeshRenderer>();
     }
 
-    private static bool TryGetLodIndex(string nodeName, out int index)
+    private static Mesh CreateTriangleMesh()
     {
-        Type namingType = GetRequiredType("ProjectFbxNaming");
-        object[] args = { nodeName, null };
-        bool result = (bool)namingType.GetMethod("TryGetLodIndex", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Invoke(null, args);
-        index = (int)args[1];
-        return result;
+        Mesh mesh = new Mesh();
+        mesh.vertices = new[]
+        {
+            Vector3.zero,
+            Vector3.right,
+            Vector3.up
+        };
+        mesh.triangles = new[] { 0, 1, 2 };
+        mesh.RecalculateBounds();
+        return mesh;
     }
 
-    private static bool TryGetCollisionKind(string nodeName, out string kind)
+    private static Material CreateMaterialAsset(string materialPath, string materialName)
     {
-        Type namingType = GetRequiredType("ProjectFbxNaming");
-        object[] args = { nodeName, null };
-        bool result = (bool)namingType.GetMethod("TryGetCollisionKind", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Invoke(null, args);
-        kind = args[1].ToString();
-        return result;
+        AssetDatabase.DeleteAsset(materialPath);
+        Material material = CreateTransientMaterial(materialName);
+        AssetDatabase.CreateAsset(material, materialPath);
+        AssetDatabase.ImportAsset(materialPath);
+        return AssetDatabase.LoadAssetAtPath<Material>(materialPath);
     }
 
-    private static bool TryGetMeadowPrefabPath(string assetPath, out string prefabPath)
+    private static Material CreateTransientMaterial(string materialName)
     {
-        Type rulesType = GetRequiredType("ProjectFbxMeadowPrefabGenerationRules");
-        object[] args = { assetPath, null };
-        bool result = (bool)rulesType.GetMethod("TryGetPrefabPath", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Invoke(null, args);
-        prefabPath = args[1] as string;
-        return result;
+        Shader shader = Shader.Find("Universal Render Pipeline/Lit") ??
+            Shader.Find("Standard") ??
+            Shader.Find("Sprites/Default");
+        Material material = new Material(shader);
+        material.name = materialName;
+        return material;
     }
 
-    private static string MakeMeadowPrefabName(string modelName)
+    private static string GetSidecarAssetPath(string assetPath)
     {
-        Type rulesType = GetRequiredType("ProjectFbxMeadowPrefabGenerationRules");
-        return (string)rulesType.GetMethod("MakePrefabName", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Invoke(null, new object[] { modelName });
-    }
-
-    private static bool ShouldCreateMeadowPrefab(string assetPath)
-    {
-        Type rulesType = GetRequiredType("ProjectFbxMeadowPrefabGenerationRules");
-        return (bool)rulesType.GetMethod("ShouldCreatePrefab", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+        Type sidecarType = GetRequiredType("ProjectFbxDccSidecar");
+        return (string)sidecarType.GetMethod("GetSidecarAssetPath", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
             .Invoke(null, new object[] { assetPath });
     }
 
-    private static void AssertProfile(object profile, string expectedKind)
+    private static bool TryLoad(string assetPath, out object manifest, out string error)
     {
-        Assert.That(GetProperty(profile, "Kind").ToString(), Is.EqualTo(expectedKind));
+        Type sidecarType = GetRequiredType("ProjectFbxDccSidecar");
+        object[] args = { assetPath, null, null };
+        bool result = (bool)sidecarType.GetMethod("TryLoad", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, args);
+        manifest = args[1];
+        error = args[2] as string;
+        return result;
     }
 
-    private static void AssertBoolean(object target, string propertyName, bool expected)
+    private static bool TryParseJson(string json, string assetPath, out object manifest, out string error)
     {
-        Assert.That((bool)GetProperty(target, propertyName), Is.EqualTo(expected), propertyName);
+        Type sidecarType = GetRequiredType("ProjectFbxDccSidecar");
+        object[] args = { json, assetPath, null, null };
+        bool result = (bool)sidecarType.GetMethod("TryParseJson", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, args);
+        manifest = args[2];
+        error = args[3] as string;
+        return result;
     }
 
-    private static void SetBoolean(object target, string propertyName, bool value)
+    private static void ApplyAssembly(GameObject root, object manifest)
     {
-        PropertyInfo property = target.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
-        Assert.That(property, Is.Not.Null, "Missing reflected property: " + propertyName);
-        property.SetValue(target, value);
+        Type processorType = GetRequiredType("ProjectFbxDccAssemblyProcessor");
+        processorType.GetMethod("Apply", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, new object[] { root, manifest });
     }
 
-    private static object GetProperty(object target, string propertyName)
+    private static bool ShouldCreatePrefab(object prefabConfig)
     {
-        PropertyInfo property = target.GetType().GetProperty(propertyName, BindingFlags.Public | BindingFlags.Instance);
-        Assert.That(property, Is.Not.Null, "Missing reflected property: " + propertyName);
-        return property.GetValue(target);
+        Type generatorType = GetRequiredType("ProjectFbxDccPrefabGenerator");
+        return (bool)generatorType.GetMethod("ShouldCreatePrefab", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, new object[] { prefabConfig });
+    }
+
+    private static ModelImporterAnimationType ResolveAnimationType(string rig)
+    {
+        Type applierType = GetRequiredType("ProjectFbxDccImportSettingsApplier");
+        return (ModelImporterAnimationType)applierType.GetMethod("ResolveAnimationType", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, new object[] { rig });
+    }
+
+    private static T GetField<T>(object target, string fieldName)
+    {
+        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Public | BindingFlags.Instance);
+        Assert.That(field, Is.Not.Null, "Missing reflected field: " + fieldName);
+        object value = field.GetValue(target);
+        if (value == null)
+            return default;
+
+        return (T)value;
+    }
+
+    private static void SetField<T>(object target, string fieldName, T value)
+    {
+        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Public | BindingFlags.Instance);
+        Assert.That(field, Is.Not.Null, "Missing reflected field: " + fieldName);
+        field.SetValue(target, value);
+    }
+
+    private static string LodOnlyJson()
+    {
+        return WithoutMaterials(WithoutColliders(ValidJson));
+    }
+
+    private static string WithoutColliders(string json)
+    {
+        return json.Replace(
+            @"    ""colliders"": [
+      { ""nodePath"": ""UCX_body"", ""type"": ""Mesh"", ""convex"": true, ""disableRenderer"": true }
+    ],",
+            @"    ""colliders"": [],");
+    }
+
+    private static string WithoutMaterials(string json)
+    {
+        return json.Replace(
+            @"    ""materials"": [
+      { ""slotName"": ""M_Wood"", ""materialPath"": ""Assets/GameAssets/Materials/M_Wood.mat"" }
+    ]",
+            @"    ""materials"": []");
     }
 
     private static Type GetRequiredType(string typeName)
@@ -224,4 +340,43 @@ public sealed class ProjectFbxAutoImporterTests
         Assert.That(type, Is.Not.Null, "Unable to find editor type: " + typeName);
         return type;
     }
+
+    private const string ValidJson = @"{
+  ""schemaVersion"": 1,
+  ""sourceFbx"": ""zzz.fbx"",
+  ""importSettings"": {
+    ""kind"": ""StaticModel"",
+    ""rig"": ""None"",
+    ""preserveHierarchy"": true,
+    ""importAnimation"": false,
+    ""importBlendShapes"": false,
+    ""generateLightmapUv"": false,
+    ""generateColliders"": false,
+    ""readWrite"": false,
+    ""meshCompression"": ""Low"",
+    ""animationCompression"": ""Optimal""
+  },
+  ""assembly"": {
+    ""prefab"": {
+      ""enabled"": true,
+      ""outputPath"": ""Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/P_zzz.prefab"",
+      ""overwrite"": false
+    },
+    ""lodGroup"": {
+      ""enabled"": true,
+      ""rootPath"": """",
+      ""levels"": [
+        { ""index"": 0, ""nodePath"": ""zz_LOD0_LOD0"", ""screenRelativeHeight"": 0.6 },
+        { ""index"": 1, ""nodePath"": ""zz_LOD0_LOD1"", ""screenRelativeHeight"": 0.35 },
+        { ""index"": 2, ""nodePath"": ""zz_LOD0_LOD2"", ""screenRelativeHeight"": 0.18 }
+      ]
+    },
+    ""colliders"": [
+      { ""nodePath"": ""UCX_body"", ""type"": ""Mesh"", ""convex"": true, ""disableRenderer"": true }
+    ],
+    ""materials"": [
+      { ""slotName"": ""M_Wood"", ""materialPath"": ""Assets/GameAssets/Materials/M_Wood.mat"" }
+    ]
+  }
+}";
 }

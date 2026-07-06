@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 
@@ -14,203 +14,47 @@ public sealed class ProjectFbxAutoImporter : AssetPostprocessor
         string[] movedAssets,
         string[] movedFromAssetPaths)
     {
-        ProjectFbxMeadowPrefabGenerator.EnqueueImportedAssets(importedAssets);
+        ProjectFbxDccPrefabGenerator.EnqueueImportedAssets(importedAssets);
     }
 
     private void OnPreprocessModel()
     {
-        if (assetImporter is not ModelImporter importer || !ProjectFbxImportRules.IsFbx(assetPath))
+        if (assetImporter is not ModelImporter importer || !ProjectFbxDccSidecar.IsFbx(assetPath))
             return;
 
-        ProjectFbxFileSignals signals = ProjectFbxFileSignals.Scan(assetPath);
-        ProjectFbxImportProfile profile = ProjectFbxImportRules.Evaluate(assetPath, signals);
-        ProjectFbxImportRules.ApplyPreprocessSettings(importer, profile, assetPath);
+        if (!ProjectFbxDccSidecar.TryLoad(assetPath, out ProjectFbxDccManifest manifest, out string error))
+        {
+            Debug.LogError(error);
+            return;
+        }
+
+        ProjectFbxDccImportSettingsApplier.Apply(importer, manifest);
     }
 
     private void OnPostprocessModel(GameObject root)
     {
-        if (root == null || !ProjectFbxImportRules.IsFbx(assetPath))
+        if (root == null || !ProjectFbxDccSidecar.IsFbx(assetPath))
             return;
 
-        ProjectFbxImportedModelInfo info = ProjectFbxImportedModelInfo.FromRoot(root);
-        ProjectFbxImportProfile profile = ProjectFbxImportRules.Evaluate(assetPath, info);
-        ProjectFbxPostprocessRules.Apply(root, profile);
+        if (!ProjectFbxDccSidecar.TryLoad(assetPath, out ProjectFbxDccManifest manifest, out string error))
+        {
+            Debug.LogError(error);
+            return;
+        }
+
+        ProjectFbxDccAssemblyProcessor.Apply(root, manifest);
     }
 
     private Material OnAssignMaterialModel(Material material, Renderer renderer)
     {
-        if (material == null || !ProjectFbxImportRules.IsFbx(assetPath))
+        if (material == null || !ProjectFbxDccSidecar.IsFbx(assetPath))
             return material;
 
-        Material resolved = ProjectFbxMaterialResolver.Resolve(material.name, assetPath);
+        if (!ProjectFbxDccSidecar.TryLoad(assetPath, out ProjectFbxDccManifest manifest, out _))
+            return material;
+
+        Material resolved = ProjectFbxDccMaterialResolver.Resolve(manifest, material.name);
         return resolved != null ? resolved : material;
-    }
-
-    private void OnPostprocessGameObjectWithUserProperties(GameObject go, string[] propNames, object[] values)
-    {
-        if (go == null || !ProjectFbxImportRules.IsFbx(assetPath))
-            return;
-
-        string collisionKind = ProjectFbxUserPropertyReader.FindString(propNames, values, "Collision");
-        if (string.IsNullOrWhiteSpace(collisionKind))
-            collisionKind = ProjectFbxUserPropertyReader.FindString(propNames, values, "Collider");
-
-        ProjectFbxCollisionBuilder.AddRequestedCollider(go, collisionKind);
-    }
-}
-
-internal static class ProjectFbxMeadowPrefabGenerationRules
-{
-    private const string SourceRoot = "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/";
-    private const string PrefabRoot = "Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/";
-
-    public static bool TryGetPrefabPath(string assetPath, out string prefabPath)
-    {
-        prefabPath = null;
-
-        string normalizedPath = NormalizeAssetPath(assetPath);
-        if (!ProjectFbxImportRules.IsFbx(normalizedPath) ||
-            !normalizedPath.StartsWith(SourceRoot, StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        string relativePath = normalizedPath.Substring(SourceRoot.Length);
-        if (string.IsNullOrWhiteSpace(relativePath))
-            return false;
-
-        string relativeFolder = Path.GetDirectoryName(relativePath)?.Replace('\\', '/');
-        string modelName = Path.GetFileNameWithoutExtension(relativePath);
-        if (string.IsNullOrWhiteSpace(modelName))
-            return false;
-
-        string prefabName = MakePrefabName(modelName);
-        string targetFolder = string.IsNullOrWhiteSpace(relativeFolder)
-            ? PrefabRoot.TrimEnd('/')
-            : PrefabRoot.TrimEnd('/') + "/" + relativeFolder;
-
-        prefabPath = targetFolder + "/" + prefabName + ".prefab";
-        return true;
-    }
-
-    public static string MakePrefabName(string modelName)
-    {
-        if (string.IsNullOrWhiteSpace(modelName))
-            return "P_Model";
-
-        return modelName.StartsWith("SM_", StringComparison.OrdinalIgnoreCase)
-            ? "P_" + modelName.Substring(3)
-            : "P_" + modelName;
-    }
-
-    public static bool ShouldCreatePrefab(string assetPath)
-    {
-        return TryGetPrefabPath(assetPath, out string prefabPath) &&
-            AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) == null;
-    }
-
-    private static string NormalizeAssetPath(string assetPath)
-    {
-        return (assetPath ?? string.Empty).Replace('\\', '/');
-    }
-}
-
-internal static class ProjectFbxMeadowPrefabGenerator
-{
-    private static readonly HashSet<string> PendingAssetPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    private static bool s_DelayCallRegistered;
-
-    public static void EnqueueImportedAssets(IEnumerable<string> assetPaths)
-    {
-        if (assetPaths == null)
-            return;
-
-        bool addedAny = false;
-        foreach (string assetPath in assetPaths)
-        {
-            if (!ProjectFbxMeadowPrefabGenerationRules.TryGetPrefabPath(assetPath, out _))
-                continue;
-
-            PendingAssetPaths.Add(NormalizeAssetPath(assetPath));
-            addedAny = true;
-        }
-
-        if (!addedAny || s_DelayCallRegistered)
-            return;
-
-        s_DelayCallRegistered = true;
-        EditorApplication.delayCall += ProcessPendingAssets;
-    }
-
-    private static void ProcessPendingAssets()
-    {
-        s_DelayCallRegistered = false;
-
-        string[] assetPaths = PendingAssetPaths.ToArray();
-        PendingAssetPaths.Clear();
-
-        foreach (string assetPath in assetPaths)
-            CreatePrefabIfMissing(assetPath);
-    }
-
-    private static void CreatePrefabIfMissing(string assetPath)
-    {
-        if (!ProjectFbxMeadowPrefabGenerationRules.TryGetPrefabPath(assetPath, out string prefabPath))
-            return;
-
-        if (AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath) != null)
-        {
-            Debug.Log($"Meadow FBX prefab already exists, skip auto-create: {prefabPath}");
-            return;
-        }
-
-        GameObject modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-        if (modelAsset == null)
-        {
-            Debug.LogWarning($"Unable to load Meadow FBX model asset for prefab generation: {assetPath}");
-            return;
-        }
-
-        EnsureFolder(Path.GetDirectoryName(prefabPath)?.Replace('\\', '/'));
-
-        GameObject instance = UnityEngine.Object.Instantiate(modelAsset);
-        instance.name = Path.GetFileNameWithoutExtension(prefabPath);
-
-        try
-        {
-            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(instance, prefabPath);
-            if (prefab == null)
-                Debug.LogWarning($"Failed to auto-create Meadow FBX prefab: {prefabPath}");
-            else
-                Debug.Log($"Auto-created Meadow FBX prefab: {prefabPath}");
-        }
-        finally
-        {
-            UnityEngine.Object.DestroyImmediate(instance);
-        }
-    }
-
-    private static void EnsureFolder(string folderPath)
-    {
-        if (string.IsNullOrWhiteSpace(folderPath) || AssetDatabase.IsValidFolder(folderPath))
-            return;
-
-        string[] segments = folderPath.Split('/');
-        if (segments.Length == 0)
-            return;
-
-        string current = segments[0];
-        for (int i = 1; i < segments.Length; i++)
-        {
-            string next = current + "/" + segments[i];
-            if (!AssetDatabase.IsValidFolder(next))
-                AssetDatabase.CreateFolder(current, segments[i]);
-
-            current = next;
-        }
-    }
-
-    private static string NormalizeAssetPath(string assetPath)
-    {
-        return (assetPath ?? string.Empty).Replace('\\', '/');
     }
 }
 
@@ -222,7 +66,7 @@ internal static class ProjectFbxAutoImporterRuleDocs
     [MenuItem(MenuPath)]
     private static void OpenRulesDocument()
     {
-        string fullPath = GetRulesDocumentFullPath();
+        string fullPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", RulesDocumentPath));
         if (!File.Exists(fullPath))
         {
             Debug.LogWarning($"FBX auto import rules document not found: {RulesDocumentPath}");
@@ -231,145 +75,326 @@ internal static class ProjectFbxAutoImporterRuleDocs
 
         EditorUtility.OpenWithDefaultApp(fullPath);
     }
-
-    private static string GetRulesDocumentFullPath()
-    {
-        return Path.GetFullPath(Path.Combine(Application.dataPath, "..", RulesDocumentPath));
-    }
 }
 
-internal enum ProjectFbxImportKind
+internal enum ProjectFbxDccImportKind
 {
     StaticModel,
     CharacterModel,
-    AnimationAsset,
-    LodModel
+    AnimationAsset
 }
 
-internal sealed class ProjectFbxImportProfile
+internal enum ProjectFbxDccRig
 {
-    public ProjectFbxImportKind Kind { get; set; }
-    public bool IsCharacterPath { get; set; }
-    public bool IsPropsPath { get; set; }
-    public bool HasSkeletonOrSkinning { get; set; }
-    public bool HasAnimationStacks { get; set; }
-    public bool HasMultipleAnimationStacks { get; set; }
-    public bool HasLodNodes { get; set; }
-    public bool HasCollisionNodes { get; set; }
-    public bool HasCustomCollisionHint { get; set; }
-    public bool GenerateLightmapUv { get; set; }
-    public bool GenerateColliders { get; set; }
-    public bool UseHumanoidRig { get; set; }
+    None,
+    Generic,
+    Humanoid
 }
 
-internal sealed class ProjectFbxFileSignals
+internal enum ProjectFbxDccColliderType
 {
-    private const int MaxScannedBytes = 16 * 1024 * 1024;
+    Box,
+    Mesh,
+    Sphere,
+    Capsule
+}
 
-    public bool HasSkeletonOrSkinning { get; set; }
-    public bool HasBindPose { get; set; }
-    public bool HasAnimationStacks { get; set; }
-    public bool HasMultipleAnimationStacks { get; set; }
-    public bool HasLodNodes { get; set; }
-    public bool HasCollisionNodes { get; set; }
-    public bool HasCustomCollisionHint { get; set; }
+[Serializable]
+internal sealed class ProjectFbxDccManifest
+{
+    public int schemaVersion;
+    public string sourceFbx;
+    public ProjectFbxDccImportSettings importSettings;
+    public ProjectFbxDccAssembly assembly;
+}
 
-    public static ProjectFbxFileSignals Scan(string assetPath)
+[Serializable]
+internal sealed class ProjectFbxDccImportSettings
+{
+    public string kind;
+    public string rig;
+    public bool preserveHierarchy;
+    public bool importAnimation;
+    public bool importBlendShapes;
+    public bool generateLightmapUv;
+    public bool generateColliders;
+    public bool readWrite;
+    public string meshCompression;
+    public string animationCompression;
+}
+
+[Serializable]
+internal sealed class ProjectFbxDccAssembly
+{
+    public ProjectFbxDccPrefabConfig prefab;
+    public ProjectFbxDccLodGroupConfig lodGroup;
+    public ProjectFbxDccColliderConfig[] colliders;
+    public ProjectFbxDccMaterialConfig[] materials;
+}
+
+[Serializable]
+internal sealed class ProjectFbxDccPrefabConfig
+{
+    public bool enabled;
+    public string outputPath;
+    public bool overwrite;
+}
+
+[Serializable]
+internal sealed class ProjectFbxDccLodGroupConfig
+{
+    public bool enabled;
+    public string rootPath;
+    public ProjectFbxDccLodLevelConfig[] levels;
+}
+
+[Serializable]
+internal sealed class ProjectFbxDccLodLevelConfig
+{
+    public int index;
+    public string nodePath;
+    public float screenRelativeHeight;
+}
+
+[Serializable]
+internal sealed class ProjectFbxDccColliderConfig
+{
+    public string nodePath;
+    public string type;
+    public bool convex;
+    public bool disableRenderer;
+}
+
+[Serializable]
+internal sealed class ProjectFbxDccMaterialConfig
+{
+    public string slotName;
+    public string materialPath;
+}
+
+internal static class ProjectFbxDccSidecar
+{
+    public const int SupportedSchemaVersion = 1;
+
+    public static bool IsFbx(string assetPath)
     {
-        ProjectFbxFileSignals signals = new ProjectFbxFileSignals();
-        string fullPath = ToProjectAbsolutePath(assetPath);
-        if (string.IsNullOrWhiteSpace(fullPath) || !File.Exists(fullPath))
-            return signals;
-
-        byte[] bytes = ReadScanWindow(fullPath);
-        int animationStackCount = CountAscii(bytes, "AnimationStack") + CountAscii(bytes, "AnimStack");
-        bool hasSkeletonMarker = ContainsAscii(bytes, "Skeleton") || ContainsAscii(bytes, "LimbNode");
-        bool hasSkinMarker = ContainsAscii(bytes, "Skin") && (ContainsAscii(bytes, "Cluster") || ContainsAscii(bytes, "Deformer"));
-        bool hasBindPose = ContainsAscii(bytes, "BindPose") || ContainsAscii(bytes, "PoseNode");
-
-        signals.HasSkeletonOrSkinning = hasSkeletonMarker || hasSkinMarker || hasBindPose;
-        signals.HasBindPose = hasBindPose;
-        signals.HasAnimationStacks = animationStackCount > 0;
-        signals.HasMultipleAnimationStacks = animationStackCount > 1;
-        signals.HasLodNodes =
-            ContainsAscii(bytes, "LOD0") ||
-            ContainsAscii(bytes, "LOD1") ||
-            ContainsAscii(bytes, "LOD2");
-        signals.HasCollisionNodes =
-            ContainsAscii(bytes, "UCX_") ||
-            ContainsAscii(bytes, "UBX_") ||
-            ContainsAscii(bytes, "USP_") ||
-            ContainsAscii(bytes, "UCP_");
-        signals.HasCustomCollisionHint = ContainsAscii(bytes, "Collision") || ContainsAscii(bytes, "Collider");
-        return signals;
+        return !string.IsNullOrWhiteSpace(assetPath) &&
+            assetPath.EndsWith(".fbx", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static byte[] ReadScanWindow(string fullPath)
+    public static string GetSidecarAssetPath(string assetPath)
     {
-        FileInfo fileInfo = new FileInfo(fullPath);
-        int byteCount = (int)Math.Min(fileInfo.Length, MaxScannedBytes);
-        byte[] bytes = new byte[byteCount];
+        return string.IsNullOrWhiteSpace(assetPath)
+            ? null
+            : NormalizeAssetPath(assetPath) + ".json";
+    }
 
-        using (FileStream stream = File.OpenRead(fullPath))
+    public static bool TryLoad(string fbxAssetPath, out ProjectFbxDccManifest manifest, out string error)
+    {
+        manifest = null;
+        error = null;
+
+        if (!IsFbx(fbxAssetPath))
         {
-            int offset = 0;
-            while (offset < byteCount)
-            {
-                int read = stream.Read(bytes, offset, byteCount - offset);
-                if (read <= 0)
-                    break;
+            error = $"DCC FBX sidecar can only be loaded for .fbx assets: {fbxAssetPath}";
+            return false;
+        }
 
-                offset += read;
+        string sidecarAssetPath = GetSidecarAssetPath(fbxAssetPath);
+        string sidecarFullPath = ToProjectAbsolutePath(sidecarAssetPath);
+        if (string.IsNullOrWhiteSpace(sidecarFullPath) || !File.Exists(sidecarFullPath))
+        {
+            error = $"Missing DCC FBX sidecar JSON: {sidecarAssetPath}";
+            return false;
+        }
+
+        string json;
+        try
+        {
+            json = File.ReadAllText(sidecarFullPath, Encoding.UTF8);
+        }
+        catch (Exception exception)
+        {
+            error = $"Failed to read DCC FBX sidecar JSON: {sidecarAssetPath}\n{exception.Message}";
+            return false;
+        }
+
+        return TryParseJson(json, fbxAssetPath, out manifest, out error);
+    }
+
+    public static bool TryParseJson(string json, string fbxAssetPath, out ProjectFbxDccManifest manifest, out string error)
+    {
+        manifest = null;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            error = $"DCC FBX sidecar JSON is empty for: {fbxAssetPath}";
+            return false;
+        }
+
+        try
+        {
+            manifest = JsonUtility.FromJson<ProjectFbxDccManifest>(json);
+        }
+        catch (Exception exception)
+        {
+            error = $"Failed to parse DCC FBX sidecar JSON for {fbxAssetPath}: {exception.Message}";
+            return false;
+        }
+
+        if (manifest == null)
+        {
+            error = $"Failed to parse DCC FBX sidecar JSON for: {fbxAssetPath}";
+            return false;
+        }
+
+        List<string> errors = new List<string>();
+        ValidateManifest(manifest, fbxAssetPath, errors);
+        if (errors.Count > 0)
+        {
+            error = $"Invalid DCC FBX sidecar JSON for {fbxAssetPath}:\n- " + string.Join("\n- ", errors);
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void ValidateManifest(ProjectFbxDccManifest manifest, string fbxAssetPath, List<string> errors)
+    {
+        if (manifest.schemaVersion != SupportedSchemaVersion)
+            errors.Add($"schemaVersion must be {SupportedSchemaVersion}.");
+
+        string expectedSourceFbx = Path.GetFileName(NormalizeAssetPath(fbxAssetPath));
+        if (string.IsNullOrWhiteSpace(manifest.sourceFbx))
+            errors.Add("sourceFbx is required.");
+        else if (!string.IsNullOrWhiteSpace(expectedSourceFbx) &&
+            !string.Equals(manifest.sourceFbx, expectedSourceFbx, StringComparison.OrdinalIgnoreCase))
+            errors.Add($"sourceFbx must match the FBX file name: {expectedSourceFbx}.");
+
+        if (manifest.importSettings == null)
+        {
+            errors.Add("importSettings is required.");
+        }
+        else
+        {
+            ValidateImportSettings(manifest.importSettings, errors);
+        }
+
+        if (manifest.assembly == null)
+        {
+            errors.Add("assembly is required.");
+        }
+        else
+        {
+            ValidateAssembly(manifest.assembly, errors);
+        }
+    }
+
+    private static void ValidateImportSettings(ProjectFbxDccImportSettings settings, List<string> errors)
+    {
+        if (!TryParseEnum(settings.kind, out ProjectFbxDccImportKind _))
+            errors.Add("importSettings.kind must be StaticModel, CharacterModel, or AnimationAsset.");
+
+        if (!TryParseEnum(settings.rig, out ProjectFbxDccRig _))
+            errors.Add("importSettings.rig must be None, Generic, or Humanoid.");
+
+        if (!TryParseEnum(settings.meshCompression, out ModelImporterMeshCompression _))
+            errors.Add("importSettings.meshCompression must be Off, Low, Medium, or High.");
+
+        if (!TryParseEnum(settings.animationCompression, out ModelImporterAnimationCompression _))
+            errors.Add("importSettings.animationCompression must be Off, KeyframeReduction, or Optimal.");
+    }
+
+    private static void ValidateAssembly(ProjectFbxDccAssembly assembly, List<string> errors)
+    {
+        if (assembly.prefab != null && assembly.prefab.enabled)
+        {
+            if (string.IsNullOrWhiteSpace(assembly.prefab.outputPath))
+                errors.Add("assembly.prefab.outputPath is required when prefab.enabled is true.");
+            else if (!NormalizeAssetPath(assembly.prefab.outputPath).StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) ||
+                !assembly.prefab.outputPath.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase))
+                errors.Add("assembly.prefab.outputPath must be an Assets/... .prefab path.");
+        }
+
+        if (assembly.lodGroup != null && assembly.lodGroup.enabled)
+        {
+            if (assembly.lodGroup.levels == null || assembly.lodGroup.levels.Length == 0)
+            {
+                errors.Add("assembly.lodGroup.levels must contain at least one level when lodGroup.enabled is true.");
             }
-        }
-
-        return bytes;
-    }
-
-    private static int CountAscii(byte[] bytes, string token)
-    {
-        int count = 0;
-        int start = 0;
-        while (true)
-        {
-            int index = IndexOfAscii(bytes, token, start);
-            if (index < 0)
-                return count;
-
-            count++;
-            start = index + token.Length;
-        }
-    }
-
-    private static bool ContainsAscii(byte[] bytes, string token)
-    {
-        return IndexOfAscii(bytes, token, 0) >= 0;
-    }
-
-    private static int IndexOfAscii(byte[] bytes, string token, int start)
-    {
-        if (bytes == null || bytes.Length == 0 || string.IsNullOrEmpty(token))
-            return -1;
-
-        for (int i = Math.Max(0, start); i <= bytes.Length - token.Length; i++)
-        {
-            bool matches = true;
-            for (int j = 0; j < token.Length; j++)
+            else
             {
-                byte value = bytes[i + j];
-                char expected = token[j];
-                if (value != expected)
+                foreach (ProjectFbxDccLodLevelConfig level in assembly.lodGroup.levels)
                 {
-                    matches = false;
-                    break;
+                    if (level == null)
+                    {
+                        errors.Add("assembly.lodGroup.levels contains a null level.");
+                        continue;
+                    }
+
+                    if (level.index < 0)
+                        errors.Add("assembly.lodGroup.levels.index must be greater than or equal to 0.");
+                    if (string.IsNullOrWhiteSpace(level.nodePath))
+                        errors.Add("assembly.lodGroup.levels.nodePath is required.");
+                    if (level.screenRelativeHeight <= 0.0f)
+                        errors.Add("assembly.lodGroup.levels.screenRelativeHeight must be greater than 0.");
                 }
             }
-
-            if (matches)
-                return i;
         }
 
-        return -1;
+        ValidateColliders(assembly.colliders, errors);
+        ValidateMaterials(assembly.materials, errors);
+    }
+
+    private static void ValidateColliders(ProjectFbxDccColliderConfig[] colliders, List<string> errors)
+    {
+        if (colliders == null)
+            return;
+
+        foreach (ProjectFbxDccColliderConfig collider in colliders)
+        {
+            if (collider == null)
+            {
+                errors.Add("assembly.colliders contains a null collider.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(collider.nodePath))
+                errors.Add("assembly.colliders.nodePath is required.");
+
+            if (!TryParseEnum(collider.type, out ProjectFbxDccColliderType _))
+                errors.Add("assembly.colliders.type must be Box, Mesh, Sphere, or Capsule.");
+        }
+    }
+
+    private static void ValidateMaterials(ProjectFbxDccMaterialConfig[] materials, List<string> errors)
+    {
+        if (materials == null)
+            return;
+
+        foreach (ProjectFbxDccMaterialConfig material in materials)
+        {
+            if (material == null)
+            {
+                errors.Add("assembly.materials contains a null material.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(material.slotName))
+                errors.Add("assembly.materials.slotName is required.");
+            if (string.IsNullOrWhiteSpace(material.materialPath))
+                errors.Add("assembly.materials.materialPath is required.");
+        }
+    }
+
+    public static bool TryParseEnum<TEnum>(string value, out TEnum result)
+        where TEnum : struct
+    {
+        result = default;
+        return !string.IsNullOrWhiteSpace(value) &&
+            Enum.TryParse(value, true, out result) &&
+            Enum.IsDefined(typeof(TEnum), result);
     }
 
     private static string ToProjectAbsolutePath(string assetPath)
@@ -382,249 +407,6 @@ internal sealed class ProjectFbxFileSignals
 
         return Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath));
     }
-}
-
-internal readonly struct ProjectFbxImportedModelInfo
-{
-    public ProjectFbxImportedModelInfo(
-        bool hasSkinnedMeshRenderer,
-        bool hasAnimationComponent,
-        bool hasLodNodes,
-        bool hasCollisionNodes)
-    {
-        HasSkinnedMeshRenderer = hasSkinnedMeshRenderer;
-        HasAnimationComponent = hasAnimationComponent;
-        HasLodNodes = hasLodNodes;
-        HasCollisionNodes = hasCollisionNodes;
-    }
-
-    public bool HasSkinnedMeshRenderer { get; }
-    public bool HasAnimationComponent { get; }
-    public bool HasLodNodes { get; }
-    public bool HasCollisionNodes { get; }
-
-    public static ProjectFbxImportedModelInfo FromRoot(GameObject root)
-    {
-        Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
-        bool hasLodNodes = transforms.Any(item => ProjectFbxNaming.IsLodNode(item.name));
-        bool hasCollisionNodes = transforms.Any(item => ProjectFbxNaming.IsCollisionNode(item.name));
-        bool hasSkinnedMeshRenderer = root.GetComponentsInChildren<SkinnedMeshRenderer>(true).Length > 0;
-        bool hasAnimationComponent =
-            root.GetComponentInChildren<Animator>(true) != null ||
-            root.GetComponentInChildren<Animation>(true) != null;
-
-        return new ProjectFbxImportedModelInfo(
-            hasSkinnedMeshRenderer,
-            hasAnimationComponent,
-            hasLodNodes,
-            hasCollisionNodes);
-    }
-}
-
-internal static class ProjectFbxImportRules
-{
-    private const string CharactersSegment = "/Characters/";
-    private const string PropsSegment = "/Props/";
-    private const string SourceAnimationsSegment = "/SourceAnimations/";
-    private const string AnimationsSegment = "/Animations/";
-
-    public static bool IsFbx(string assetPath)
-    {
-        return !string.IsNullOrWhiteSpace(assetPath) &&
-            assetPath.EndsWith(".fbx", StringComparison.OrdinalIgnoreCase);
-    }
-
-    public static ProjectFbxImportProfile Evaluate(string assetPath, ProjectFbxFileSignals signals)
-    {
-        string normalizedPath = NormalizeAssetPath(assetPath);
-        bool isCharacterPath = normalizedPath.IndexOf(CharactersSegment, StringComparison.OrdinalIgnoreCase) >= 0;
-        bool isPropsPath = normalizedPath.IndexOf(PropsSegment, StringComparison.OrdinalIgnoreCase) >= 0;
-        bool isAnimationPath =
-            normalizedPath.IndexOf(SourceAnimationsSegment, StringComparison.OrdinalIgnoreCase) >= 0 ||
-            normalizedPath.IndexOf(AnimationsSegment, StringComparison.OrdinalIgnoreCase) >= 0 ||
-            Path.GetFileNameWithoutExtension(normalizedPath).IndexOf("@", StringComparison.OrdinalIgnoreCase) >= 0;
-
-        ProjectFbxImportProfile profile = new ProjectFbxImportProfile
-        {
-            IsCharacterPath = isCharacterPath,
-            IsPropsPath = isPropsPath,
-            HasSkeletonOrSkinning = signals.HasSkeletonOrSkinning,
-            HasAnimationStacks = signals.HasAnimationStacks,
-            HasMultipleAnimationStacks = signals.HasMultipleAnimationStacks,
-            HasLodNodes = signals.HasLodNodes,
-            HasCollisionNodes = signals.HasCollisionNodes,
-            HasCustomCollisionHint = signals.HasCustomCollisionHint
-        };
-
-        if (isAnimationPath || signals.HasMultipleAnimationStacks)
-        {
-            profile.Kind = ProjectFbxImportKind.AnimationAsset;
-        }
-        else if (isCharacterPath || signals.HasSkeletonOrSkinning)
-        {
-            profile.Kind = ProjectFbxImportKind.CharacterModel;
-        }
-        else if (signals.HasLodNodes)
-        {
-            profile.Kind = ProjectFbxImportKind.LodModel;
-        }
-        else
-        {
-            profile.Kind = ProjectFbxImportKind.StaticModel;
-        }
-
-        profile.UseHumanoidRig = isCharacterPath;
-        profile.GenerateColliders = isPropsPath || signals.HasCollisionNodes || signals.HasCustomCollisionHint;
-        profile.GenerateLightmapUv = isPropsPath;
-        return profile;
-    }
-
-    public static ProjectFbxImportProfile Evaluate(string assetPath, ProjectFbxImportedModelInfo info)
-    {
-        ProjectFbxFileSignals signals = new ProjectFbxFileSignals
-        {
-            HasSkeletonOrSkinning = info.HasSkinnedMeshRenderer || info.HasAnimationComponent,
-            HasAnimationStacks = info.HasAnimationComponent,
-            HasMultipleAnimationStacks = false,
-            HasLodNodes = info.HasLodNodes,
-            HasCollisionNodes = info.HasCollisionNodes,
-            HasCustomCollisionHint = false
-        };
-
-        return Evaluate(assetPath, signals);
-    }
-
-    public static void ApplyPreprocessSettings(ModelImporter importer, ProjectFbxImportProfile profile, string assetPath)
-    {
-        importer.importCameras = false;
-        importer.importLights = false;
-        importer.importVisibility = true;
-        importer.sortHierarchyByName = true;
-        importer.extraUserProperties = MergeUserProperties(importer.extraUserProperties, "Collision", "Collider");
-
-        if (profile.HasLodNodes || profile.HasCollisionNodes)
-            importer.preserveHierarchy = true;
-
-        switch (profile.Kind)
-        {
-            case ProjectFbxImportKind.AnimationAsset:
-                ConfigureAnimationAsset(importer, profile, assetPath);
-                break;
-            case ProjectFbxImportKind.CharacterModel:
-                ConfigureCharacterModel(importer, profile);
-                break;
-            case ProjectFbxImportKind.LodModel:
-                ConfigureStaticModel(importer, profile);
-                importer.preserveHierarchy = true;
-                break;
-            default:
-                ConfigureStaticModel(importer, profile);
-                break;
-        }
-    }
-
-    private static void ConfigureCharacterModel(ModelImporter importer, ProjectFbxImportProfile profile)
-    {
-        importer.animationType = profile.UseHumanoidRig
-            ? ModelImporterAnimationType.Human
-            : ModelImporterAnimationType.Generic;
-        importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
-        importer.importAnimation = true;
-        importer.importBlendShapes = true;
-        importer.addCollider = false;
-        importer.isReadable = false;
-        importer.meshCompression = ModelImporterMeshCompression.Off;
-    }
-
-    private static void ConfigureAnimationAsset(ModelImporter importer, ProjectFbxImportProfile profile, string assetPath)
-    {
-        importer.animationType = profile.UseHumanoidRig
-            ? ModelImporterAnimationType.Human
-            : ModelImporterAnimationType.Generic;
-        importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
-        importer.importAnimation = true;
-        importer.importBlendShapes = false;
-        importer.addCollider = false;
-        importer.isReadable = false;
-        importer.animationCompression = ModelImporterAnimationCompression.Optimal;
-
-        ModelImporterClipAnimation[] clips = importer.clipAnimations;
-        if (clips == null || clips.Length == 0)
-            clips = importer.defaultClipAnimations;
-
-        if (clips == null || clips.Length == 0)
-            return;
-
-        bool shouldLoop = ShouldLoopAnimation(assetPath);
-        for (int i = 0; i < clips.Length; i++)
-        {
-            ModelImporterClipAnimation clip = clips[i];
-            if (string.IsNullOrWhiteSpace(clip.name))
-                clip.name = MakeClipName(assetPath, i, clips.Length);
-
-            clip.loopTime = shouldLoop;
-            clip.loopPose = shouldLoop;
-            clip.lockRootRotation = true;
-            clip.lockRootHeightY = true;
-            clip.lockRootPositionXZ = true;
-            clip.keepOriginalOrientation = false;
-            clip.keepOriginalPositionY = false;
-            clip.keepOriginalPositionXZ = false;
-            clip.heightFromFeet = true;
-            clips[i] = clip;
-        }
-
-        importer.clipAnimations = clips;
-    }
-
-    private static void ConfigureStaticModel(ModelImporter importer, ProjectFbxImportProfile profile)
-    {
-        importer.animationType = ModelImporterAnimationType.None;
-        importer.importAnimation = false;
-        importer.importBlendShapes = false;
-        importer.addCollider = profile.GenerateColliders;
-        importer.generateSecondaryUV = profile.GenerateLightmapUv;
-        importer.isReadable = false;
-        importer.meshCompression = ModelImporterMeshCompression.Low;
-    }
-
-    private static bool ShouldLoopAnimation(string assetPath)
-    {
-        string normalizedPath = NormalizeAssetPath(assetPath);
-        return normalizedPath.IndexOf("/OneShot/", StringComparison.OrdinalIgnoreCase) < 0 &&
-            normalizedPath.IndexOf("/OneShots/", StringComparison.OrdinalIgnoreCase) < 0 &&
-            normalizedPath.IndexOf("/Cinematic/", StringComparison.OrdinalIgnoreCase) < 0;
-    }
-
-    private static string MakeClipName(string assetPath, int index, int totalCount)
-    {
-        string name = Path.GetFileNameWithoutExtension(assetPath);
-        if (string.IsNullOrWhiteSpace(name))
-            name = "ImportedClip";
-
-        return totalCount > 1 ? $"{name}_{index + 1:00}" : name;
-    }
-
-    private static string[] MergeUserProperties(string[] current, params string[] required)
-    {
-        HashSet<string> values = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (current != null)
-        {
-            foreach (string value in current)
-            {
-                if (!string.IsNullOrWhiteSpace(value))
-                    values.Add(value);
-            }
-        }
-
-        foreach (string value in required)
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-                values.Add(value);
-        }
-
-        return values.OrderBy(item => item, StringComparer.OrdinalIgnoreCase).ToArray();
-    }
 
     private static string NormalizeAssetPath(string assetPath)
     {
@@ -632,134 +414,230 @@ internal static class ProjectFbxImportRules
     }
 }
 
-internal static class ProjectFbxPostprocessRules
+internal static class ProjectFbxDccImportSettingsApplier
 {
-    public static void Apply(GameObject root, ProjectFbxImportProfile profile)
+    public static void Apply(ModelImporter importer, ProjectFbxDccManifest manifest)
     {
-        if (root == null)
+        ProjectFbxDccImportSettings settings = manifest.importSettings;
+
+        importer.preserveHierarchy = settings.preserveHierarchy;
+        importer.importAnimation = settings.importAnimation;
+        importer.importBlendShapes = settings.importBlendShapes;
+        importer.addCollider = settings.generateColliders;
+        importer.generateSecondaryUV = settings.generateLightmapUv;
+        importer.isReadable = settings.readWrite;
+
+        if (ProjectFbxDccSidecar.TryParseEnum(settings.meshCompression, out ModelImporterMeshCompression meshCompression))
+            importer.meshCompression = meshCompression;
+
+        if (ProjectFbxDccSidecar.TryParseEnum(settings.animationCompression, out ModelImporterAnimationCompression animationCompression))
+            importer.animationCompression = animationCompression;
+
+        ApplyRig(importer, settings.rig);
+
+        if (ProjectFbxDccSidecar.TryParseEnum(settings.kind, out ProjectFbxDccImportKind kind) &&
+            kind == ProjectFbxDccImportKind.AnimationAsset)
+            ApplyAnimationClipDefaults(importer, manifest.sourceFbx);
+    }
+
+    private static void ApplyRig(ModelImporter importer, string rig)
+    {
+        if (!ProjectFbxDccSidecar.TryParseEnum(rig, out ProjectFbxDccRig parsedRig))
             return;
 
-        ProjectFbxCollisionBuilder.AddNamingConventionColliders(root);
-
-        if (profile.HasLodNodes)
-            ProjectFbxLodGroupBuilder.Build(root);
-    }
-}
-
-internal static class ProjectFbxNaming
-{
-    private static readonly Regex LodRegex = new Regex(@"(?<![A-Za-z0-9])LOD(?<index>\d+)(?![A-Za-z0-9])", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    public static bool IsLodNode(string name)
-    {
-        return !string.IsNullOrWhiteSpace(name) && LodRegex.IsMatch(name);
+        importer.animationType = ResolveAnimationType(parsedRig);
+        if (TryResolveAvatarSetup(parsedRig, out ModelImporterAvatarSetup avatarSetup))
+            importer.avatarSetup = avatarSetup;
     }
 
-    public static bool TryGetLodIndex(string name, out int index)
+    public static ModelImporterAnimationType ResolveAnimationType(string rig)
     {
-        index = -1;
-        if (string.IsNullOrWhiteSpace(name))
-            return false;
+        return ProjectFbxDccSidecar.TryParseEnum(rig, out ProjectFbxDccRig parsedRig)
+            ? ResolveAnimationType(parsedRig)
+            : ModelImporterAnimationType.None;
+    }
 
-        MatchCollection matches = LodRegex.Matches(name);
-        for (int i = matches.Count - 1; i >= 0; i--)
+    private static ModelImporterAnimationType ResolveAnimationType(ProjectFbxDccRig rig)
+    {
+        return rig switch
         {
-            if (int.TryParse(matches[i].Groups["index"].Value, out index))
-                return true;
+            ProjectFbxDccRig.Humanoid => ModelImporterAnimationType.Human,
+            ProjectFbxDccRig.Generic => ModelImporterAnimationType.Generic,
+            _ => ModelImporterAnimationType.None
+        };
+    }
+
+    private static bool TryResolveAvatarSetup(ProjectFbxDccRig rig, out ModelImporterAvatarSetup avatarSetup)
+    {
+        if (rig == ProjectFbxDccRig.Humanoid || rig == ProjectFbxDccRig.Generic)
+        {
+            avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+            return true;
         }
 
+        avatarSetup = default;
         return false;
     }
 
-    public static bool IsCollisionNode(string name)
+    private static void ApplyAnimationClipDefaults(ModelImporter importer, string sourceFbx)
     {
-        return TryGetCollisionKind(name, out _);
-    }
+        ModelImporterClipAnimation[] clips = importer.clipAnimations;
+        if (clips == null || clips.Length == 0)
+            clips = importer.defaultClipAnimations;
 
-    public static bool TryGetCollisionKind(string name, out ProjectFbxCollisionKind kind)
-    {
-        kind = ProjectFbxCollisionKind.None;
-        if (string.IsNullOrWhiteSpace(name))
-            return false;
+        if (clips == null || clips.Length == 0)
+            return;
 
-        if (name.StartsWith("UBX_", StringComparison.OrdinalIgnoreCase))
+        string clipBaseName = Path.GetFileNameWithoutExtension(sourceFbx);
+        if (string.IsNullOrWhiteSpace(clipBaseName))
+            clipBaseName = "ImportedClip";
+
+        for (int i = 0; i < clips.Length; i++)
         {
-            kind = ProjectFbxCollisionKind.Box;
-            return true;
+            ModelImporterClipAnimation clip = clips[i];
+            if (string.IsNullOrWhiteSpace(clip.name))
+                clip.name = clips.Length > 1 ? $"{clipBaseName}_{i + 1:00}" : clipBaseName;
+
+            clips[i] = clip;
         }
 
-        if (name.StartsWith("UCX_", StringComparison.OrdinalIgnoreCase))
-        {
-            kind = ProjectFbxCollisionKind.Mesh;
-            return true;
-        }
-
-        if (name.StartsWith("USP_", StringComparison.OrdinalIgnoreCase))
-        {
-            kind = ProjectFbxCollisionKind.Sphere;
-            return true;
-        }
-
-        if (name.StartsWith("UCP_", StringComparison.OrdinalIgnoreCase))
-        {
-            kind = ProjectFbxCollisionKind.Capsule;
-            return true;
-        }
-
-        return false;
+        importer.clipAnimations = clips;
     }
 }
 
-internal enum ProjectFbxCollisionKind
+internal static class ProjectFbxDccAssemblyProcessor
 {
-    None,
-    Box,
-    Mesh,
-    Sphere,
-    Capsule
-}
-
-internal static class ProjectFbxCollisionBuilder
-{
-    public static void AddNamingConventionColliders(GameObject root)
+    public static void Apply(GameObject root, ProjectFbxDccManifest manifest)
     {
-        Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
-        foreach (Transform transform in transforms)
+        if (root == null || manifest?.assembly == null)
+            return;
+
+        ApplyLodGroup(root, manifest.assembly.lodGroup);
+        ApplyColliders(root, manifest.assembly.colliders);
+        ApplyMaterials(root, manifest.assembly.materials);
+    }
+
+    private static void ApplyLodGroup(GameObject root, ProjectFbxDccLodGroupConfig lodGroupConfig)
+    {
+        if (lodGroupConfig == null || !lodGroupConfig.enabled)
+            return;
+
+        Transform lodRoot = FindTransform(root.transform, lodGroupConfig.rootPath);
+        if (lodRoot == null)
         {
-            if (!ProjectFbxNaming.TryGetCollisionKind(transform.name, out ProjectFbxCollisionKind kind))
+            Debug.LogError($"DCC FBX LOD root not found: {lodGroupConfig.rootPath}");
+            return;
+        }
+
+        List<LOD> lods = new List<LOD>();
+        bool hasError = false;
+        foreach (ProjectFbxDccLodLevelConfig level in lodGroupConfig.levels.OrderBy(item => item.index))
+        {
+            Transform levelRoot = FindTransform(root.transform, level.nodePath);
+            if (levelRoot == null)
+            {
+                Debug.LogError($"DCC FBX LOD node not found: {level.nodePath}");
+                hasError = true;
+                continue;
+            }
+
+            Renderer[] renderers = levelRoot.GetComponentsInChildren<Renderer>(true)
+                .Where(renderer => renderer != null && renderer.enabled)
+                .ToArray();
+            if (renderers.Length == 0)
+            {
+                Debug.LogError($"DCC FBX LOD node has no enabled renderers: {level.nodePath}");
+                hasError = true;
+                continue;
+            }
+
+            lods.Add(new LOD(level.screenRelativeHeight, renderers));
+        }
+
+        if (hasError || lods.Count == 0)
+            return;
+
+        LODGroup lodGroup = lodRoot.GetComponent<LODGroup>();
+        if (lodGroup == null)
+            lodGroup = lodRoot.gameObject.AddComponent<LODGroup>();
+
+        lodGroup.SetLODs(lods.ToArray());
+        lodGroup.RecalculateBounds();
+    }
+
+    private static void ApplyColliders(GameObject root, ProjectFbxDccColliderConfig[] colliders)
+    {
+        if (colliders == null)
+            return;
+
+        foreach (ProjectFbxDccColliderConfig colliderConfig in colliders)
+        {
+            Transform target = FindTransform(root.transform, colliderConfig.nodePath);
+            if (target == null)
+            {
+                Debug.LogError($"DCC FBX collider node not found: {colliderConfig.nodePath}");
+                continue;
+            }
+
+            if (!ProjectFbxDccSidecar.TryParseEnum(colliderConfig.type, out ProjectFbxDccColliderType colliderType))
                 continue;
 
-            AddCollider(transform.gameObject, kind);
-            DisableHelperRenderers(transform.gameObject);
+            AddCollider(target.gameObject, colliderType, colliderConfig);
+
+            if (colliderConfig.disableRenderer)
+                DisableRenderers(target.gameObject);
         }
     }
 
-    public static void AddRequestedCollider(GameObject go, string requestedKind)
+    private static void ApplyMaterials(GameObject root, ProjectFbxDccMaterialConfig[] materialConfigs)
     {
-        ProjectFbxCollisionKind kind = ParseKind(requestedKind);
-        if (kind == ProjectFbxCollisionKind.None)
+        if (materialConfigs == null || materialConfigs.Length == 0)
             return;
 
-        AddCollider(go, kind);
+        Dictionary<string, Material> materialsBySlot = ProjectFbxDccMaterialResolver.LoadMaterialsBySlot(materialConfigs);
+        if (materialsBySlot.Count == 0)
+            return;
+
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+        foreach (Renderer renderer in renderers)
+        {
+            Material[] sharedMaterials = renderer.sharedMaterials;
+            bool changed = false;
+            for (int i = 0; i < sharedMaterials.Length; i++)
+            {
+                string slotName = ProjectFbxDccMaterialResolver.NormalizeSlotName(sharedMaterials[i] != null ? sharedMaterials[i].name : null);
+                if (string.IsNullOrWhiteSpace(slotName))
+                    continue;
+
+                if (!materialsBySlot.TryGetValue(slotName, out Material replacement))
+                    continue;
+
+                sharedMaterials[i] = replacement;
+                changed = true;
+            }
+
+            if (changed)
+                renderer.sharedMaterials = sharedMaterials;
+        }
     }
 
-    private static void AddCollider(GameObject go, ProjectFbxCollisionKind kind)
+    private static void AddCollider(GameObject go, ProjectFbxDccColliderType colliderType, ProjectFbxDccColliderConfig colliderConfig)
     {
-        if (go == null)
+        if (go.GetComponent<Collider>() != null)
             return;
 
-        switch (kind)
+        switch (colliderType)
         {
-            case ProjectFbxCollisionKind.Box:
+            case ProjectFbxDccColliderType.Box:
                 AddBoxCollider(go);
                 break;
-            case ProjectFbxCollisionKind.Mesh:
-                AddMeshCollider(go);
+            case ProjectFbxDccColliderType.Mesh:
+                AddMeshCollider(go, colliderConfig.convex);
                 break;
-            case ProjectFbxCollisionKind.Sphere:
+            case ProjectFbxDccColliderType.Sphere:
                 AddSphereCollider(go);
                 break;
-            case ProjectFbxCollisionKind.Capsule:
+            case ProjectFbxDccColliderType.Capsule:
                 AddCapsuleCollider(go);
                 break;
         }
@@ -767,31 +645,21 @@ internal static class ProjectFbxCollisionBuilder
 
     private static void AddBoxCollider(GameObject go)
     {
-        if (go.GetComponent<Collider>() != null)
-            return;
-
         BoxCollider collider = go.AddComponent<BoxCollider>();
         Bounds bounds = GetLocalBounds(go);
         collider.center = bounds.center;
         collider.size = bounds.size;
     }
 
-    private static void AddMeshCollider(GameObject go)
+    private static void AddMeshCollider(GameObject go, bool convex)
     {
-        if (go.GetComponent<Collider>() != null)
-            return;
-
-        Mesh mesh = GetSharedMesh(go);
         MeshCollider collider = go.AddComponent<MeshCollider>();
-        collider.sharedMesh = mesh;
-        collider.convex = true;
+        collider.sharedMesh = GetSharedMesh(go);
+        collider.convex = convex;
     }
 
     private static void AddSphereCollider(GameObject go)
     {
-        if (go.GetComponent<Collider>() != null)
-            return;
-
         SphereCollider collider = go.AddComponent<SphereCollider>();
         Bounds bounds = GetLocalBounds(go);
         collider.center = bounds.center;
@@ -800,9 +668,6 @@ internal static class ProjectFbxCollisionBuilder
 
     private static void AddCapsuleCollider(GameObject go)
     {
-        if (go.GetComponent<Collider>() != null)
-            return;
-
         CapsuleCollider collider = go.AddComponent<CapsuleCollider>();
         Bounds bounds = GetLocalBounds(go);
         collider.center = bounds.center;
@@ -811,37 +676,48 @@ internal static class ProjectFbxCollisionBuilder
         collider.direction = 1;
     }
 
-    private static ProjectFbxCollisionKind ParseKind(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return ProjectFbxCollisionKind.None;
-
-        string normalized = value.Trim();
-        if (string.Equals(normalized, "Box", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(normalized, "UBX", StringComparison.OrdinalIgnoreCase))
-            return ProjectFbxCollisionKind.Box;
-
-        if (string.Equals(normalized, "Mesh", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(normalized, "ConvexMesh", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(normalized, "UCX", StringComparison.OrdinalIgnoreCase))
-            return ProjectFbxCollisionKind.Mesh;
-
-        if (string.Equals(normalized, "Sphere", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(normalized, "USP", StringComparison.OrdinalIgnoreCase))
-            return ProjectFbxCollisionKind.Sphere;
-
-        if (string.Equals(normalized, "Capsule", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(normalized, "UCP", StringComparison.OrdinalIgnoreCase))
-            return ProjectFbxCollisionKind.Capsule;
-
-        return ProjectFbxCollisionKind.None;
-    }
-
-    private static void DisableHelperRenderers(GameObject go)
+    private static void DisableRenderers(GameObject go)
     {
         Renderer[] renderers = go.GetComponentsInChildren<Renderer>(true);
         foreach (Renderer renderer in renderers)
             renderer.enabled = false;
+    }
+
+    internal static Transform FindTransform(Transform root, string nodePath)
+    {
+        if (root == null)
+            return null;
+
+        string normalizedPath = (nodePath ?? string.Empty).Replace('\\', '/').Trim('/');
+        if (string.IsNullOrWhiteSpace(normalizedPath))
+            return root;
+
+        string[] segments = normalizedPath.Split('/');
+        int startIndex = segments.Length > 0 && string.Equals(segments[0], root.name, StringComparison.Ordinal)
+            ? 1
+            : 0;
+
+        Transform current = root;
+        for (int i = startIndex; i < segments.Length; i++)
+        {
+            current = FindDirectChild(current, segments[i]);
+            if (current == null)
+                return null;
+        }
+
+        return current;
+    }
+
+    private static Transform FindDirectChild(Transform parent, string childName)
+    {
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            Transform child = parent.GetChild(i);
+            if (string.Equals(child.name, childName, StringComparison.Ordinal))
+                return child;
+        }
+
+        return null;
     }
 
     private static Bounds GetLocalBounds(GameObject go)
@@ -868,135 +744,54 @@ internal static class ProjectFbxCollisionBuilder
     }
 }
 
-internal static class ProjectFbxLodGroupBuilder
+internal static class ProjectFbxDccMaterialResolver
 {
-    private static readonly float[] DefaultTransitionHeights =
+    public static Material Resolve(ProjectFbxDccManifest manifest, string slotName)
     {
-        0.6f,
-        0.35f,
-        0.18f,
-        0.08f
-    };
-
-    public static void Build(GameObject root)
-    {
-        Dictionary<int, List<Renderer>> renderersByLod = CollectRenderers(root);
-        if (renderersByLod.Count < 2)
-            return;
-
-        LOD[] lods = renderersByLod
-            .OrderBy(pair => pair.Key)
-            .Select(pair => new LOD(GetTransitionHeight(pair.Key), pair.Value.ToArray()))
-            .ToArray();
-
-        LODGroup lodGroup = root.GetComponent<LODGroup>();
-        if (lodGroup == null)
-            lodGroup = root.AddComponent<LODGroup>();
-
-        lodGroup.SetLODs(lods);
-        lodGroup.RecalculateBounds();
-    }
-
-    private static Dictionary<int, List<Renderer>> CollectRenderers(GameObject root)
-    {
-        Dictionary<int, List<Renderer>> renderersByLod = new Dictionary<int, List<Renderer>>();
-        Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
-        foreach (Renderer renderer in renderers)
-        {
-            if (!renderer.enabled)
-                continue;
-
-            if (!TryFindLodIndex(renderer.transform, root.transform, out int lodIndex))
-                continue;
-
-            if (!renderersByLod.TryGetValue(lodIndex, out List<Renderer> group))
-            {
-                group = new List<Renderer>();
-                renderersByLod.Add(lodIndex, group);
-            }
-
-            group.Add(renderer);
-        }
-
-        return renderersByLod;
-    }
-
-    private static bool TryFindLodIndex(Transform transform, Transform stopAt, out int lodIndex)
-    {
-        Transform current = transform;
-        while (current != null)
-        {
-            if (ProjectFbxNaming.TryGetLodIndex(current.name, out lodIndex))
-                return true;
-
-            if (current == stopAt)
-                break;
-
-            current = current.parent;
-        }
-
-        lodIndex = -1;
-        return false;
-    }
-
-    private static float GetTransitionHeight(int lodIndex)
-    {
-        if (lodIndex >= 0 && lodIndex < DefaultTransitionHeights.Length)
-            return DefaultTransitionHeights[lodIndex];
-
-        return Mathf.Max(0.01f, DefaultTransitionHeights[DefaultTransitionHeights.Length - 1] * Mathf.Pow(0.5f, lodIndex - DefaultTransitionHeights.Length + 1));
-    }
-}
-
-internal static class ProjectFbxMaterialResolver
-{
-    private static readonly string[] SearchRoots =
-    {
-        "Assets/GameAssets",
-        "Assets/GameResources",
-        "Assets/ANGRY MESH",
-        "Assets/ThirdParty"
-    };
-
-    private static readonly Dictionary<string, Material> Cache = new Dictionary<string, Material>(StringComparer.OrdinalIgnoreCase);
-
-    public static Material Resolve(string materialSlotName, string assetPath)
-    {
-        string normalizedName = NormalizeMaterialName(materialSlotName);
-        if (string.IsNullOrWhiteSpace(normalizedName))
+        if (manifest?.assembly?.materials == null)
             return null;
 
-        string cacheKey = $"{assetPath}|{normalizedName}";
-        if (Cache.TryGetValue(cacheKey, out Material cached))
-            return cached;
-
-        Material material = FindMaterial(normalizedName);
-        if (material == null && normalizedName.StartsWith("M_", StringComparison.OrdinalIgnoreCase))
-            material = FindMaterial(normalizedName.Substring(2));
-
-        Cache[cacheKey] = material;
-        return material;
-    }
-
-    private static Material FindMaterial(string name)
-    {
-        string[] existingRoots = SearchRoots.Where(AssetDatabase.IsValidFolder).ToArray();
-        if (existingRoots.Length == 0)
+        string normalizedSlotName = NormalizeSlotName(slotName);
+        if (string.IsNullOrWhiteSpace(normalizedSlotName))
             return null;
 
-        string[] guids = AssetDatabase.FindAssets($"{name} t:Material", existingRoots);
-        foreach (string guid in guids)
+        foreach (ProjectFbxDccMaterialConfig materialConfig in manifest.assembly.materials)
         {
-            string path = AssetDatabase.GUIDToAssetPath(guid);
-            Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (material != null && string.Equals(NormalizeMaterialName(material.name), NormalizeMaterialName(name), StringComparison.OrdinalIgnoreCase))
-                return material;
+            if (materialConfig == null)
+                continue;
+
+            if (!string.Equals(NormalizeSlotName(materialConfig.slotName), normalizedSlotName, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            return LoadMaterial(materialConfig.materialPath);
         }
 
         return null;
     }
 
-    private static string NormalizeMaterialName(string value)
+    public static Dictionary<string, Material> LoadMaterialsBySlot(ProjectFbxDccMaterialConfig[] materialConfigs)
+    {
+        Dictionary<string, Material> materialsBySlot = new Dictionary<string, Material>(StringComparer.OrdinalIgnoreCase);
+        if (materialConfigs == null)
+            return materialsBySlot;
+
+        foreach (ProjectFbxDccMaterialConfig materialConfig in materialConfigs)
+        {
+            if (materialConfig == null)
+                continue;
+
+            string slotName = NormalizeSlotName(materialConfig.slotName);
+            Material material = LoadMaterial(materialConfig.materialPath);
+            if (string.IsNullOrWhiteSpace(slotName) || material == null)
+                continue;
+
+            materialsBySlot[slotName] = material;
+        }
+
+        return materialsBySlot;
+    }
+
+    public static string NormalizeSlotName(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
             return string.Empty;
@@ -1008,24 +803,141 @@ internal static class ProjectFbxMaterialResolver
 
         return name;
     }
-}
 
-internal static class ProjectFbxUserPropertyReader
-{
-    public static string FindString(string[] propNames, object[] values, string propertyName)
+    private static Material LoadMaterial(string materialPath)
     {
-        if (propNames == null || values == null || string.IsNullOrWhiteSpace(propertyName))
+        if (string.IsNullOrWhiteSpace(materialPath))
             return null;
 
-        int count = Math.Min(propNames.Length, values.Length);
-        for (int i = 0; i < count; i++)
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+        if (material == null)
+            Debug.LogError($"DCC FBX material mapping target not found: {materialPath}");
+
+        return material;
+    }
+}
+
+internal static class ProjectFbxDccPrefabGenerator
+{
+    private static readonly HashSet<string> PendingAssetPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private static bool s_DelayCallRegistered;
+
+    public static void EnqueueImportedAssets(IEnumerable<string> assetPaths)
+    {
+        if (assetPaths == null)
+            return;
+
+        bool addedAny = false;
+        foreach (string assetPath in assetPaths)
         {
-            if (!string.Equals(propNames[i], propertyName, StringComparison.OrdinalIgnoreCase))
+            if (!ProjectFbxDccSidecar.IsFbx(assetPath))
                 continue;
 
-            return values[i]?.ToString();
+            if (!ProjectFbxDccSidecar.TryLoad(assetPath, out ProjectFbxDccManifest manifest, out _))
+                continue;
+
+            if (manifest.assembly?.prefab == null || !manifest.assembly.prefab.enabled)
+                continue;
+
+            PendingAssetPaths.Add(NormalizeAssetPath(assetPath));
+            addedAny = true;
         }
 
-        return null;
+        if (!addedAny || s_DelayCallRegistered)
+            return;
+
+        s_DelayCallRegistered = true;
+        EditorApplication.delayCall += ProcessPendingAssets;
+    }
+
+    private static void ProcessPendingAssets()
+    {
+        s_DelayCallRegistered = false;
+
+        string[] assetPaths = PendingAssetPaths.ToArray();
+        PendingAssetPaths.Clear();
+
+        foreach (string assetPath in assetPaths)
+            CreatePrefab(assetPath);
+    }
+
+    private static void CreatePrefab(string assetPath)
+    {
+        if (!ProjectFbxDccSidecar.TryLoad(assetPath, out ProjectFbxDccManifest manifest, out string error))
+        {
+            Debug.LogError(error);
+            return;
+        }
+
+        ProjectFbxDccPrefabConfig prefabConfig = manifest.assembly?.prefab;
+        if (prefabConfig == null || !prefabConfig.enabled)
+            return;
+
+        if (!ShouldCreatePrefab(prefabConfig))
+        {
+            Debug.Log($"DCC FBX prefab already exists, skip auto-create: {prefabConfig.outputPath}");
+            return;
+        }
+
+        GameObject modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+        if (modelAsset == null)
+        {
+            Debug.LogWarning($"Unable to load DCC FBX model asset for prefab generation: {assetPath}");
+            return;
+        }
+
+        EnsureFolder(Path.GetDirectoryName(prefabConfig.outputPath)?.Replace('\\', '/'));
+
+        GameObject instance = UnityEngine.Object.Instantiate(modelAsset);
+        instance.name = Path.GetFileNameWithoutExtension(prefabConfig.outputPath);
+
+        try
+        {
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(instance, prefabConfig.outputPath);
+            if (prefab == null)
+                Debug.LogWarning($"Failed to auto-create DCC FBX prefab: {prefabConfig.outputPath}");
+            else
+                Debug.Log($"Auto-created DCC FBX prefab: {prefabConfig.outputPath}");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(instance);
+        }
+    }
+
+    public static bool ShouldCreatePrefab(ProjectFbxDccPrefabConfig prefabConfig)
+    {
+        if (prefabConfig == null || !prefabConfig.enabled)
+            return false;
+
+        if (prefabConfig.overwrite)
+            return true;
+
+        return AssetDatabase.LoadAssetAtPath<GameObject>(prefabConfig.outputPath) == null;
+    }
+
+    private static void EnsureFolder(string folderPath)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath) || AssetDatabase.IsValidFolder(folderPath))
+            return;
+
+        string[] segments = folderPath.Split('/');
+        if (segments.Length == 0)
+            return;
+
+        string current = segments[0];
+        for (int i = 1; i < segments.Length; i++)
+        {
+            string next = current + "/" + segments[i];
+            if (!AssetDatabase.IsValidFolder(next))
+                AssetDatabase.CreateFolder(current, segments[i]);
+
+            current = next;
+        }
+    }
+
+    private static string NormalizeAssetPath(string assetPath)
+    {
+        return (assetPath ?? string.Empty).Replace('\\', '/');
     }
 }

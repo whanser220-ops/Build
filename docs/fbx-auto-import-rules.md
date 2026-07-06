@@ -1,216 +1,159 @@
-# FBX 自动导入规则
+# FBX DCC JSON 自动导入与装配规则
 
-本文档是 `ProjectFbxAutoImporter` 当前规则的可读索引。规则实现位于：
+本文档是 `ProjectFbxAutoImporter` 当前规则源说明。查看规则的入口有两个：
 
-- `Assets/Editor/AssetImport/ProjectFbxAutoImporter.cs`
-- Unity 菜单入口：`Tools/Asset Import/FBX Auto Import Rules`
+- 实现脚本：`Assets/Editor/AssetImport/ProjectFbxAutoImporter.cs`
+- Unity 菜单：`Tools/Asset Import/FBX Auto Import Rules`
 
-修改 FBX 自动导入逻辑时，应同步更新本文档。
+当前版本已经废弃旧的 FBX 内容、路径、节点名推断逻辑。Unity 不再自行判断 Skeleton、LOD、碰撞体、资源类型或输出 Prefab 路径；这些信息必须由 DCC 导出的 sidecar JSON 明确提供。
 
-## 适用范围
+## 规则定位
 
-- 仅处理扩展名为 `.fbx` 的资产。
-- 规则在 Unity `AssetPostprocessor` 流程中自动执行。
-- 预导入阶段写入 `ModelImporter` 设置。
-- 导入后阶段根据节点命名补充 `LODGroup`、碰撞体和材质映射。
+这套脚本对应“资源导入配置工具 + 导入后装配工具”：
 
-## FBX 信号扫描
+- `OnPreprocessModel()`：导入前读取 JSON，并写入 `ModelImporter` 设置。
+- `OnPostprocessModel()`：导入后读取 JSON，并在导入产物上生成或修正 `LODGroup`、Collider、材质绑定。
+- `OnPostprocessAllAssets()`：导入完成后读取 JSON，并按配置生成 Prefab。
+- `OnAssignMaterialModel()`：Unity 分配 FBX 材质槽时，按 JSON 中的材质映射绑定项目材质。
 
-导入前会扫描 FBX 文件前 16 MB 的文本/二进制片段，识别以下信号：
+合规性检查脚本是另一类工具，适合放在 DCC 导出、pre-commit、post-commit 或周期性检查链路中。本导入器只负责“按已声明的 JSON 执行”，并在 JSON 缺失或非法时报错后跳过自动配置和装配。
 
-| 检测信号 | 识别方式 | 用途 |
-|---|---|---|
-| Skeleton / LimbNode | 文件中出现 `Skeleton` 或 `LimbNode` | 判断是否有骨骼层级 |
-| Skin Weights / Deformer | 文件中出现 `Skin` 且出现 `Cluster` 或 `Deformer` | 判断是否为蒙皮模型 |
-| Bind Pose | 文件中出现 `BindPose` 或 `PoseNode` | 判断是否有绑定姿态 |
-| Animation Stack | 文件中出现 `AnimationStack` 或 `AnimStack` | 判断是否包含动画 |
-| 多个 Animation Stack | Animation Stack 信号数量大于 1 | 优先判定为动画资产 |
-| LOD 节点 | 文件中出现 `LOD0`、`LOD1` 或 `LOD2` | 判定为 LOD 模型 |
-| 碰撞节点 | 文件中出现 `UCX_`、`UBX_`、`USP_` 或 `UCP_` | 判定为自带碰撞约定 |
-| 自定义碰撞属性 | 文件中出现 `Collision` 或 `Collider` | 让 Unity 读取自定义属性 |
+## Sidecar 文件
 
-## 路径规则
-
-| 路径或文件名 | 判定 |
-|---|---|
-| 路径包含 `/Characters/` | 角色资产路径，优先使用 Humanoid Rig |
-| 路径包含 `/Props/` | 道具资产路径，默认生成碰撞和 Lightmap UV |
-| 路径包含 `/SourceAnimations/` | 动画资产路径 |
-| 路径包含 `/Animations/` | 动画资产路径 |
-| 文件名包含 `@` | 动画资产路径 |
-
-## 类型判定优先级
-
-| 优先级 | 条件 | 导入类型 |
-|---|---|---|
-| 1 | 动画路径，或检测到多个 Animation Stack | `AnimationAsset` |
-| 2 | `/Characters/` 路径，或检测到 Skeleton / Skin / Bind Pose | `CharacterModel` |
-| 3 | 检测到 LOD 节点 | `LodModel` |
-| 4 | 以上都不命中 | `StaticModel` |
-
-## 通用导入设置
-
-所有命中的 FBX 都会应用：
-
-| 设置 | 值 |
-|---|---|
-| Import Cameras | 关闭 |
-| Import Lights | 关闭 |
-| Import Visibility | 开启 |
-| Sort Hierarchy By Name | 开启 |
-| Extra User Properties | 添加 `Collision`、`Collider` |
-| Preserve Hierarchy | 仅在检测到 LOD 或碰撞节点时开启 |
-
-## 角色模型规则
-
-适用于 `CharacterModel`：
-
-| 设置 | 值 |
-|---|---|
-| Rig | `/Characters/` 路径使用 Humanoid，否则 Generic |
-| Avatar | Create From This Model |
-| Import Animation | 开启 |
-| Import BlendShapes | 开启 |
-| Generate Colliders | 关闭 |
-| Read/Write | 关闭 |
-| Mesh Compression | Off |
-
-## 动画资产规则
-
-适用于 `AnimationAsset`：
-
-| 设置 | 值 |
-|---|---|
-| Rig | `/Characters/` 路径使用 Humanoid，否则 Generic |
-| Avatar | Create From This Model |
-| Import Animation | 开启 |
-| Import BlendShapes | 关闭 |
-| Generate Colliders | 关闭 |
-| Read/Write | 关闭 |
-| Animation Compression | Optimal |
-
-Clip 设置：
-
-| 设置 | 值 |
-|---|---|
-| Clip 名称 | 若为空，使用 FBX 文件名；多 Clip 时追加序号 |
-| Loop Time / Loop Pose | 默认开启 |
-| Root Rotation / Height / XZ | 锁定 |
-| Keep Original Orientation / Position | 关闭 |
-| Height From Feet | 开启 |
-
-以下路径默认不循环：
-
-- `/OneShot/`
-- `/OneShots/`
-- `/Cinematic/`
-
-## 静态模型规则
-
-适用于 `StaticModel`：
-
-| 设置 | 值 |
-|---|---|
-| Rig | None |
-| Import Animation | 关闭 |
-| Import BlendShapes | 关闭 |
-| Generate Colliders | `/Props/`、碰撞节点或碰撞自定义属性命中时开启 |
-| Generate Lightmap UV | `/Props/` 路径开启 |
-| Read/Write | 关闭 |
-| Mesh Compression | Low |
-
-## LOD 规则
-
-节点名匹配以下模式时识别为 LOD：
-
-- `LOD0`
-- `LOD1`
-- `LOD2`
-- 也支持以下分隔形式：`SM_Tree_LOD0`、`SM_Tree-LOD1`、`SM_Tree.LOD2`
-- 如果同一个节点名里出现多个 LOD 标记，取最后一个，例如 `zz_LOD0_LOD2` 归为 `LOD2`
-
-导入后，如果至少找到 2 个 LOD 渲染组，会在根对象上生成或更新 `LODGroup`。
-
-默认屏幕高度：
-
-| LOD | Screen Relative Transition Height |
-|---|---|
-| LOD0 | 0.6 |
-| LOD1 | 0.35 |
-| LOD2 | 0.18 |
-| LOD3 | 0.08 |
-| LOD4+ | 在 0.08 基础上继续按 0.5 衰减，最低 0.01 |
-
-## 碰撞规则
-
-导入后会识别 Unreal 风格碰撞节点前缀：
-
-| 节点前缀 | Unity 组件 |
-|---|---|
-| `UBX_` | `BoxCollider` |
-| `UCX_` | `MeshCollider`，默认 `convex = true` |
-| `USP_` | `SphereCollider` |
-| `UCP_` | `CapsuleCollider` |
-
-碰撞辅助节点上的 Renderer 会自动禁用。
-
-自定义属性也可触发碰撞生成：
-
-| 属性名 | 支持值 |
-|---|---|
-| `Collision` | `Box`、`Mesh`、`ConvexMesh`、`Sphere`、`Capsule`、`UBX`、`UCX`、`USP`、`UCP` |
-| `Collider` | 同上 |
-
-## 材质槽规则
-
-当 Unity 为 FBX 分配材质时，会尝试按材质槽名查找项目内已有材质：
-
-| 查找范围 |
-|---|
-| `Assets/GameAssets` |
-| `Assets/GameResources` |
-| `Assets/ANGRY MESH` |
-| `Assets/ThirdParty` |
-
-匹配规则：
-
-- 先按材质槽名精确匹配材质资产名。
-- 如果材质槽名以 `M_` 开头，再尝试去掉 `M_` 后匹配。
-- 找不到时保留 Unity 原始材质。
-
-## Meadow FBX 自动生成 Prefab
-
-导入完成后，以下路径内的静态模型 FBX 会自动生成一份对应的 Unity prefab：
+每个需要自动导入或装配的 FBX 必须有同名 JSON：
 
 ```text
-Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/**/*.fbx
+Assets/.../zzz.fbx
+Assets/.../zzz.fbx.json
 ```
 
-输出路径固定映射到：
+缺失 `xxx.fbx.json`、JSON 解析失败或字段校验失败时，导入器会输出错误，并跳过自动导入配置、LOD、Collider、材质绑定和 Prefab 生成。不会回退到旧推断规则。
 
-```text
-Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/<分类>/P_<模型名>.prefab
+## JSON v1 示例
+
+```json
+{
+  "schemaVersion": 1,
+  "sourceFbx": "zzz.fbx",
+  "importSettings": {
+    "kind": "StaticModel",
+    "rig": "None",
+    "preserveHierarchy": true,
+    "importAnimation": false,
+    "importBlendShapes": false,
+    "generateLightmapUv": false,
+    "generateColliders": false,
+    "readWrite": false,
+    "meshCompression": "Low",
+    "animationCompression": "Optimal"
+  },
+  "assembly": {
+    "prefab": {
+      "enabled": true,
+      "outputPath": "Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/P_zzz.prefab",
+      "overwrite": false
+    },
+    "lodGroup": {
+      "enabled": true,
+      "rootPath": "",
+      "levels": [
+        { "index": 0, "nodePath": "zz_LOD0_LOD0", "screenRelativeHeight": 0.6 },
+        { "index": 1, "nodePath": "zz_LOD0_LOD1", "screenRelativeHeight": 0.35 },
+        { "index": 2, "nodePath": "zz_LOD0_LOD2", "screenRelativeHeight": 0.18 }
+      ]
+    },
+    "colliders": [
+      { "nodePath": "UCX_body", "type": "Mesh", "convex": true, "disableRenderer": true }
+    ],
+    "materials": [
+      { "slotName": "M_Wood", "materialPath": "Assets/GameAssets/Materials/M_Wood.mat" }
+    ]
+  }
+}
 ```
 
-命名规则：
+## 枚举值
 
-- `SM_` 前缀会替换为 `P_`，例如 `SM_ZZ_1.fbx` 生成 `P_ZZ_1.prefab`。
-- 非 `SM_` 开头的模型会追加 `P_` 前缀，例如 `zzz.fbx` 生成 `P_zzz.prefab`。
+`kind` 只能使用：
 
-示例：
+- `StaticModel`
+- `CharacterModel`
+- `AnimationAsset`
 
-| 输入 FBX | 输出 Prefab |
+`rig` 只能使用：
+
+- `None`
+- `Generic`
+- `Humanoid`
+
+`meshCompression` 只能使用：
+
+- `Off`
+- `Low`
+- `Medium`
+- `High`
+
+`animationCompression` 只能使用：
+
+- `Off`
+- `KeyframeReduction`
+- `Optimal`
+
+`collider.type` 只能使用：
+
+- `Box`
+- `Mesh`
+- `Sphere`
+- `Capsule`
+
+## 字段说明
+
+`schemaVersion` 当前必须为 `1`。
+
+`sourceFbx` 必须等于当前 FBX 文件名，例如 `zzz.fbx`。这是为了防止 JSON 被复制到错误的 FBX 旁边。
+
+`importSettings` 直接映射到 `ModelImporter`：
+
+| JSON 字段 | Unity 设置 |
 |---|---|
-| `Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Flowers/SM_ZZ_1.fbx` | `Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/Flowers/P_ZZ_1.prefab` |
-| `Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Background/SM_Hill_01.fbx` | `Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/Background/P_Hill_01.prefab` |
+| `rig: None` | `animationType = None` |
+| `rig: Generic` | `animationType = Generic`，`avatarSetup = CreateFromThisModel` |
+| `rig: Humanoid` | `animationType = Human`，`avatarSetup = CreateFromThisModel` |
+| `importAnimation` | `ModelImporter.importAnimation` |
+| `importBlendShapes` | `ModelImporter.importBlendShapes` |
+| `preserveHierarchy` | `ModelImporter.preserveHierarchy` |
+| `generateLightmapUv` | `ModelImporter.generateSecondaryUV` |
+| `generateColliders` | `ModelImporter.addCollider` |
+| `readWrite` | `ModelImporter.isReadable` |
+| `meshCompression` | `ModelImporter.meshCompression` |
+| `animationCompression` | `ModelImporter.animationCompression` |
 
-安全策略：
+`assembly.prefab` 控制 Prefab 输出。`enabled = true` 时，`outputPath` 必须是 `Assets/.../*.prefab`。`overwrite = false` 时，如果目标 Prefab 已存在，则跳过生成，避免覆盖人工编辑内容。
 
-- 目标 prefab 已存在时默认跳过，不覆盖人工编辑。
-- 只监听 `.fbx` 导入，生成 `.prefab` 引发的二次导入不会再次触发本规则。
-- 生成的 prefab 是普通 Unity prefab，会复制导入后模型层级并保留 `LODGroup`、Renderer、Collider、材质和 mesh 引用。
-- 当前不自动生成 Summer / Autumn / Winter 季节材质变体，也不自动生成 `P_TD_` 版本。
+`assembly.lodGroup` 控制单个主 `LODGroup`。`rootPath` 是放置 `LODGroup` 的节点路径，空字符串表示导入根节点。`levels` 必须至少包含一个元素，导入器会按 `index` 排序，并用每个 `nodePath` 下的 Renderer 生成对应 LOD。
 
-## 当前特例
+`assembly.colliders` 控制碰撞体生成。`nodePath` 必须指向 Unity 导入后的节点路径。`disableRenderer = true` 时，会禁用该节点及子节点的 Renderer。
 
-`Assets/Editor/Characters/Qianxia/QianxiaFbxImportConfigurator.cs` 仍保留千夏角色的专用导入设置。该特例与通用 FBX 自动导入器并存；如果两边规则都命中，应优先检查千夏专用脚本和本文档是否需要同步。
+`assembly.materials` 控制材质槽绑定。`slotName` 必须和 FBX 材质槽名一致，`materialPath` 必须指向项目内已有的 `.mat` 资源。找不到目标材质时会报错并保留原材质。
+
+## 节点路径规则
+
+`nodePath` 使用 Unity 导入后的 Transform 层级路径：
+
+- 根节点使用空字符串 `""`。
+- 子节点使用 `/` 分隔，例如 `Root/Body/UCX_body`。
+- 如果路径第一段等于导入根节点名，导入器会自动跳过这一段，因此 `Root/Body` 和 `Body` 都可以从根节点下查找 `Body`。
+
+节点名中包含 `LOD0`、`LOD1`、`UCX_`、`UBX_` 等字样不会自动触发任何规则；只有 JSON 明确引用这些节点路径时，导入器才会处理它们。
+
+## 旧规则废弃
+
+以下旧逻辑已经停用：
+
+- 扫描 FBX 文件内容判断 Skeleton、Skin Weights、Bind Pose、Animation Stack。
+- 根据 `/Characters/`、`/Props/`、`/SourceAnimations/`、`/Animations/` 或文件名中的 `@` 推断资源类型。
+- 根据节点名自动推断 LOD 或 Unreal 风格碰撞体。
+- 根据材质槽名在固定目录里搜索项目材质。
+- Meadow 环境包 FBX 按路径自动生成 Prefab。
+
+后续如果需要新增规则，应优先扩展 JSON schema，而不是恢复 Unity 侧推断。
