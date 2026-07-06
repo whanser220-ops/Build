@@ -31,52 +31,71 @@ public sealed class ProjectFbxAutoImporterTests
     [Test]
     public void ImportRuleSet_DefaultRulesMatchProjectPaths()
     {
-        AssertRule(
+        AssertResolvedProperty(
             "Assets/GameResources/Characters/Hero/SourceAnimations/Walk/Hero_Walk.fbx",
-            expectedKind: "AnimationAsset",
-            expectedRig: "Humanoid",
-            expectedPreserveHierarchy: false);
-        AssertRule(
+            "Model",
+            "ModelImporter.animationType",
+            "Human");
+        AssertResolvedProperty(
+            "Assets/GameResources/Characters/Hero/SourceAnimations/Walk/Hero_Walk.fbx",
+            "Model",
+            "ModelImporter.importBlendShapes",
+            "false");
+        AssertResolvedProperty(
             "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx",
-            expectedKind: "AnimationAsset",
-            expectedRig: "Humanoid",
-            expectedPreserveHierarchy: false);
-        AssertRule(
+            "Model",
+            "ModelImporter.clipNameFromAsset",
+            "true");
+        AssertResolvedProperty(
             "Assets/GameResources/Characters/Hero/HeroBody.fbx",
-            expectedKind: "CharacterModel",
-            expectedRig: "Humanoid",
-            expectedPreserveHierarchy: false);
-        AssertRule(
+            "Model",
+            "ModelImporter.importBlendShapes",
+            "true");
+        AssertResolvedProperty(
             "Assets/GameResources/Props/Crates/SM_Crate.fbx",
-            expectedKind: "StaticModel",
-            expectedRig: "None",
-            expectedPreserveHierarchy: false,
-            expectedLightmapUv: true,
-            expectedColliders: true);
-        AssertRule(
+            "Model",
+            "ModelImporter.addCollider",
+            "true");
+        AssertResolvedProperty(
+            "Assets/GameResources/Props/Crates/SM_Crate.fbx",
+            "Model",
+            "ModelImporter.generateSecondaryUV",
+            "true");
+        AssertResolvedProperty(
             "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/zzz.fbx",
-            expectedKind: "StaticModel",
-            expectedRig: "None",
-            expectedPreserveHierarchy: true);
-        AssertRule(
+            "Model",
+            "ModelImporter.preserveHierarchy",
+            "true");
+        AssertResolvedProperty(
             "Assets/GameResources/Environment/Trees/SM_Tree_LOD0.fbx",
-            expectedKind: "StaticModel",
-            expectedRig: "None",
-            expectedPreserveHierarchy: true);
-        AssertRule(
+            "Model",
+            "ModelImporter.preserveHierarchy",
+            "true");
+        AssertResolvedProperty(
             "Assets/GameResources/Environment/Rocks/SM_Rock.fbx",
-            expectedKind: "StaticModel",
-            expectedRig: "None",
-            expectedPreserveHierarchy: false);
+            "Model",
+            "ModelImporter.animationType",
+            "None");
+        AssertResolvedProperty(
+            "Assets/GameResources/Textures/Wood_N.png",
+            "Texture2D",
+            "TextureImporter.textureType",
+            "NormalMap");
+        AssertResolvedProperty(
+            "Assets/GameResources/Textures/Wood_N.png",
+            "Texture2D",
+            "TextureImporter.wrapModeU",
+            "Clamp");
     }
 
     [Test]
-    public void ImportRuleSet_GlobMatchesPathAndFileName()
+    public void ImportRuleSet_StringMatchersSupportDirectoryAndPackageName()
     {
-        Assert.That(GlobMatches("Characters/**/SourceAnimations/**/*.fbx", "Assets/GameResources/Characters/Hero/SourceAnimations/Walk/Hero_Walk.fbx"), Is.True);
-        Assert.That(GlobMatches("*@*.fbx", "Assets/GameResources/Characters/Hero/Hero@Walk.fbx"), Is.True);
-        Assert.That(GlobMatches("*LOD*.fbx", "Assets/GameResources/Environment/Trees/SM_Tree_LOD2.fbx"), Is.True);
-        Assert.That(GlobMatches("Props/**/*.fbx", "Assets/GameResources/Characters/Hero/HeroBody.fbx"), Is.False);
+        Assert.That(StringMatches("Contains", "Characters/", "Assets/GameResources/Characters/Hero"), Is.True);
+        Assert.That(StringMatches("EndsWith", "_N", "Wood_N"), Is.True);
+        Assert.That(StringMatches("Regex", "_N$", "Wood_N"), Is.True);
+        Assert.That(StringMatches("Glob", "*LOD*", "SM_Tree_LOD2"), Is.True);
+        Assert.That(StringMatches("Contains", "Props/", "Assets/GameResources/Characters/Hero"), Is.False);
     }
 
     [Test]
@@ -238,14 +257,6 @@ public sealed class ProjectFbxAutoImporterTests
         }
     }
 
-    [Test]
-    public void ImportSettings_RigStringsMapToModelImporterAnimationTypes()
-    {
-        Assert.That(ResolveAnimationType("None"), Is.EqualTo(ModelImporterAnimationType.None));
-        Assert.That(ResolveAnimationType("Generic"), Is.EqualTo(ModelImporterAnimationType.Generic));
-        Assert.That(ResolveAnimationType("Humanoid"), Is.EqualTo(ModelImporterAnimationType.Human));
-    }
-
     private static GameObject CreateLodFixture()
     {
         GameObject root = new GameObject("Root");
@@ -339,15 +350,6 @@ public sealed class ProjectFbxAutoImporterTests
             .Invoke(null, new object[] { prefabConfig });
     }
 
-    private static ModelImporterAnimationType ResolveAnimationType(string rig)
-    {
-        Type applierType = GetRequiredType("ProjectFbxImportSettingsApplier");
-        Type rigType = GetRequiredType("ProjectFbxImportRig");
-        object parsedRig = Enum.Parse(rigType, rig);
-        return (ModelImporterAnimationType)applierType.GetMethod("ResolveAnimationType", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Invoke(null, new[] { parsedRig });
-    }
-
     private static T GetField<T>(object target, string fieldName)
     {
         FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Public | BindingFlags.Instance);
@@ -399,36 +401,58 @@ public sealed class ProjectFbxAutoImporterTests
         return type;
     }
 
-    private static void AssertRule(
+    private static void AssertResolvedProperty(
         string assetPath,
-        string expectedKind,
-        string expectedRig,
-        bool expectedPreserveHierarchy,
-        bool expectedLightmapUv = false,
-        bool expectedColliders = false)
+        string assetClass,
+        string propertyPath,
+        string expectedValue)
     {
-        object rule = ResolveRule(assetPath);
-        Assert.That(GetField<object>(rule, "kind").ToString(), Is.EqualTo(expectedKind), assetPath);
-        Assert.That(GetField<object>(rule, "rig").ToString(), Is.EqualTo(expectedRig), assetPath);
-        Assert.That(GetField<bool>(rule, "preserveHierarchy"), Is.EqualTo(expectedPreserveHierarchy), assetPath);
-        Assert.That(GetField<bool>(rule, "generateLightmapUv"), Is.EqualTo(expectedLightmapUv), assetPath);
-        Assert.That(GetField<bool>(rule, "generateColliders"), Is.EqualTo(expectedColliders), assetPath);
+        string value = ResolvePropertyValue(assetPath, assetClass, propertyPath);
+        Assert.That(value, Is.EqualTo(expectedValue), assetPath + " / " + propertyPath);
     }
 
-    private static object ResolveRule(string assetPath)
+    private static string ResolvePropertyValue(string assetPath, string assetClass, string propertyPath)
     {
-        Type ruleSetType = GetRequiredType("ProjectFbxImportRuleSet");
+        Type ruleSetType = GetRequiredType("ProjectAssetImportRuleSet");
         object ruleSet = ruleSetType.GetMethod("CreateDefaultInstance", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
             .Invoke(null, Array.Empty<object>());
-        return ruleSetType.GetMethod("ResolveRule", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-            .Invoke(ruleSet, new object[] { assetPath });
+        object context = CreateRuleContext(assetPath, assetClass);
+        Array rules = (Array)ruleSetType.GetMethod("ResolveRules", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+            .Invoke(ruleSet, new[] { context });
+
+        string resolvedValue = null;
+        foreach (object rule in rules)
+        {
+            Array items = GetField<Array>(rule, "propertyItems");
+            foreach (object item in items)
+            {
+                if (string.Equals(GetField<string>(item, "propertyPath"), propertyPath, StringComparison.OrdinalIgnoreCase))
+                    resolvedValue = GetField<string>(item, "value");
+            }
+        }
+
+        return resolvedValue;
     }
 
-    private static bool GlobMatches(string glob, string assetPath)
+    private static object CreateRuleContext(string assetPath, string assetClass)
     {
-        Type globType = GetRequiredType("ProjectFbxImportRuleGlob");
-        return (bool)globType.GetMethod("Matches", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Invoke(null, new object[] { glob, assetPath });
+        Type contextType = GetRequiredType("ProjectAssetRuleContext");
+        Type classType = GetRequiredType("ProjectAssetClass");
+        object context = Activator.CreateInstance(contextType);
+        SetField(context, "assetPath", assetPath.Replace('\\', '/'));
+        SetField(context, "directory", System.IO.Path.GetDirectoryName(assetPath)?.Replace('\\', '/') ?? string.Empty);
+        SetField(context, "packageName", System.IO.Path.GetFileNameWithoutExtension(assetPath));
+        SetField(context, "assetClass", Enum.Parse(classType, assetClass));
+        return context;
+    }
+
+    private static bool StringMatches(string matchMode, string pattern, string value)
+    {
+        Type matcherType = GetRequiredType("ProjectAssetStringMatcher");
+        Type matchModeType = GetRequiredType("ProjectAssetStringMatchMode");
+        object parsedMatchMode = Enum.Parse(matchModeType, matchMode);
+        return (bool)matcherType.GetMethod("Matches", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, new[] { parsedMatchMode, pattern, value });
     }
 
     private const string ValidJson = @"{

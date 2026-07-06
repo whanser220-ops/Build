@@ -6,7 +6,7 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 
-public sealed class ProjectFbxAutoImporter : AssetPostprocessor
+public sealed class ProjectAssetAutoImporter : AssetPostprocessor
 {
     private static void OnPostprocessAllAssets(
         string[] importedAssets,
@@ -19,12 +19,23 @@ public sealed class ProjectFbxAutoImporter : AssetPostprocessor
 
     private void OnPreprocessModel()
     {
-        if (assetImporter is not ModelImporter importer || !ProjectFbxDccSidecar.IsFbx(assetPath))
+        if (assetImporter is not ModelImporter)
             return;
 
-        ProjectFbxImportRuleSet ruleSet = ProjectFbxImportRuleSet.LoadDefault();
-        ProjectFbxImportRule rule = ruleSet.ResolveRule(assetPath);
-        ProjectFbxImportSettingsApplier.Apply(importer, rule, assetPath);
+        ApplyImportRules();
+    }
+
+    private void OnPreprocessTexture()
+    {
+        if (assetImporter is not TextureImporter)
+            return;
+
+        ApplyImportRules();
+    }
+
+    private void ApplyImportRules()
+    {
+        ProjectAssetImportRuleSet.LoadDefault().Apply(assetImporter, assetPath);
     }
 
     private void OnPostprocessModel(GameObject root)

@@ -1,0 +1,226 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2f4b33f1d5434e7f9cf2d7b0e7a13142, type: 3}
+  m_Name: ProjectAssetImportRuleSet
+  m_EditorClassIdentifier:
+  applyAllMatchingRules: 1
+  rules:
+  - name: Common Model Defaults
+    enabled: 1
+    filter:
+      directoryMatch: 0
+      directoryPattern:
+      packageNameMatch: 0
+      packageNamePattern:
+      assetClass: 1
+    propertyItems:
+    - propertyPath: ModelImporter.importCameras
+      valueKind: 0
+      value: false
+    - propertyPath: ModelImporter.importLights
+      valueKind: 0
+      value: false
+    - propertyPath: ModelImporter.importVisibility
+      valueKind: 0
+      value: true
+    - propertyPath: ModelImporter.sortHierarchyByName
+      valueKind: 0
+      value: true
+    - propertyPath: ModelImporter.extraUserProperties
+      valueKind: 3
+      value: Collision;Collider
+    - propertyPath: ModelImporter.animationType
+      valueKind: 4
+      value: None
+    - propertyPath: ModelImporter.importAnimation
+      valueKind: 0
+      value: false
+    - propertyPath: ModelImporter.importBlendShapes
+      valueKind: 0
+      value: false
+    - propertyPath: ModelImporter.addCollider
+      valueKind: 0
+      value: false
+    - propertyPath: ModelImporter.generateSecondaryUV
+      valueKind: 0
+      value: false
+    - propertyPath: ModelImporter.isReadable
+      valueKind: 0
+      value: false
+    - propertyPath: ModelImporter.meshCompression
+      valueKind: 4
+      value: Low
+    - propertyPath: ModelImporter.animationCompression
+      valueKind: 4
+      value: Optimal
+  - name: Characters
+    enabled: 1
+    filter:
+      directoryMatch: 1
+      directoryPattern: Characters/
+      packageNameMatch: 0
+      packageNamePattern:
+      assetClass: 1
+    propertyItems:
+    - propertyPath: ModelImporter.animationType
+      valueKind: 4
+      value: Human
+    - propertyPath: ModelImporter.avatarSetup
+      valueKind: 4
+      value: CreateFromThisModel
+    - propertyPath: ModelImporter.importAnimation
+      valueKind: 0
+      value: true
+    - propertyPath: ModelImporter.importBlendShapes
+      valueKind: 0
+      value: true
+    - propertyPath: ModelImporter.meshCompression
+      valueKind: 4
+      value: Off
+  - name: Props
+    enabled: 1
+    filter:
+      directoryMatch: 1
+      directoryPattern: Props/
+      packageNameMatch: 0
+      packageNamePattern:
+      assetClass: 1
+    propertyItems:
+    - propertyPath: ModelImporter.addCollider
+      valueKind: 0
+      value: true
+    - propertyPath: ModelImporter.generateSecondaryUV
+      valueKind: 0
+      value: true
+  - name: Meadow Source Meshes
+    enabled: 1
+    filter:
+      directoryMatch: 1
+      directoryPattern: Stylized Pack - Meadow Environment/Sources/Meshes/
+      packageNameMatch: 0
+      packageNamePattern:
+      assetClass: 1
+    propertyItems:
+    - propertyPath: ModelImporter.preserveHierarchy
+      valueKind: 0
+      value: true
+  - name: LOD Filename
+    enabled: 1
+    filter:
+      directoryMatch: 0
+      directoryPattern:
+      packageNameMatch: 1
+      packageNamePattern: LOD
+      assetClass: 1
+    propertyItems:
+    - propertyPath: ModelImporter.preserveHierarchy
+      valueKind: 0
+      value: true
+  - name: At-Sign Animations
+    enabled: 1
+    filter:
+      directoryMatch: 0
+      directoryPattern:
+      packageNameMatch: 1
+      packageNamePattern: '@'
+      assetClass: 1
+    propertyItems:
+    - propertyPath: ModelImporter.animationType
+      valueKind: 4
+      value: Generic
+    - propertyPath: ModelImporter.avatarSetup
+      valueKind: 4
+      value: CreateFromThisModel
+    - propertyPath: ModelImporter.importAnimation
+      valueKind: 0
+      value: true
+    - propertyPath: ModelImporter.importBlendShapes
+      valueKind: 0
+      value: false
+    - propertyPath: ModelImporter.meshCompression
+      valueKind: 4
+      value: Off
+    - propertyPath: ModelImporter.clipNameFromAsset
+      valueKind: 0
+      value: true
+  - name: Character At-Sign Animations
+    enabled: 1
+    filter:
+      directoryMatch: 1
+      directoryPattern: Characters/
+      packageNameMatch: 1
+      packageNamePattern: '@'
+      assetClass: 1
+    propertyItems:
+    - propertyPath: ModelImporter.animationType
+      valueKind: 4
+      value: Human
+    - propertyPath: ModelImporter.avatarSetup
+      valueKind: 4
+      value: CreateFromThisModel
+    - propertyPath: ModelImporter.importAnimation
+      valueKind: 0
+      value: true
+    - propertyPath: ModelImporter.importBlendShapes
+      valueKind: 0
+      value: false
+    - propertyPath: ModelImporter.meshCompression
+      valueKind: 4
+      value: Off
+    - propertyPath: ModelImporter.clipNameFromAsset
+      valueKind: 0
+      value: true
+  - name: Character Source Animations
+    enabled: 1
+    filter:
+      directoryMatch: 5
+      directoryPattern: Characters/.*/SourceAnimations(/|$)
+      packageNameMatch: 0
+      packageNamePattern:
+      assetClass: 1
+    propertyItems:
+    - propertyPath: ModelImporter.animationType
+      valueKind: 4
+      value: Human
+    - propertyPath: ModelImporter.avatarSetup
+      valueKind: 4
+      value: CreateFromThisModel
+    - propertyPath: ModelImporter.importAnimation
+      valueKind: 0
+      value: true
+    - propertyPath: ModelImporter.importBlendShapes
+      valueKind: 0
+      value: false
+    - propertyPath: ModelImporter.meshCompression
+      valueKind: 4
+      value: Off
+    - propertyPath: ModelImporter.clipNameFromAsset
+      valueKind: 0
+      value: true
+  - name: Normal Textures
+    enabled: 1
+    filter:
+      directoryMatch: 0
+      directoryPattern:
+      packageNameMatch: 3
+      packageNamePattern: _N
+      assetClass: 2
+    propertyItems:
+    - propertyPath: TextureImporter.textureType
+      valueKind: 4
+      value: NormalMap
+    - propertyPath: TextureImporter.wrapModeU
+      valueKind: 4
+      value: Clamp
+    - propertyPath: TextureImporter.wrapModeV
+      valueKind: 4
+      value: Clamp

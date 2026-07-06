@@ -1,68 +1,108 @@
-# FBX 自动导入规则与 DCC JSON 装配
+# 资产导入规则与 FBX DCC JSON 装配
 
-本文档说明 `ProjectFbxAutoImporter` 的当前职责边界。入口：
+本文档说明当前资产规范工具的两层职责：
+
+- 通用资产导入规则：按“资产筛选器 + 属性修改列表”自动设置 importer。
+- FBX DCC JSON 装配：只处理模型导入后的 Prefab、LODGroup、Collider、材质绑定。
+
+入口：
 
 - 导入器脚本：`Assets/Editor/AssetImport/ProjectFbxAutoImporter.cs`
-- 规则资产类型：`Assets/Editor/AssetImport/ProjectFbxImportRuleSet.cs`
-- 默认规则资产：`Assets/Editor/AssetImport/ProjectFbxImportRuleSet.asset`
+- 通用规则资产：`Assets/Editor/AssetImport/ProjectAssetImportRuleSet.asset`
+- 规则资产类型：`Assets/Editor/AssetImport/ProjectAssetImportRuleSet.cs`
 - Unity 菜单：`Tools/Asset Import/FBX Auto Import Rules`
 
-## 职责边界
+## 通用规则结构
 
-`Pre-process` 负责模型导入设置。它不读取 DCC JSON，只根据项目规则资产命中路径或文件名，再写入 `ModelImporter`。
+每条规则由两部分组成：
 
-`Post-process` 负责导入后的资产装配。它读取 FBX 旁边的 `xxx.fbx.json`，只处理 Prefab、LODGroup、Collider 和材质槽绑定。
+- `filter`：资产筛选器。
+- `propertyItems`：属性修改列表。
 
-缺少 sidecar JSON 时，导入器会记录 warning，并跳过装配；导入设置仍按规则资产正常执行。
+规则资产中的 `applyAllMatchingRules = true` 表示同一资产可以命中多条规则，并按列表顺序依次应用。建议把通用默认规则放前面，把更具体的项目规则放后面，让后者覆盖同名属性。
 
-## 导入规则资产
+## 资产筛选器
 
-默认规则资产是：
+筛选器包含：
+
+| 字段 | 说明 |
+|---|---|
+| `directoryMatch` + `directoryPattern` | 按资产目录筛选 |
+| `packageNameMatch` + `packageNamePattern` | 按资产名筛选，不含扩展名 |
+| `assetClass` | 按资产类型筛选，例如 `Model`、`Texture2D` |
+
+`Directory` 和 `Package Name` 支持：
+
+- `Any`
+- `Contains`
+- `StartsWith`
+- `EndsWith`
+- `Equals`
+- `Regex`
+- `Glob`
+
+示例：筛选整个项目里以 `_N` 结尾的贴图：
 
 ```text
-Assets/Editor/AssetImport/ProjectFbxImportRuleSet.asset
+directoryMatch: Any
+packageNameMatch: EndsWith
+packageNamePattern: _N
+assetClass: Texture2D
 ```
 
-规则按列表顺序匹配，命中第一条后停止。`glob` 大小写不敏感，路径统一使用 `/`。带 `/` 的 glob 匹配完整 asset path；不带 `/` 的 glob 匹配文件名。没有以 `Assets/`、`**/` 或 `*` 开头的路径 glob 会自动按“项目路径中任意位置”匹配。
+## 属性修改列表
 
-规则项包含：
+每个属性项包含：
 
-| 字段 | 用途 |
+| 字段 | 说明 |
 |---|---|
-| `name` | 规则显示名 |
-| `glob` | 路径或文件名通配 |
-| `kind` | `StaticModel`、`CharacterModel`、`AnimationAsset` |
-| `rig` | `None`、`Generic`、`Humanoid` |
-| `preserveHierarchy` | 写入 `ModelImporter.preserveHierarchy` |
-| `importAnimation` | 写入 `ModelImporter.importAnimation` |
-| `importBlendShapes` | 写入 `ModelImporter.importBlendShapes` |
-| `generateLightmapUv` | 写入 `ModelImporter.generateSecondaryUV` |
-| `generateColliders` | 写入 `ModelImporter.addCollider` |
-| `readWrite` | 写入 `ModelImporter.isReadable` |
-| `meshCompression` | 写入 `ModelImporter.meshCompression` |
-| `animationCompression` | 写入 `ModelImporter.animationCompression` |
+| `propertyPath` | 要修改的 importer 属性 |
+| `valueKind` | `Bool`、`Int`、`Float`、`String`、`Enum` |
+| `value` | 目标值 |
 
-当前默认规则覆盖：
+法线贴图示例：
 
-- `Characters/**/SourceAnimations/**/*.fbx`
-- `Characters/**/*@*.fbx`
-- `*@*.fbx`
-- `Characters/**/*.fbx`
-- `Props/**/*.fbx`
-- `Stylized Pack - Meadow Environment/Sources/Meshes/**/*.fbx`
-- `*LOD*.fbx`
-- fallback `*.fbx`
+```text
+TextureImporter.textureType = NormalMap
+TextureImporter.wrapModeU = Clamp
+TextureImporter.wrapModeV = Clamp
+```
 
-通用导入设置会额外关闭 Cameras/Lights，开启 Visibility 和 Sort Hierarchy By Name，并保留 `Collision`、`Collider` 自定义属性读取。
+FBX 模型示例：
 
-## Sidecar JSON
+```text
+ModelImporter.animationType = Human
+ModelImporter.avatarSetup = CreateFromThisModel
+ModelImporter.importAnimation = true
+ModelImporter.importBlendShapes = true
+```
 
-需要装配的 FBX 可以在同目录放同名 JSON：
+当前代码对常用 `ModelImporter` 和 `TextureImporter` 属性有显式映射；找不到显式映射时，会尝试按 Unity serialized property path 写入。找不到属性或类型不支持时会记录 warning 并跳过该属性。
+
+## 默认规则
+
+`ProjectAssetImportRuleSet.asset` 当前内置：
+
+- `Common Model Defaults`：模型通用默认设置。
+- `Characters`：角色模型路径规则。
+- `Props`：道具模型路径规则。
+- `Meadow Source Meshes`：Meadow 源模型保留层级。
+- `LOD Filename`：文件名包含 `LOD` 时保留层级。
+- `At-Sign Animations`：文件名包含 `@` 的动画 FBX。
+- `Character At-Sign Animations`：角色路径下文件名包含 `@` 的动画 FBX。
+- `Character Source Animations`：角色 `SourceAnimations` 路径下的动画 FBX。
+- `Normal Textures`：以 `_N` 结尾的 `Texture2D` 设置为 NormalMap，并将 U/V wrap 设为 Clamp。
+
+## FBX DCC JSON 装配
+
+需要导入后装配的 FBX 可以在同目录放同名 JSON：
 
 ```text
 Assets/.../zzz.fbx
 Assets/.../zzz.fbx.json
 ```
+
+缺少 sidecar JSON 时，导入器只记录 warning 并跳过装配；通用导入规则仍会执行。
 
 JSON v1 只描述装配，不描述导入设置。旧 JSON 中如果仍带 `importSettings` 字段，Unity 会忽略它。
 
@@ -99,7 +139,7 @@ JSON v1 只描述装配，不描述导入设置。旧 JSON 中如果仍带 `impo
 
 `schemaVersion` 当前必须为 `1`。
 
-`sourceFbx` 必须等于当前 FBX 文件名，例如 `zzz.fbx`，用于防止 JSON 被复制到错误模型旁边。
+`sourceFbx` 必须等于当前 FBX 文件名，例如 `zzz.fbx`。
 
 `assembly.prefab` 控制 Prefab 输出。`enabled = true` 时，`outputPath` 必须是 `Assets/.../*.prefab`。`overwrite = false` 时，如果目标 Prefab 已存在，则跳过生成。
 
@@ -109,23 +149,4 @@ JSON v1 只描述装配，不描述导入设置。旧 JSON 中如果仍带 `impo
 
 `assembly.materials` 控制材质槽绑定。`slotName` 匹配 FBX 材质槽名，`materialPath` 指向项目内已有 `.mat` 资源。
 
-## 节点路径
-
-`nodePath` 使用 Unity 导入后的 Transform 层级路径：
-
-- 根节点使用空字符串 `""`。
-- 子节点使用 `/` 分隔，例如 `Root/Body/UCX_body`。
-- 如果路径第一段等于导入根节点名，导入器会自动跳过这一段，因此 `Root/Body` 和 `Body` 都可以从根节点下查找 `Body`。
-
-节点名中包含 `LOD0`、`LOD1`、`UCX_`、`UBX_` 等字样不会自动触发装配；只有 JSON 明确引用这些节点路径时，导入器才会处理它们。
-
-## 已废弃逻辑
-
-以下逻辑不再作为装配依据：
-
-- 扫描 FBX 内容判断 Skeleton、Skin Weights、Bind Pose、Animation Stack。
-- 根据节点名自动生成 LODGroup 或碰撞体。
-- 根据材质槽名在固定目录里搜索项目材质。
-- Meadow 环境包 FBX 按路径自动生成 Prefab。
-
-路径和命名仍可用于导入设置，但必须写在 `ProjectFbxImportRuleSet.asset` 中。
+`nodePath` 使用 Unity 导入后的 Transform 层级路径。节点名中包含 `LOD0`、`UCX_` 等字样不会自动触发装配，必须由 JSON 明确引用。
