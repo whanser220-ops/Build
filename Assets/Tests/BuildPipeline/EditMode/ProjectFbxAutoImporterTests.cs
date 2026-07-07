@@ -104,7 +104,7 @@ public sealed class ProjectFbxAutoImporterTests
     }
 
     [Test]
-    public void ImportRuleSet_PackageNameRulesOverrideDirectoryAndAssetClassDefaults()
+    public void ImportRuleSet_DirectoryRulesOverridePackageNameRulesInBroaderScope()
     {
         object ruleSet = CreateRuleSetWithRules(
             CreateImportRule("Model Defaults", "Model", "ModelImporter.addCollider", "false"),
@@ -128,7 +128,49 @@ public sealed class ProjectFbxAutoImporterTests
             "Assets/GameResources/Characters/Main/Player_Hero.fbx",
             "Model",
             "ModelImporter.addCollider",
+            "false");
+    }
+
+    [Test]
+    public void ImportRuleSet_MoreSpecificDirectoryOverridesBroaderDirectoryWithPackageName()
+    {
+        object ruleSet = CreateRuleSetWithRules(
+            CreateImportRule(
+                "GameResources SM Models",
+                "Model",
+                "ModelImporter.addCollider",
+                "false",
+                directoryMatch: "Contains",
+                directoryPattern: "Assets/GameResources/",
+                packageNameMatch: "Contains",
+                packageNamePattern: "SM"),
+            CreateImportRule(
+                "Meadow Meshes",
+                "Model",
+                "ModelImporter.addCollider",
+                "true",
+                directoryMatch: "Contains",
+                directoryPattern: "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/"),
+            CreateImportRule(
+                "Meadow Props",
+                "Model",
+                "ModelImporter.addCollider",
+                "false",
+                directoryMatch: "Contains",
+                directoryPattern: "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Props/"));
+
+        AssertResolvedProperty(
+            ruleSet,
+            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/SM_Tree.fbx",
+            "Model",
+            "ModelImporter.addCollider",
             "true");
+        AssertResolvedProperty(
+            ruleSet,
+            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Props/SM_Crate.fbx",
+            "Model",
+            "ModelImporter.addCollider",
+            "false");
     }
 
     [Test]
@@ -173,6 +215,35 @@ public sealed class ProjectFbxAutoImporterTests
             "Model",
             "ModelImporter.animationType",
             "Human");
+    }
+
+    [Test]
+    public void ImportRuleSet_PackageNameRulesStillRefineSameDirectoryScope()
+    {
+        object ruleSet = CreateRuleSetWithRules(
+            CreateImportRule(
+                "Meadow Mesh Defaults",
+                "Model",
+                "ModelImporter.addCollider",
+                "false",
+                directoryMatch: "Contains",
+                directoryPattern: "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/"),
+            CreateImportRule(
+                "Meadow SM Meshes",
+                "Model",
+                "ModelImporter.addCollider",
+                "true",
+                directoryMatch: "Contains",
+                directoryPattern: "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/",
+                packageNameMatch: "Contains",
+                packageNamePattern: "SM"));
+
+        AssertResolvedProperty(
+            ruleSet,
+            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/SM_Tree.fbx",
+            "Model",
+            "ModelImporter.addCollider",
+            "true");
     }
 
     [Test]

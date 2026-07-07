@@ -1438,10 +1438,10 @@ internal struct ProjectRuleFilterSnapshot
 
 internal struct ProjectInheritedRuleRank : IComparable<ProjectInheritedRuleRank>
 {
-    private int _tier;
-    private int _packageMatchRank;
+    private int _directoryRank;
     private int _directoryDepth;
     private int _directoryPatternLength;
+    private int _packageMatchRank;
     private int _assetClassRank;
     private int _sourceIndex;
 
@@ -1455,10 +1455,10 @@ internal struct ProjectInheritedRuleRank : IComparable<ProjectInheritedRuleRank>
 
         return new ProjectInheritedRuleRank
         {
-            _tier = hasPackageName ? 3 : hasDirectory ? 2 : hasAssetClass ? 1 : 0,
-            _packageMatchRank = snapshot.packageNameMatch == ProjectAssetStringMatchMode.Equals ? 2 : hasPackageName ? 1 : 0,
+            _directoryRank = hasDirectory ? 1 : 0,
             _directoryDepth = hasDirectory ? CountSegments(normalizedDirectory) : 0,
             _directoryPatternLength = hasDirectory ? normalizedDirectory.Length : 0,
+            _packageMatchRank = snapshot.packageNameMatch == ProjectAssetStringMatchMode.Equals ? 2 : hasPackageName ? 1 : 0,
             _assetClassRank = hasAssetClass ? 1 : 0,
             _sourceIndex = sourceIndex
         };
@@ -1475,11 +1475,7 @@ internal struct ProjectInheritedRuleRank : IComparable<ProjectInheritedRuleRank>
 
     public int ComparePriorityTo(ProjectInheritedRuleRank other)
     {
-        int result = _tier.CompareTo(other._tier);
-        if (result != 0)
-            return result;
-
-        result = _packageMatchRank.CompareTo(other._packageMatchRank);
+        int result = _directoryRank.CompareTo(other._directoryRank);
         if (result != 0)
             return result;
 
@@ -1488,6 +1484,10 @@ internal struct ProjectInheritedRuleRank : IComparable<ProjectInheritedRuleRank>
             return result;
 
         result = _directoryPatternLength.CompareTo(other._directoryPatternLength);
+        if (result != 0)
+            return result;
+
+        result = _packageMatchRank.CompareTo(other._packageMatchRank);
         if (result != 0)
             return result;
 

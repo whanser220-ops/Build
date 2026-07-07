@@ -985,10 +985,10 @@ public sealed class ProjectAssetRuleContext
 
 internal struct ProjectAssetRulePriority : IComparable<ProjectAssetRulePriority>
 {
-    private int _tier;
-    private int _packageMatchRank;
+    private int _directoryRank;
     private int _directoryDepth;
     private int _directoryPatternLength;
+    private int _packageMatchRank;
     private int _assetClassRank;
     private string _label;
 
@@ -1001,50 +1001,45 @@ internal struct ProjectAssetRulePriority : IComparable<ProjectAssetRulePriority>
         bool hasDirectory = directoryMatch != ProjectAssetStringMatchMode.Any;
         bool hasAssetClass = filter.assetClass != ProjectAssetClass.Any;
 
-        int tier;
-        string tierLabel;
-        if (hasPackageName)
+        string priorityLabel;
+        if (hasDirectory)
         {
-            tier = 3;
-            tierLabel = packageMatch == ProjectAssetStringMatchMode.Equals
+            priorityLabel = hasPackageName
+                ? packageMatch == ProjectAssetStringMatchMode.Equals
+                    ? "Directory + Package Name Exact"
+                    : "Directory + Package Name"
+                : "Directory";
+        }
+        else if (hasPackageName)
+        {
+            priorityLabel = packageMatch == ProjectAssetStringMatchMode.Equals
                 ? "Package Name Exact"
                 : "Package Name";
         }
-        else if (hasDirectory)
-        {
-            tier = 2;
-            tierLabel = "Directory";
-        }
         else if (hasAssetClass)
         {
-            tier = 1;
-            tierLabel = "Asset Class";
+            priorityLabel = "Asset Class";
         }
         else
         {
-            tier = 0;
-            tierLabel = "Fallback";
+            priorityLabel = "Fallback";
         }
 
         string normalizedDirectory = NormalizePattern(filter.directoryPattern);
         return new ProjectAssetRulePriority
         {
-            _tier = tier,
-            _packageMatchRank = packageMatch == ProjectAssetStringMatchMode.Equals ? 2 : hasPackageName ? 1 : 0,
+            _directoryRank = hasDirectory ? 1 : 0,
             _directoryDepth = hasDirectory ? CountDirectorySegments(normalizedDirectory) : 0,
             _directoryPatternLength = hasDirectory ? normalizedDirectory.Length : 0,
+            _packageMatchRank = packageMatch == ProjectAssetStringMatchMode.Equals ? 2 : hasPackageName ? 1 : 0,
             _assetClassRank = hasAssetClass ? 1 : 0,
-            _label = tierLabel
+            _label = priorityLabel
         };
     }
 
     public int CompareTo(ProjectAssetRulePriority other)
     {
-        int result = _tier.CompareTo(other._tier);
-        if (result != 0)
-            return result;
-
-        result = _packageMatchRank.CompareTo(other._packageMatchRank);
+        int result = _directoryRank.CompareTo(other._directoryRank);
         if (result != 0)
             return result;
 
@@ -1053,6 +1048,10 @@ internal struct ProjectAssetRulePriority : IComparable<ProjectAssetRulePriority>
             return result;
 
         result = _directoryPatternLength.CompareTo(other._directoryPatternLength);
+        if (result != 0)
+            return result;
+
+        result = _packageMatchRank.CompareTo(other._packageMatchRank);
         if (result != 0)
             return result;
 
