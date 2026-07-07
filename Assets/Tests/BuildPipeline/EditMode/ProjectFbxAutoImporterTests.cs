@@ -132,6 +132,50 @@ public sealed class ProjectFbxAutoImporterTests
     }
 
     [Test]
+    public void ImportRuleSet_PackageNameDirectoryRulesUseDirectorySpecificityBeforeListOrder()
+    {
+        object ruleSet = CreateRuleSetWithRules(
+            CreateImportRule(
+                "Character At-Sign",
+                "Model",
+                "ModelImporter.animationType",
+                "Human",
+                directoryMatch: "Contains",
+                directoryPattern: "Assets/GameResources/Characters/",
+                packageNameMatch: "Contains",
+                packageNamePattern: "@"),
+            CreateImportRule(
+                "GameResources At-Sign",
+                "Model",
+                "ModelImporter.animationType",
+                "Generic",
+                directoryMatch: "Contains",
+                directoryPattern: "Assets/GameResources/",
+                packageNameMatch: "Contains",
+                packageNamePattern: "@"),
+            CreateImportRule(
+                "Any At-Sign",
+                "Model",
+                "ModelImporter.animationType",
+                "None",
+                packageNameMatch: "Contains",
+                packageNamePattern: "@"));
+
+        object effectiveSettings = BuildEffectiveImportSettings(
+            ruleSet,
+            "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx",
+            "Model");
+
+        Assert.That(GetField<bool>(effectiveSettings, "hasConflicts"), Is.False);
+        AssertResolvedProperty(
+            ruleSet,
+            "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx",
+            "Model",
+            "ModelImporter.animationType",
+            "Human");
+    }
+
+    [Test]
     public void ImportRuleSet_MoreSpecificDirectoryRulesOverrideBroaderDirectoryRules()
     {
         object ruleSet = CreateRuleSetWithRules(
