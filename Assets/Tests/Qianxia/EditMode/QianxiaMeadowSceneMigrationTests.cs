@@ -6,9 +6,9 @@ using UnityEngine;
 public sealed class QianxiaMeadowSceneMigrationTests
 {
     private const string MeadowSummerScenePath = "Assets/GameAssets/Worlds/Meadow/Scenes/Scene_MeadowEnvironment_01_Summer.unity";
-    private const string CharacterPrefabPath = "Assets/Project/Characters/Qianxia/Generated/QianxiaThirdPerson.prefab";
+    private const string CharacterPrefabPath = "Assets/GameAssets/Characters/Qianxia/Generated/QianxiaThirdPerson.prefab";
     private const string CharacterObjectName = "QianxiaThirdPerson";
-    private const string MigrationUtilityPath = "Assets/Project/Characters/Qianxia/Editor/QianxiaMeadowSceneMigrationUtility.cs";
+    private const string MigrationUtilityPath = "Assets/Editor/Characters/Qianxia/QianxiaMeadowSceneMigrationUtility.cs";
 
     [Test]
     public void MeadowSummerSceneContainsQianxiaThirdPersonPrefabInstance()

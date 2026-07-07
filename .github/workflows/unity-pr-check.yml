@@ -52,13 +52,8 @@ jobs:
             Assets/Scripts/Addressables/**
             Assets/Settings.meta
             Assets/Settings/**
-            Assets/GameAssets.meta
             Assets/GameResources.meta
-            Assets/ThirdParty.meta
-            Assets/ANGRY MESH.meta
-            Assets/Project.meta
-            Assets/Project/Configs/**
-            Assets/Project/Characters/**
+            Assets/GameResources/Characters/Qianxia/**
             Assets/Tests.meta
             Assets/Tests/BuildPipeline.meta
             Assets/Tests/BuildPipeline/**

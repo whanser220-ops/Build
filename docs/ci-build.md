@@ -27,7 +27,7 @@
 
 1. Checkout 仓库。
    - CI 使用 sparse checkout，只拉取 `ProjectSettings/`、`Packages/`、`Assets/Editor/`、`Assets/Scripts/Addressables/`、`Assets/Settings/`、`Assets/Tests/BuildPipeline/`、`svn-assets.lock.json` 与 `tools/` 中的构建脚本。
-   - 美术资产由 SVN 管理，Git checkout 只保留 `Assets/GameAssets.meta`、`Assets/GameResources.meta`、`Assets/ThirdParty.meta`、`Assets/ANGRY MESH.meta` 等顶层目录 `.meta`。
+   - 美术资产由 SVN 管理，Git checkout 只保留 `Assets/GameResources.meta` 这个 SVN 根目录的顶层 sibling `.meta`。
 2. 挂载本机持久 `Library/` cache。
 3. 清理 `.workspace/builds` 与本轮 CI 日志；不要删除 `Library/`。
 4. 运行构建链路 EditMode 测试：

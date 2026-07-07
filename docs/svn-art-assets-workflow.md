@@ -5,11 +5,7 @@
 ## 分工
 
 - Git 管理：代码、Editor 工具、测试、`Packages/`、`ProjectSettings/`、CI 脚本、文档、顶层 Unity 目录 `.meta`。
-- SVN 管理：以下目录内容及其内部 `.meta`：
-  - `Assets/GameAssets`
-  - `Assets/GameResources`
-  - `Assets/ThirdParty`
-  - `Assets/ANGRY MESH`
+- SVN 管理：仅 `Assets/GameResources` 目录内容及其内部 `.meta`。
 - Git 通过根目录 `svn-assets.lock.json` 固定 SVN revision。代码提交依赖新资产时，必须同步更新该 lock 文件。
 
 ## 本地同步
@@ -38,7 +34,7 @@
 
 资产改动：
 
-1. 在 `Assets/GameAssets`、`Assets/GameResources`、`Assets/ThirdParty` 或 `Assets/ANGRY MESH` 中修改资源。
+1. 在 `Assets/GameResources` 中修改资源。
 2. 用 TortoiseSVN 或 `svn commit` 提交资产。
 3. 记录新的 SVN revision。
 4. 更新 `svn-assets.lock.json` 的 `revision` 字段。
@@ -48,5 +44,5 @@
 
 - 不要把 SVN 管理目录重新加入 Git。
 - 不要提交 `.svn/`。
-- 顶层 sibling `.meta`，例如 `Assets/GameAssets.meta`，仍由 Git 管理。
+- 顶层 sibling `.meta`，例如 `Assets/GameResources.meta`，仍由 Git 管理。
 - 修改 lock 后，建议运行一次 `.\tools\Sync-SvnAssets.ps1 -ProjectPath .` 验证 revision 可同步。

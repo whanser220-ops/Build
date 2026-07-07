@@ -62,6 +62,18 @@ public sealed class ProjectBuildPipelineTests
     }
 
     [Test]
+    public void SvnAssetsLockOnlySyncsGameResources()
+    {
+        string lockText = ReadRequiredText(SvnAssetsLockPath);
+
+        StringAssert.Contains("\"repositoryPath\": \"GameResources\"", lockText);
+        StringAssert.Contains("\"localPath\": \"Assets/GameResources\"", lockText);
+        Assert.That(lockText, Does.Not.Contain("\"repositoryPath\": \"GameAssets\""));
+        Assert.That(lockText, Does.Not.Contain("\"repositoryPath\": \"ThirdParty\""));
+        Assert.That(lockText, Does.Not.Contain("\"repositoryPath\": \"ANGRY MESH\""));
+    }
+
+    [Test]
     public void CiCheckoutUsesBuildPipelineSparseSourceSet()
     {
         string workflow = ReadRequiredText(WorkflowPath);
@@ -77,10 +89,7 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains("Assets/Scripts/Addressables.meta", workflow);
         StringAssert.Contains("Assets/Scripts/Addressables/**", workflow);
         StringAssert.Contains("Assets/Settings/**", workflow);
-        StringAssert.Contains("Assets/GameAssets.meta", workflow);
         StringAssert.Contains("Assets/GameResources.meta", workflow);
-        StringAssert.Contains("Assets/ThirdParty.meta", workflow);
-        StringAssert.Contains("Assets/ANGRY MESH.meta", workflow);
         StringAssert.Contains("Assets/Tests/BuildPipeline/**", workflow);
         StringAssert.Contains("tools/Sync-SvnAssets.ps1", workflow);
         StringAssert.Contains("tools/Assert-UnityTestResults.ps1", workflow);
@@ -108,7 +117,9 @@ public sealed class ProjectBuildPipelineTests
         StringAssert.Contains("Use-UnityLibraryCache.ps1 -ProjectPath .", workflow);
         StringAssert.Contains("-assemblyNames Project.BuildPipeline.EditMode.Tests", workflow);
         StringAssert.Contains("-assemblyNames Project.Qianxia.EditMode.Tests", workflow);
-        StringAssert.Contains("Assets/Project/Characters/**", workflow);
+        StringAssert.Contains("Assets/GameResources/Characters/Qianxia/**", workflow);
+        Assert.That(workflow, Does.Not.Contain("Assets/GameAssets/Characters/Qianxia/**"));
+        Assert.That(workflow, Does.Not.Contain("Assets/GameAssets/Configs/Input/**"));
         Assert.That(workflow, Does.Not.Contain("Assets/GameAssets/Worlds/Meadow/Scenes/Scene_MeadowEnvironment_01_Summer.unity"));
         Assert.That(workflow, Does.Not.Contain("Assets/ThirdParty/**"));
         Assert.That(workflow, Does.Not.Contain("Build Android development APK"));
