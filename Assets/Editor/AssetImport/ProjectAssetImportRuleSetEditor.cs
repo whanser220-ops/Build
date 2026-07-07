@@ -163,7 +163,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
                 filter.FindPropertyRelative("packageNameMatch"),
                 filter.FindPropertyRelative("packageNamePattern"));
             DrawAssetClassRow(filter.FindPropertyRelative("assetClass"));
-            ProjectRuleInheritedSettings inheritedSettings = BuildInheritedDirectorySettings(rules, index);
+            ProjectRuleInheritedSettings inheritedSettings = BuildLowerPriorityOverlappingSettings(rules, index);
             DrawImportSettingsPanel(rule, filter.FindPropertyRelative("assetClass"), index, inheritedSettings);
         }
     }
@@ -271,7 +271,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         Rect overrideRect = new Rect(rect.x + 18f, rect.y + 1f, LabelWidth - 24f, rect.height - 2f);
         Rect valueRect = new Rect(rect.x + LabelWidth, rect.y + 1f, rect.width - LabelWidth - 10f, rect.height - 2f);
 
-        if (inherited != null && !overrideEnabled.boolValue)
+        if (inherited != null)
             DrawInheritedSettingMarker(inheritedMarkerRect, inherited);
 
         bool wasEnabled = overrideEnabled.boolValue;
@@ -305,7 +305,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         EditorGUI.DrawRect(rect, InheritedSettingColor);
         EditorGUI.LabelField(rect, new GUIContent(
             string.Empty,
-            $"Inherited from {inherited.sourceRuleName} ({inherited.ruleTypeLabel})\nValue: {inherited.value}"));
+            $"Lower-priority overlap from {inherited.sourceRuleName} ({inherited.ruleTypeLabel})\nValue: {inherited.value}"));
     }
 
     private static string DrawDefinitionValue(Rect rect, ProjectAssetImportSettingDefinition definition, string currentValue)
@@ -380,7 +380,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         }
     }
 
-    private static ProjectRuleInheritedSettings BuildInheritedDirectorySettings(SerializedProperty rules, int currentIndex)
+    private static ProjectRuleInheritedSettings BuildLowerPriorityOverlappingSettings(SerializedProperty rules, int currentIndex)
     {
         ProjectRuleInheritedSettings inheritedSettings = new ProjectRuleInheritedSettings();
         if (rules == null || currentIndex < 0 || currentIndex >= rules.arraySize)
@@ -388,18 +388,9 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
 
         SerializedProperty currentRule = rules.GetArrayElementAtIndex(currentIndex);
         SerializedProperty currentFilter = currentRule.FindPropertyRelative("filter");
-        ProjectAssetStringMatchMode currentDirectoryMode =
-            (ProjectAssetStringMatchMode)currentFilter.FindPropertyRelative("directoryMatch").enumValueIndex;
-        if (currentDirectoryMode == ProjectAssetStringMatchMode.Any)
-            return inheritedSettings;
-
-        string currentDirectoryPattern = NormalizeDirectoryPatternForInheritance(
-            currentDirectoryMode,
-            currentFilter.FindPropertyRelative("directoryPattern").stringValue);
-        if (string.IsNullOrWhiteSpace(currentDirectoryPattern))
-            return inheritedSettings;
-
+        ProjectRuleFilterSnapshot currentSnapshot = ProjectRuleFilterSnapshot.FromSerializedFilter(currentFilter);
         ProjectAssetClass currentAssetClass = (ProjectAssetClass)currentFilter.FindPropertyRelative("assetClass").enumValueIndex;
+        ProjectInheritedRuleRank currentRank = ProjectInheritedRuleRank.FromFilter(currentFilter, currentIndex);
         for (int i = 0; i < rules.arraySize; i++)
         {
             if (i == currentIndex)
@@ -410,26 +401,18 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
                 continue;
 
             SerializedProperty sourceFilter = sourceRule.FindPropertyRelative("filter");
-            ProjectAssetStringMatchMode sourceDirectoryMode =
-                (ProjectAssetStringMatchMode)sourceFilter.FindPropertyRelative("directoryMatch").enumValueIndex;
-            if (sourceDirectoryMode == ProjectAssetStringMatchMode.Any)
+            ProjectInheritedRuleRank sourceRank = ProjectInheritedRuleRank.FromFilter(sourceFilter, i);
+            if (sourceRank.ComparePriorityTo(currentRank) >= 0)
                 continue;
 
-            ProjectAssetClass sourceAssetClass = (ProjectAssetClass)sourceFilter.FindPropertyRelative("assetClass").enumValueIndex;
-            if (!AssetClassesCanInherit(sourceAssetClass, currentAssetClass))
+            ProjectRuleFilterSnapshot sourceSnapshot = ProjectRuleFilterSnapshot.FromSerializedFilter(sourceFilter);
+            if (!FiltersMayOverlap(sourceSnapshot, currentSnapshot))
                 continue;
 
-            string sourceDirectoryPattern = NormalizeDirectoryPatternForInheritance(
-                sourceDirectoryMode,
-                sourceFilter.FindPropertyRelative("directoryPattern").stringValue);
-            if (!IsAncestorDirectoryPattern(sourceDirectoryPattern, currentDirectoryPattern))
-                continue;
-
-            ProjectInheritedRuleRank rank = ProjectInheritedRuleRank.FromPattern(sourceDirectoryPattern, i);
             string sourceRuleName = sourceRule.FindPropertyRelative("name").stringValue;
             string ruleTypeLabel = BuildRuleTypeLabel(sourceFilter);
-            AddInheritedKnownSettings(inheritedSettings, sourceRule, currentAssetClass, sourceRuleName, ruleTypeLabel, rank);
-            AddInheritedCustomSettings(inheritedSettings, sourceRule, sourceRuleName, ruleTypeLabel, rank);
+            AddInheritedKnownSettings(inheritedSettings, sourceRule, currentAssetClass, sourceRuleName, ruleTypeLabel, sourceRank);
+            AddInheritedCustomSettings(inheritedSettings, sourceRule, sourceRuleName, ruleTypeLabel, sourceRank);
         }
 
         return inheritedSettings;
@@ -499,38 +482,84 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
         }
     }
 
-    private static bool AssetClassesCanInherit(ProjectAssetClass sourceAssetClass, ProjectAssetClass currentAssetClass)
+    private static bool FiltersMayOverlap(ProjectRuleFilterSnapshot source, ProjectRuleFilterSnapshot current)
+    {
+        return AssetClassesCanOverlap(source.assetClass, current.assetClass) &&
+            DirectoryFiltersMayOverlap(source.directoryMatch, source.directoryPattern, current.directoryMatch, current.directoryPattern) &&
+            StringFiltersMayOverlap(source.packageNameMatch, source.packageNamePattern, current.packageNameMatch, current.packageNamePattern);
+    }
+
+    private static bool AssetClassesCanOverlap(ProjectAssetClass sourceAssetClass, ProjectAssetClass currentAssetClass)
     {
         return sourceAssetClass == ProjectAssetClass.Any ||
             currentAssetClass == ProjectAssetClass.Any ||
             sourceAssetClass == currentAssetClass;
     }
 
-    private static string NormalizeDirectoryPatternForInheritance(ProjectAssetStringMatchMode mode, string pattern)
+    private static bool DirectoryFiltersMayOverlap(
+        ProjectAssetStringMatchMode sourceMode,
+        string sourcePattern,
+        ProjectAssetStringMatchMode currentMode,
+        string currentPattern)
     {
-        if (mode == ProjectAssetStringMatchMode.Any ||
-            mode == ProjectAssetStringMatchMode.Regex ||
-            string.IsNullOrWhiteSpace(pattern))
-            return string.Empty;
+        return StringFiltersMayOverlap(
+            sourceMode,
+            NormalizeDirectoryPatternForOverlap(sourceMode, sourcePattern),
+            currentMode,
+            NormalizeDirectoryPatternForOverlap(currentMode, currentPattern));
+    }
 
-        string normalized = pattern.Replace('\\', '/').Trim().Trim('/');
+    private static string NormalizeDirectoryPatternForOverlap(ProjectAssetStringMatchMode mode, string pattern)
+    {
+        string normalized = (pattern ?? string.Empty).Replace('\\', '/').Trim().Trim('/');
         if (mode == ProjectAssetStringMatchMode.Glob)
             normalized = normalized.Replace("*", string.Empty).Replace("?", string.Empty).Trim('/');
 
         return normalized;
     }
 
-    private static bool IsAncestorDirectoryPattern(string ancestorPattern, string currentPattern)
+    private static bool StringFiltersMayOverlap(
+        ProjectAssetStringMatchMode sourceMode,
+        string sourcePattern,
+        ProjectAssetStringMatchMode currentMode,
+        string currentPattern)
     {
-        if (string.IsNullOrWhiteSpace(ancestorPattern) ||
-            string.IsNullOrWhiteSpace(currentPattern) ||
-            string.Equals(ancestorPattern, currentPattern, StringComparison.OrdinalIgnoreCase) ||
-            ancestorPattern.Length >= currentPattern.Length)
+        if (sourceMode == ProjectAssetStringMatchMode.Any ||
+            currentMode == ProjectAssetStringMatchMode.Any)
+            return true;
+
+        if (string.IsNullOrWhiteSpace(sourcePattern) || string.IsNullOrWhiteSpace(currentPattern))
             return false;
 
-        return currentPattern.StartsWith(ancestorPattern + "/", StringComparison.OrdinalIgnoreCase) ||
-            currentPattern.IndexOf("/" + ancestorPattern + "/", StringComparison.OrdinalIgnoreCase) >= 0 ||
-            currentPattern.IndexOf(ancestorPattern + "/", StringComparison.OrdinalIgnoreCase) >= 0;
+        if (sourceMode == ProjectAssetStringMatchMode.Equals)
+            return ProjectAssetStringMatcher.Matches(currentMode, currentPattern, sourcePattern);
+        if (currentMode == ProjectAssetStringMatchMode.Equals)
+            return ProjectAssetStringMatcher.Matches(sourceMode, sourcePattern, currentPattern);
+
+        if (sourceMode == ProjectAssetStringMatchMode.Regex ||
+            currentMode == ProjectAssetStringMatchMode.Regex)
+            return true;
+
+        if (sourceMode == ProjectAssetStringMatchMode.StartsWith &&
+            currentMode == ProjectAssetStringMatchMode.StartsWith)
+            return sourcePattern.StartsWith(currentPattern, StringComparison.OrdinalIgnoreCase) ||
+                currentPattern.StartsWith(sourcePattern, StringComparison.OrdinalIgnoreCase);
+
+        if (sourceMode == ProjectAssetStringMatchMode.EndsWith &&
+            currentMode == ProjectAssetStringMatchMode.EndsWith)
+            return sourcePattern.EndsWith(currentPattern, StringComparison.OrdinalIgnoreCase) ||
+                currentPattern.EndsWith(sourcePattern, StringComparison.OrdinalIgnoreCase);
+
+        if (sourceMode == ProjectAssetStringMatchMode.Contains &&
+            currentMode == ProjectAssetStringMatchMode.Contains)
+            return true;
+
+        return sourcePattern.IndexOf(currentPattern, StringComparison.OrdinalIgnoreCase) >= 0 ||
+            currentPattern.IndexOf(sourcePattern, StringComparison.OrdinalIgnoreCase) >= 0 ||
+            sourceMode == ProjectAssetStringMatchMode.Contains ||
+            currentMode == ProjectAssetStringMatchMode.Contains ||
+            sourceMode == ProjectAssetStringMatchMode.Glob ||
+            currentMode == ProjectAssetStringMatchMode.Glob;
     }
 
     private void DrawPreviewPanel()
@@ -1386,26 +1415,75 @@ internal sealed class ProjectInheritedImportSetting
     public ProjectInheritedRuleRank rank;
 }
 
+internal struct ProjectRuleFilterSnapshot
+{
+    public ProjectAssetStringMatchMode directoryMatch;
+    public string directoryPattern;
+    public ProjectAssetStringMatchMode packageNameMatch;
+    public string packageNamePattern;
+    public ProjectAssetClass assetClass;
+
+    public static ProjectRuleFilterSnapshot FromSerializedFilter(SerializedProperty filter)
+    {
+        return new ProjectRuleFilterSnapshot
+        {
+            directoryMatch = (ProjectAssetStringMatchMode)filter.FindPropertyRelative("directoryMatch").enumValueIndex,
+            directoryPattern = filter.FindPropertyRelative("directoryPattern").stringValue,
+            packageNameMatch = (ProjectAssetStringMatchMode)filter.FindPropertyRelative("packageNameMatch").enumValueIndex,
+            packageNamePattern = filter.FindPropertyRelative("packageNamePattern").stringValue,
+            assetClass = (ProjectAssetClass)filter.FindPropertyRelative("assetClass").enumValueIndex
+        };
+    }
+}
+
 internal struct ProjectInheritedRuleRank : IComparable<ProjectInheritedRuleRank>
 {
+    private int _tier;
+    private int _packageMatchRank;
     private int _directoryDepth;
     private int _directoryPatternLength;
+    private int _assetClassRank;
     private int _sourceIndex;
 
-    public static ProjectInheritedRuleRank FromPattern(string directoryPattern, int sourceIndex)
+    public static ProjectInheritedRuleRank FromFilter(SerializedProperty filter, int sourceIndex)
     {
-        string normalized = (directoryPattern ?? string.Empty).Replace('\\', '/').Trim().Trim('/');
+        ProjectRuleFilterSnapshot snapshot = ProjectRuleFilterSnapshot.FromSerializedFilter(filter);
+        bool hasPackageName = snapshot.packageNameMatch != ProjectAssetStringMatchMode.Any;
+        bool hasDirectory = snapshot.directoryMatch != ProjectAssetStringMatchMode.Any;
+        bool hasAssetClass = snapshot.assetClass != ProjectAssetClass.Any;
+        string normalizedDirectory = (snapshot.directoryPattern ?? string.Empty).Replace('\\', '/').Trim().Trim('/');
+
         return new ProjectInheritedRuleRank
         {
-            _directoryDepth = CountSegments(normalized),
-            _directoryPatternLength = normalized.Length,
+            _tier = hasPackageName ? 3 : hasDirectory ? 2 : hasAssetClass ? 1 : 0,
+            _packageMatchRank = snapshot.packageNameMatch == ProjectAssetStringMatchMode.Equals ? 2 : hasPackageName ? 1 : 0,
+            _directoryDepth = hasDirectory ? CountSegments(normalizedDirectory) : 0,
+            _directoryPatternLength = hasDirectory ? normalizedDirectory.Length : 0,
+            _assetClassRank = hasAssetClass ? 1 : 0,
             _sourceIndex = sourceIndex
         };
     }
 
     public int CompareTo(ProjectInheritedRuleRank other)
     {
-        int result = _directoryDepth.CompareTo(other._directoryDepth);
+        int result = ComparePriorityTo(other);
+        if (result != 0)
+            return result;
+
+        return other._sourceIndex.CompareTo(_sourceIndex);
+    }
+
+    public int ComparePriorityTo(ProjectInheritedRuleRank other)
+    {
+        int result = _tier.CompareTo(other._tier);
+        if (result != 0)
+            return result;
+
+        result = _packageMatchRank.CompareTo(other._packageMatchRank);
+        if (result != 0)
+            return result;
+
+        result = _directoryDepth.CompareTo(other._directoryDepth);
         if (result != 0)
             return result;
 
@@ -1413,7 +1491,11 @@ internal struct ProjectInheritedRuleRank : IComparable<ProjectInheritedRuleRank>
         if (result != 0)
             return result;
 
-        return other._sourceIndex.CompareTo(_sourceIndex);
+        result = _assetClassRank.CompareTo(other._assetClassRank);
+        if (result != 0)
+            return result;
+
+        return 0;
     }
 
     private static int CountSegments(string directoryPattern)
