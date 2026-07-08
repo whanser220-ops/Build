@@ -4,7 +4,7 @@
 
 ## 分工
 
-- Git 管理：代码、Editor 工具、测试、`Packages/`、`ProjectSettings/`、CI 脚本、文档、顶层 Unity 目录 `.meta`。
+- Git 管理：代码、Editor 工具、测试、`Packages/`、`ProjectSettings/`、自动化脚本、文档、顶层 Unity 目录 `.meta`。
 - SVN 管理：仅 `Assets/GameResources` 目录内容及其内部 `.meta`。
 - Git 通过根目录 `svn-assets.lock.json` 固定 SVN revision。代码提交依赖新资产时，必须同步更新该 lock 文件。
 
