@@ -47,7 +47,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Editor\BuildPipeline\Addressables\ProjectAddressablesBuild.cs" />
-    <Compile Include="Assets\Editor\BuildPipeline\CiPlayerBuild.cs" />
     <Compile Include="Assets\ThirdParty\UnityTutorialInfo\TutorialInfo\Scripts\Editor\ReadmeEditor.cs" />
     <Compile Include="Assets\Editor\BuildPipeline\Addressables\AngryMeshAddressablesReferenceConverter.cs" />
     <Reference Include="UnityEngine">
