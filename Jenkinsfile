@@ -1,50 +1,44 @@
-pipeline {
-    agent { label 'windows-agent' }
-
-    triggers {
-        githubPush()
+properties([
+    pipelineTriggers([
+        githubPush(),
         pollSCM('H/2 * * * *')
-    }
+    ])
+])
 
-    options {
-        timestamps()
-        timeout(time: 180, unit: 'MINUTES')
-        skipDefaultCheckout(true)
-    }
+def runWindowsPlayerBuild = {
+    def buildSucceeded = false
 
-    environment {
-        UNITY_EXE = 'C:\\Program Files\\Unity\\Hub\\Editor\\6000.0.46f1\\Editor\\Unity.exe'
-        UNITY_LOG = 'Logs\\build-windows.log'
-        WINDOWS_BUILD_DIR = '.workspace\\builds\\windows\\Unity6-Windows-Development'
-        WINDOWS_EXE = '.workspace\\builds\\windows\\Unity6-Windows-Development\\Unity6.exe'
-        WINDOWS_ZIP = '.workspace\\builds\\windows\\Unity6-Windows-Development.zip'
-    }
+    timestamps {
+        timeout(time: 180, unit: 'MINUTES') {
+            withEnv([
+                'UNITY_EXE=C:\\Program Files\\Unity\\Hub\\Editor\\6000.0.46f1\\Editor\\Unity.exe',
+                'UNITY_LOG=Logs\\build-windows.log',
+                'WINDOWS_BUILD_DIR=.workspace\\builds\\windows\\Unity6-Windows-Development',
+                'WINDOWS_EXE=.workspace\\builds\\windows\\Unity6-Windows-Development\\Unity6.exe',
+                'WINDOWS_ZIP=.workspace\\builds\\windows\\Unity6-Windows-Development.zip'
+            ]) {
+                try {
+                    stage('Checkout') {
+                        if (env.JENKINSFILE_BOOTSTRAPPED != 'true') {
+                            checkout scm
+                        }
+                        bat 'git --version'
+                        bat 'git lfs version'
+                        bat 'git lfs pull'
+                    }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-                bat 'git --version'
-                bat 'git lfs version'
-                bat 'git lfs pull'
-            }
-        }
-
-        stage('Clean Build Outputs') {
-            steps {
-                bat '''
+                    stage('Clean Build Outputs') {
+                        bat '''
 @echo on
 if exist ".workspace\\builds" rmdir /s /q ".workspace\\builds"
 if exist "Logs\\build-windows.log" del /f /q "Logs\\build-windows.log"
 mkdir ".workspace\\builds\\windows"
 mkdir "Logs"
 '''
-            }
-        }
+                    }
 
-        stage('Build Windows Player') {
-            steps {
-                bat '''
+                    stage('Build Windows Player') {
+                        bat '''
 @echo on
 echo Jenkins workspace: %WORKSPACE%
 if not exist "%UNITY_EXE%" (
@@ -56,25 +50,33 @@ set UNITY_EXIT=%ERRORLEVEL%
 if exist "%WORKSPACE%\\%UNITY_LOG%" type "%WORKSPACE%\\%UNITY_LOG%"
 exit /b %UNITY_EXIT%
 '''
-            }
-        }
+                    }
 
-        stage('Package Windows Player') {
-            steps {
-                bat '''
+                    stage('Package Windows Player') {
+                        bat '''
 @echo on
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; if (-not (Test-Path $env:WINDOWS_EXE)) { throw ('Windows player executable was not found: ' + $env:WINDOWS_EXE) }; if (Test-Path $env:WINDOWS_ZIP) { Remove-Item -LiteralPath $env:WINDOWS_ZIP -Force }; Compress-Archive -Path (Join-Path $env:WINDOWS_BUILD_DIR '*') -DestinationPath $env:WINDOWS_ZIP -Force"
 '''
+                    }
+
+                    buildSucceeded = true
+                } finally {
+                    stage('Archive') {
+                        archiveArtifacts artifacts: 'Logs/build-windows.log', allowEmptyArchive: true
+                        if (buildSucceeded) {
+                            archiveArtifacts artifacts: '.workspace/builds/windows/Unity6-Windows-Development.zip', fingerprint: true
+                        }
+                    }
+                }
             }
         }
     }
+}
 
-    post {
-        always {
-            archiveArtifacts artifacts: 'Logs/build-windows.log', allowEmptyArchive: true
-        }
-        success {
-            archiveArtifacts artifacts: '.workspace/builds/windows/Unity6-Windows-Development.zip', fingerprint: true
-        }
+if (env.JENKINSFILE_BOOTSTRAPPED == 'true') {
+    runWindowsPlayerBuild()
+} else {
+    node('windows-agent') {
+        runWindowsPlayerBuild()
     }
 }
