@@ -70,6 +70,25 @@ function Resolve-UnityEditorPath {
     throw "Unity.exe not found. Install Unity $UnityVersion via Unity Hub, or set UNITY_EXE / UNITY_EDITOR_PATH."
 }
 
+function ConvertTo-WindowsCommandLineArgument {
+    param(
+        [AllowNull()]
+        [string]$Argument
+    )
+
+    if ($null -eq $Argument -or $Argument.Length -eq 0) {
+        return '""'
+    }
+
+    if ($Argument -notmatch '[\s"]') {
+        return $Argument
+    }
+
+    $escaped = $Argument -replace '(\\*)"', '$1$1\"'
+    $escaped = $escaped -replace '(\\+)$', '$1$1'
+    return '"' + $escaped + '"'
+}
+
 $resolvedProjectPath = (Resolve-Path $ProjectPath).Path
 $unityVersion = Get-ProjectUnityVersion -ResolvedProjectPath $resolvedProjectPath
 $unityEditorPath = Resolve-UnityEditorPath -UnityVersion $unityVersion
@@ -90,5 +109,18 @@ Write-Host "Unity version: $unityVersion"
 Write-Host "Unity path: $unityEditorPath"
 Write-Host "Project path: $resolvedProjectPath"
 
-& $unityEditorPath @forwardArgs
-exit $LASTEXITCODE
+$argumentLine = ($forwardArgs | ForEach-Object { ConvertTo-WindowsCommandLineArgument $_ }) -join " "
+Write-Host "Unity arguments: $argumentLine"
+
+$startInfo = New-Object System.Diagnostics.ProcessStartInfo
+$startInfo.FileName = $unityEditorPath
+$startInfo.Arguments = $argumentLine
+$startInfo.UseShellExecute = $false
+
+$process = New-Object System.Diagnostics.Process
+$process.StartInfo = $startInfo
+
+[void]$process.Start()
+$process.WaitForExit()
+
+exit $process.ExitCode
