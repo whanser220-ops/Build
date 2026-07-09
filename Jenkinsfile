@@ -32,8 +32,8 @@ def runWindowsPlayerBuild = {
 @echo on
 if exist ".workspace\\builds" rmdir /s /q ".workspace\\builds"
 if exist "Logs\\build-windows.log" del /f /q "Logs\\build-windows.log"
-mkdir ".workspace\\builds\\windows"
-mkdir "Logs"
+if not exist ".workspace\\builds\\windows" mkdir ".workspace\\builds\\windows"
+if not exist "Logs" mkdir "Logs"
 '''
                     }
 
