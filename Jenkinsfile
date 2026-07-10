@@ -6,8 +6,6 @@ properties([
 ])
 
 def runWindowsPlayerBuild = {
-    def buildSucceeded = false
-
     timestamps {
         timeout(time: 180, unit: 'MINUTES') {
             withEnv([
@@ -58,14 +56,9 @@ exit /b %UNITY_EXIT%
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; if (-not (Test-Path $env:WINDOWS_EXE)) { throw ('Windows player executable was not found: ' + $env:WINDOWS_EXE) }; if (Test-Path $env:WINDOWS_ZIP) { Remove-Item -LiteralPath $env:WINDOWS_ZIP -Force }; Compress-Archive -Path (Join-Path $env:WINDOWS_BUILD_DIR '*') -DestinationPath $env:WINDOWS_ZIP -Force"
 '''
                     }
-
-                    buildSucceeded = true
                 } finally {
                     stage('Archive') {
                         archiveArtifacts artifacts: 'Logs/build-windows.log', allowEmptyArchive: true
-                        if (buildSucceeded) {
-                            archiveArtifacts artifacts: '.workspace/builds/windows/Unity6-Windows-Development.zip', fingerprint: true
-                        }
                     }
                 }
             }
