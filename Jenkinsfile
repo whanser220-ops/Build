@@ -40,6 +40,14 @@ properties([
     ])
 ])
 
+def defaultP4Port = 'ssl:1.117.232.198:1666'
+def defaultP4CredentialsId = 'perforce-jenkins'
+def defaultP4Client = 'jenkins_unity_smoke_build_art'
+def defaultP4View = '''//depot/Assets/GameResources/... //${P4_CLIENT}/Assets/GameResources/...
+//depot/Assets/GameResources.meta //${P4_CLIENT}/Assets/GameResources.meta
+//depot/Assets/GameAssets/... //${P4_CLIENT}/Assets/GameAssets/...
+//depot/Assets/GameAssets.meta //${P4_CLIENT}/Assets/GameAssets.meta'''
+
 def runWindowsPlayerBuild = {
     timestamps {
         timeout(time: 180, unit: 'MINUTES') {
@@ -69,11 +77,11 @@ def runWindowsPlayerBuild = {
                             if (!p4SyncEnabled) {
                                 echo 'Skipping Perforce asset sync because P4_SYNC_ENABLED=false.'
                             } else {
-                                def p4Port = params.P4_PORT?.trim()
-                                def p4CredentialsId = params.P4_CREDENTIALS_ID?.trim()
-                                def configuredP4Client = params.P4_CLIENT?.trim()
+                                def p4Port = params.P4_PORT?.trim() ?: defaultP4Port
+                                def p4CredentialsId = params.P4_CREDENTIALS_ID?.trim() ?: defaultP4CredentialsId
+                                def configuredP4Client = params.P4_CLIENT?.trim() ?: defaultP4Client
                                 def p4AssetCl = params.P4_ASSET_CL?.trim()
-                                def p4View = params.P4_VIEW?.trim()
+                                def p4View = params.P4_VIEW?.trim() ?: defaultP4View
                                 def p4Client = configuredP4Client ?: "jenkins-${env.NODE_NAME}-${env.JOB_NAME}-${env.EXECUTOR_NUMBER}".replaceAll(/[^A-Za-z0-9_.-]/, '_')
 
                                 if (!p4Port) {
