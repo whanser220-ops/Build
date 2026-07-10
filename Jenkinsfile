@@ -2,6 +2,34 @@ properties([
     pipelineTriggers([
         githubPush(),
         pollSCM('H/2 * * * *')
+    ]),
+    parameters([
+        booleanParam(
+            name: 'P4_SYNC_ENABLED',
+            defaultValue: true,
+            description: 'Sync Unity assets from Perforce before building.'
+        ),
+        string(
+            name: 'P4_PORT',
+            defaultValue: '',
+            description: 'Perforce server address, for example ssl:perforce.example.com:1666.'
+        ),
+        string(
+            name: 'P4_CREDENTIALS_ID',
+            defaultValue: 'perforce-jenkins',
+            description: 'Jenkins username/password credential ID for Perforce.'
+        ),
+        string(
+            name: 'P4_ASSET_CL',
+            defaultValue: '',
+            description: 'Optional Perforce changelist to pin the asset sync. Leave empty for latest.'
+        ),
+        text(
+            name: 'P4_VIEW',
+            defaultValue: '''//GameAssets/main/Assets/GameAssets/... //${P4_CLIENT}/Assets/GameAssets/...
+//GameAssets/main/Assets/GameAssets.meta //${P4_CLIENT}/Assets/GameAssets.meta''',
+            description: 'Perforce client view for Unity assets. Use ${P4_CLIENT} as the client placeholder.'
+        )
     ])
 ])
 
@@ -13,7 +41,9 @@ def runWindowsPlayerBuild = {
                 'UNITY_LOG=Logs\\build-windows.log',
                 'WINDOWS_BUILD_DIR=.workspace\\builds\\windows\\Unity6-Windows-Development',
                 'WINDOWS_EXE=.workspace\\builds\\windows\\Unity6-Windows-Development\\Unity6.exe',
-                'WINDOWS_ZIP=.workspace\\builds\\windows\\Unity6-Windows-Development.zip'
+                'WINDOWS_ZIP=.workspace\\builds\\windows\\Unity6-Windows-Development.zip',
+                'P4_SYNC_LOG=Logs\\p4-sync.log',
+                'BUILD_MANIFEST=.workspace\\build-manifest.json'
             ]) {
                 try {
                     stage('Checkout') {
@@ -23,6 +53,52 @@ def runWindowsPlayerBuild = {
                         bat 'git --version'
                         bat 'git lfs version'
                         bat 'git lfs pull'
+                    }
+
+                    stage('Sync Perforce Assets') {
+                        script {
+                            def p4SyncEnabled = params.P4_SYNC_ENABLED == null ? true : params.P4_SYNC_ENABLED
+
+                            if (!p4SyncEnabled) {
+                                echo 'Skipping Perforce asset sync because P4_SYNC_ENABLED=false.'
+                            } else {
+                                def p4Port = params.P4_PORT?.trim()
+                                def p4CredentialsId = params.P4_CREDENTIALS_ID?.trim()
+                                def p4AssetCl = params.P4_ASSET_CL?.trim()
+                                def p4View = params.P4_VIEW?.trim()
+                                def p4Client = "jenkins-${env.NODE_NAME}-${env.JOB_NAME}-${env.EXECUTOR_NUMBER}".replaceAll(/[^A-Za-z0-9_.-]/, '_')
+
+                                if (!p4Port) {
+                                    error 'P4_PORT is required before Perforce asset sync can run.'
+                                }
+                                if (!p4CredentialsId) {
+                                    error 'P4_CREDENTIALS_ID is required before Perforce asset sync can run.'
+                                }
+                                if (!p4View) {
+                                    error 'P4_VIEW is required before Perforce asset sync can run.'
+                                }
+
+                                bat 'if not exist ".workspace" mkdir ".workspace"'
+                                writeFile file: '.workspace/p4-view.txt', text: p4View + '\n'
+
+                                withCredentials([usernamePassword(
+                                    credentialsId: p4CredentialsId,
+                                    usernameVariable: 'P4_USERNAME',
+                                    passwordVariable: 'P4_PASSWORD'
+                                )]) {
+                                    withEnv([
+                                        "P4_PORT=${p4Port}",
+                                        "P4_ASSET_CL=${p4AssetCl ?: ''}",
+                                        "P4_CLIENT_NAME=${p4Client}"
+                                    ]) {
+                                        bat '''
+@echo on
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Sync-PerforceAssets.ps1" -Port "%P4_PORT%" -Client "%P4_CLIENT_NAME%" -Root "%WORKSPACE%" -ViewFile ".workspace\\p4-view.txt" -Changelist "%P4_ASSET_CL%" -LogPath "%P4_SYNC_LOG%" -ManifestPath "%BUILD_MANIFEST%"
+'''
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     stage('Clean Build Outputs') {
@@ -58,7 +134,7 @@ PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreferen
                     }
                 } finally {
                     stage('Archive') {
-                        archiveArtifacts artifacts: 'Logs/build-windows.log', allowEmptyArchive: true
+                        archiveArtifacts artifacts: 'Logs/build-windows.log,Logs/p4-sync.log,.workspace/build-manifest.json', allowEmptyArchive: true
                     }
                 }
             }
