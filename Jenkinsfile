@@ -11,7 +11,7 @@ properties([
         ),
         string(
             name: 'P4_PORT',
-            defaultValue: '',
+            defaultValue: 'ssl:1.117.232.198:1666',
             description: 'Perforce server address, for example ssl:perforce.example.com:1666.'
         ),
         string(
@@ -20,14 +20,21 @@ properties([
             description: 'Jenkins username/password credential ID for Perforce.'
         ),
         string(
+            name: 'P4_CLIENT',
+            defaultValue: 'jenkins_unity_smoke_build_art',
+            description: 'Perforce workspace/client used on the Windows build node.'
+        ),
+        string(
             name: 'P4_ASSET_CL',
             defaultValue: '',
             description: 'Optional Perforce changelist to pin the asset sync. Leave empty for latest.'
         ),
         text(
             name: 'P4_VIEW',
-            defaultValue: '''//GameAssets/main/Assets/GameAssets/... //${P4_CLIENT}/Assets/GameAssets/...
-//GameAssets/main/Assets/GameAssets.meta //${P4_CLIENT}/Assets/GameAssets.meta''',
+            defaultValue: '''//depot/Assets/GameResources/... //${P4_CLIENT}/Assets/GameResources/...
+//depot/Assets/GameResources.meta //${P4_CLIENT}/Assets/GameResources.meta
+//depot/Assets/GameAssets/... //${P4_CLIENT}/Assets/GameAssets/...
+//depot/Assets/GameAssets.meta //${P4_CLIENT}/Assets/GameAssets.meta''',
             description: 'Perforce client view for Unity assets. Use ${P4_CLIENT} as the client placeholder.'
         )
     ])
@@ -64,9 +71,10 @@ def runWindowsPlayerBuild = {
                             } else {
                                 def p4Port = params.P4_PORT?.trim()
                                 def p4CredentialsId = params.P4_CREDENTIALS_ID?.trim()
+                                def configuredP4Client = params.P4_CLIENT?.trim()
                                 def p4AssetCl = params.P4_ASSET_CL?.trim()
                                 def p4View = params.P4_VIEW?.trim()
-                                def p4Client = "jenkins-${env.NODE_NAME}-${env.JOB_NAME}-${env.EXECUTOR_NUMBER}".replaceAll(/[^A-Za-z0-9_.-]/, '_')
+                                def p4Client = configuredP4Client ?: "jenkins-${env.NODE_NAME}-${env.JOB_NAME}-${env.EXECUTOR_NUMBER}".replaceAll(/[^A-Za-z0-9_.-]/, '_')
 
                                 if (!p4Port) {
                                     error 'P4_PORT is required before Perforce asset sync can run.'
