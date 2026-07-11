@@ -60,8 +60,7 @@ def runWindowsPlayerBuild = {
                 'P4_SYNC_LOG=Logs\\p4-sync.log',
                 'BUILD_MANIFEST=.workspace\\build-manifest.json'
             ]) {
-                try {
-                    stage('Checkout') {
+                stage('Checkout') {
                         if (env.JENKINSFILE_BOOTSTRAPPED != 'true') {
                             checkout scm
                         }
@@ -147,10 +146,6 @@ exit /b %UNITY_EXIT%
 @echo on
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; if (-not (Test-Path $env:WINDOWS_EXE)) { throw ('Windows player executable was not found: ' + $env:WINDOWS_EXE) }; if (Test-Path $env:WINDOWS_ZIP) { Remove-Item -LiteralPath $env:WINDOWS_ZIP -Force }; Compress-Archive -Path (Join-Path $env:WINDOWS_BUILD_DIR '*') -DestinationPath $env:WINDOWS_ZIP -Force"
 '''
-                    }
-                } finally {
-                    stage('Archive') {
-                        archiveArtifacts artifacts: 'Logs/build-windows.log,Logs/p4-sync.log,.workspace/build-manifest.json', allowEmptyArchive: true
                     }
                 }
             }
