@@ -33,14 +33,28 @@ function Invoke-P4 {
     param([string[]] $Arguments)
 
     Write-Log ("p4 " + ($Arguments -join ' '))
-    $output = & $script:P4Exe @Arguments 2>&1
-    $exitCode = $LASTEXITCODE
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $output = & $script:P4Exe @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
 
     foreach ($line in $output) {
         Write-Log ([string] $line)
     }
 
     if ($exitCode -ne 0) {
+        $outputText = ($output | ForEach-Object { [string] $_ }) -join [Environment]::NewLine
+        if ($Arguments.Count -gt 0 -and
+            $Arguments[0] -eq 'sync' -and
+            $outputText -match 'file\(s\) up-to-date') {
+            Write-Log 'p4 sync reported files already up-to-date; treating this as success.'
+            return $output
+        }
+
         throw "p4 command failed with exit code $exitCode"
     }
 
