@@ -151,7 +151,6 @@ PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreferen
             }
         }
     }
-}
 
 if (env.JENKINSFILE_BOOTSTRAPPED == 'true') {
     runWindowsPlayerBuild()
