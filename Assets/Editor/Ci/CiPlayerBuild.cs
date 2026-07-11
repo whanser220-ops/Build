@@ -39,6 +39,9 @@ namespace Unity6.Ci
 
             SwitchBuildTargetIfNeeded(BuildTarget.StandaloneWindows64);
 
+            Debug.Log("Preparing Addressables groups for CI player build.");
+            ProjectAddressablesBuild.PrepareGroupsFromCommandLine();
+
             Debug.Log("Starting Windows development player build.");
             Debug.Log("Output: " + outputPath);
             Debug.Log("Scenes:\n" + string.Join("\n", scenes.Select(scene => " - " + scene)));

@@ -135,7 +135,7 @@ if not exist "%UNITY_EXE%" (
   echo Unity not found: %UNITY_EXE%
   exit /b 1
 )
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Invoke-Unity.ps1" -ProjectPath . -batchmode -quit -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment -logFile "%UNITY_LOG%" --ci-output "%WINDOWS_EXE%"
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Invoke-Unity.ps1" -ProjectPath . -batchmode -quit -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment -logFile "%UNITY_LOG%" --ci-output "%WINDOWS_EXE%" --addressables-target StandaloneWindows64 --addressables-include-source-assets --addressables-plan-output "%WORKSPACE%\\.workspace\\artifacts\\addressables\\StandaloneWindows64\\angrymesh\\addressables_build_plan.json"
 set UNITY_EXIT=%ERRORLEVEL%
 if exist "%WORKSPACE%\\%UNITY_LOG%" type "%WORKSPACE%\\%UNITY_LOG%"
 exit /b %UNITY_EXIT%

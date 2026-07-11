@@ -37,8 +37,10 @@ public static class ProjectAddressablesBuild
     private const string DefaultAndroidGraphicsApi = "Vulkan";
     private const string GeneratedGroupPrefix = "angrymesh.";
     private const string AngryMeshLabel = "angrymesh";
-    private const long DefaultMaxBundleBytes = 64L * 1024L * 1024L;
-    private const int DefaultMaxBundleDependencies = 16;
+    private const long DefaultMaxBundleBytes = 128L * 1024L * 1024L;
+    private const long DefaultPackageSourceBytes = 32L * 1024L * 1024L;
+    private const long ScenePackageSourceBytes = 16L * 1024L * 1024L;
+    private const int DefaultMaxBundleDependencies = 32;
     private const string BuildReportsRoot = "Library/com.unity.addressables/BuildReports";
 
     private static readonly string[] IgnoredExtensions =
@@ -218,6 +220,7 @@ public static class ProjectAddressablesBuild
             {
                 name = spec.groupName,
                 roots = spec.roots.ToList(),
+                explicitAssets = spec.explicitAssets.ToList(),
                 assetCount = assetPaths.Count,
                 estimatedSourceBytes = assetPaths.Sum(GetFileSizeSafe),
                 assets = assetPaths
@@ -345,7 +348,13 @@ public static class ProjectAddressablesBuild
     private static List<ProjectGroupSpec> CreateGameResourceSpecs(string buildRoot)
     {
         if (AssetDatabase.IsValidFolder(ResourceCheckRoot))
-            return CreateSpecsFromImmediateChildren("angrymesh.gameresources", ResourceCheckRoot, Array.Empty<string>());
+        {
+            return CreateSpecsFromPackageFolders(
+                "angrymesh.gameresources",
+                ResourceCheckRoot,
+                Array.Empty<string>(),
+                DefaultPackageSourceBytes);
+        }
 
         return new List<ProjectGroupSpec>
         {
@@ -357,10 +366,29 @@ public static class ProjectAddressablesBuild
     {
         string sharedShaderRoot = AssetPathCombine(gameAssetsRoot, CommonShaderRoot);
         if (AssetDatabase.IsValidFolder(sharedShaderRoot))
-            yield return new ProjectGroupSpec("angrymesh.shared.shaders", new[] { sharedShaderRoot });
+        {
+            foreach (ProjectGroupSpec spec in CreateSpecsFromPackageFolders(
+                         "angrymesh.shared.shaders",
+                         sharedShaderRoot,
+                         Array.Empty<string>(),
+                         DefaultPackageSourceBytes,
+                         true))
+            {
+                yield return spec;
+            }
+        }
 
         if (AssetDatabase.IsValidFolder(SharedTextureRoot))
-            yield return new ProjectGroupSpec("angrymesh.shared.textures", new[] { SharedTextureRoot });
+        {
+            foreach (ProjectGroupSpec spec in CreateSpecsFromPackageFolders(
+                         "angrymesh.shared.textures",
+                         SharedTextureRoot,
+                         Array.Empty<string>(),
+                         DefaultPackageSourceBytes))
+            {
+                yield return spec;
+            }
+        }
     }
 
     private static IEnumerable<ProjectGroupSpec> CreateCommonRuntimeSpecs(string gameAssetsRoot)
@@ -390,7 +418,16 @@ public static class ProjectAddressablesBuild
 
             string sharedRoot = AssetPathCombine(worldFolder, SharedDirectoryName);
             if (AssetDatabase.IsValidFolder(sharedRoot))
-                yield return new ProjectGroupSpec(groupPrefix + ".shared", new[] { sharedRoot });
+            {
+                foreach (ProjectGroupSpec spec in CreateSpecsFromPackageFolders(
+                             groupPrefix + ".shared",
+                             sharedRoot,
+                             Array.Empty<string>(),
+                             DefaultPackageSourceBytes))
+                {
+                    yield return spec;
+                }
+            }
 
             string seasonsRoot = AssetPathCombine(worldFolder, SeasonsDirectoryName);
             if (AssetDatabase.IsValidFolder(seasonsRoot))
@@ -398,7 +435,14 @@ public static class ProjectAddressablesBuild
                 foreach (string seasonFolder in AssetDatabase.GetSubFolders(seasonsRoot).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
                 {
                     string seasonName = SanitizeSegment(Path.GetFileName(seasonFolder));
-                    yield return new ProjectGroupSpec(groupPrefix + ".season." + seasonName, new[] { seasonFolder });
+                    foreach (ProjectGroupSpec spec in CreateSpecsFromPackageFolders(
+                                 groupPrefix + ".season." + seasonName,
+                                 seasonFolder,
+                                 Array.Empty<string>(),
+                                 DefaultPackageSourceBytes))
+                    {
+                        yield return spec;
+                    }
                 }
             }
 
@@ -417,7 +461,17 @@ public static class ProjectAddressablesBuild
 
             string scenesRoot = AssetPathCombine(worldFolder, ScenesDirectoryName);
             if (AssetDatabase.IsValidFolder(scenesRoot))
-                yield return new ProjectGroupSpec(groupPrefix + ".scenes", new[] { scenesRoot });
+            {
+                foreach (ProjectGroupSpec spec in CreateSpecsFromPackageFolders(
+                             groupPrefix + ".scenes",
+                             scenesRoot,
+                             Array.Empty<string>(),
+                             ScenePackageSourceBytes,
+                             true))
+                {
+                    yield return spec;
+                }
+            }
         }
     }
 
@@ -441,46 +495,130 @@ public static class ProjectAddressablesBuild
     private static List<ProjectGroupSpec> CreateSpecsFromPackageFolders(
         string groupPrefix,
         string root,
-        string[] excludeRoots)
+        string[] excludeRoots,
+        long maxDirectAssetBytes = DefaultPackageSourceBytes,
+        bool splitDirectAssetsIndividually = false)
     {
         string normalizedRoot = NormalizeAssetPath(root).TrimEnd('/');
-        return CollectPackageFolders(normalizedRoot)
-            .Select(folder => new ProjectGroupSpec(
-                groupPrefix + "." + SanitizeRelativeGroupPath(normalizedRoot, folder),
-                new[] { NormalizeAssetPath(folder) },
-                excludeRoots))
-            .ToList();
+        List<ProjectGroupSpec> specs = new List<ProjectGroupSpec>();
+        AddPackageFolderSpecs(
+            specs,
+            groupPrefix,
+            normalizedRoot,
+            normalizedRoot,
+            excludeRoots,
+            maxDirectAssetBytes,
+            splitDirectAssetsIndividually);
+        return specs;
     }
 
-    private static IEnumerable<string> CollectPackageFolders(string root)
+    private static void AddPackageFolderSpecs(
+        List<ProjectGroupSpec> specs,
+        string groupPrefix,
+        string normalizedRoot,
+        string folder,
+        string[] excludeRoots,
+        long maxDirectAssetBytes,
+        bool splitDirectAssetsIndividually)
     {
-        string[] childFolders = AssetDatabase.GetSubFolders(root);
-        if (IsWorldChunkFolder(root))
+        if (!AssetDatabase.IsValidFolder(folder))
+            return;
+
+        string[] childFolders = AssetDatabase.GetSubFolders(folder);
+        string baseGroupName = BuildRelativeGroupName(groupPrefix, normalizedRoot, folder);
+        if (IsWorldChunkFolder(folder) || IsMeadowPrefabCategoryFolder(folder))
         {
-            yield return NormalizeAssetPath(root);
+            specs.Add(new ProjectGroupSpec(baseGroupName, new[] { NormalizeAssetPath(folder) }, excludeRoots));
+            return;
+        }
+
+        List<string> directAssets = GetDirectCandidateAssetPaths(folder, excludeRoots)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (directAssets.Count > 0)
+        {
+            specs.AddRange(CreateExplicitAssetSpecs(
+                baseGroupName,
+                directAssets,
+                excludeRoots,
+                maxDirectAssetBytes,
+                splitDirectAssetsIndividually));
+        }
+
+        foreach (string childFolder in childFolders.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            AddPackageFolderSpecs(
+                specs,
+                groupPrefix,
+                normalizedRoot,
+                NormalizeAssetPath(childFolder),
+                excludeRoots,
+                maxDirectAssetBytes,
+                splitDirectAssetsIndividually);
+        }
+    }
+
+    private static IEnumerable<ProjectGroupSpec> CreateExplicitAssetSpecs(
+        string baseGroupName,
+        IReadOnlyList<string> assetPaths,
+        string[] excludeRoots,
+        long maxDirectAssetBytes,
+        bool splitDirectAssetsIndividually)
+    {
+        if (assetPaths.Count == 0)
+            yield break;
+
+        if (splitDirectAssetsIndividually)
+        {
+            for (int assetIndex = 0; assetIndex < assetPaths.Count; assetIndex++)
+            {
+                string assetPath = assetPaths[assetIndex];
+                string groupName = baseGroupName + "." + SanitizeSegment(Path.GetFileNameWithoutExtension(assetPath));
+                yield return new ProjectGroupSpec(groupName, Array.Empty<string>(), excludeRoots, new[] { assetPath });
+            }
+
             yield break;
         }
 
-        if (IsMeadowPrefabCategoryFolder(root))
+        long batchLimit = maxDirectAssetBytes > 0 ? maxDirectAssetBytes : DefaultPackageSourceBytes;
+        List<List<string>> batches = new List<List<string>>();
+        List<string> currentBatch = new List<string>();
+        long currentBytes = 0L;
+
+        for (int assetIndex = 0; assetIndex < assetPaths.Count; assetIndex++)
         {
-            yield return NormalizeAssetPath(root);
-            yield break;
+            string assetPath = assetPaths[assetIndex];
+            long assetBytes = GetFileSizeSafe(assetPath);
+            if (currentBatch.Count > 0 && currentBytes + assetBytes > batchLimit)
+            {
+                batches.Add(currentBatch);
+                currentBatch = new List<string>();
+                currentBytes = 0L;
+            }
+
+            currentBatch.Add(assetPath);
+            currentBytes += assetBytes;
         }
 
-        if (childFolders.Length == 0)
-        {
-            yield return NormalizeAssetPath(root);
-            yield break;
-        }
+        if (currentBatch.Count > 0)
+            batches.Add(currentBatch);
 
-        if (HasDirectCandidateFiles(root))
-            yield return NormalizeAssetPath(root);
-
-        foreach (string childFolder in childFolders)
+        for (int batchIndex = 0; batchIndex < batches.Count; batchIndex++)
         {
-            foreach (string packageFolder in CollectPackageFolders(childFolder))
-                yield return packageFolder;
+            string groupName = batches.Count == 1
+                ? baseGroupName
+                : baseGroupName + ".part" + (batchIndex + 1).ToString("000");
+            yield return new ProjectGroupSpec(groupName, Array.Empty<string>(), excludeRoots, batches[batchIndex].ToArray());
         }
+    }
+
+    private static string BuildRelativeGroupName(string groupPrefix, string normalizedRoot, string folder)
+    {
+        string normalizedFolder = NormalizeAssetPath(folder).TrimEnd('/');
+        if (string.Equals(normalizedFolder, normalizedRoot, StringComparison.OrdinalIgnoreCase))
+            return groupPrefix;
+
+        return groupPrefix + "." + SanitizeRelativeGroupPath(normalizedRoot, normalizedFolder);
     }
 
     private static bool IsWorldChunkFolder(string folder)
@@ -517,21 +655,20 @@ public static class ProjectAddressablesBuild
 
     private static bool HasDirectCandidateFiles(string root)
     {
+        return GetDirectCandidateAssetPaths(root, Array.Empty<string>()).Any();
+    }
+
+    private static IEnumerable<string> GetDirectCandidateAssetPaths(string root, IReadOnlyList<string> excludeRoots)
+    {
         if (!Directory.Exists(root))
-            return false;
+            yield break;
 
         foreach (string file in Directory.GetFiles(root, "*", SearchOption.TopDirectoryOnly))
         {
             string assetPath = NormalizeAssetPath(file);
-            if (assetPath.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            string extension = Path.GetExtension(assetPath);
-            if (!IgnoredExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
-                return true;
+            if (IsCandidateAssetPath(assetPath, excludeRoots))
+                yield return assetPath;
         }
-
-        return false;
     }
 
     private static string SanitizeRelativeGroupPath(string root, string folder)
@@ -552,6 +689,13 @@ public static class ProjectAddressablesBuild
     private static IEnumerable<string> ResolveAssetPaths(ProjectGroupSpec spec, AddressablesBuildPlan plan)
     {
         HashSet<string> paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (int assetIndex = 0; assetIndex < spec.explicitAssets.Length; assetIndex++)
+        {
+            string assetPath = NormalizeAssetPath(spec.explicitAssets[assetIndex]);
+            if (ShouldIncludeAsset(assetPath, spec.excludeRoots, plan))
+                paths.Add(assetPath);
+        }
 
         for (int rootIndex = 0; rootIndex < spec.roots.Length; rootIndex++)
         {
@@ -579,6 +723,16 @@ public static class ProjectAddressablesBuild
 
     private static bool ShouldIncludeAsset(string assetPath, IReadOnlyList<string> excludeRoots, AddressablesBuildPlan plan)
     {
+        if (!IsCandidateAssetPath(assetPath, excludeRoots))
+            return false;
+
+        if (ContainsPathSegment(assetPath, "Resources"))
+            plan.warnings.Add("Addressable candidate is under a Resources folder: " + assetPath);
+        return true;
+    }
+
+    private static bool IsCandidateAssetPath(string assetPath, IReadOnlyList<string> excludeRoots)
+    {
         if (string.IsNullOrWhiteSpace(assetPath) ||
             !assetPath.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) ||
             AssetDatabase.IsValidFolder(assetPath))
@@ -588,9 +742,6 @@ public static class ProjectAddressablesBuild
 
         if (ContainsPathSegment(assetPath, "Editor"))
             return false;
-
-        if (ContainsPathSegment(assetPath, "Resources"))
-            plan.warnings.Add("Addressable candidate is under a Resources folder: " + assetPath);
 
         if (excludeRoots != null)
         {
@@ -1480,7 +1631,11 @@ public static class ProjectAddressablesBuild
             builder.Append(char.IsLetterOrDigit(c) ? c : '.');
         }
 
-        return builder.ToString().Trim('.').Replace("..", ".");
+        string result = builder.ToString().Trim('.');
+        while (result.Contains(".."))
+            result = result.Replace("..", ".");
+
+        return string.IsNullOrWhiteSpace(result) ? "group" : result;
     }
 
     private static string SanitizeChunkSegment(string value)
@@ -1495,7 +1650,11 @@ public static class ProjectAddressablesBuild
             builder.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '.');
         }
 
-        return builder.ToString().Trim('.').Replace("..", ".");
+        string result = builder.ToString().Trim('.');
+        while (result.Contains(".."))
+            result = result.Replace("..", ".");
+
+        return string.IsNullOrWhiteSpace(result) ? "chunk" : result;
     }
 
     private sealed class ProjectGroupSpec
@@ -1503,12 +1662,14 @@ public static class ProjectAddressablesBuild
         public readonly string groupName;
         public readonly string[] roots;
         public readonly string[] excludeRoots;
+        public readonly string[] explicitAssets;
 
-        public ProjectGroupSpec(string groupName, string[] roots, string[] excludeRoots = null)
+        public ProjectGroupSpec(string groupName, string[] roots, string[] excludeRoots = null, string[] explicitAssets = null)
         {
             this.groupName = groupName;
             this.roots = roots ?? Array.Empty<string>();
             this.excludeRoots = excludeRoots ?? Array.Empty<string>();
+            this.explicitAssets = explicitAssets ?? Array.Empty<string>();
         }
     }
 
@@ -1548,6 +1709,7 @@ public static class ProjectAddressablesBuild
         public int dependencyCount;
         public long estimatedSourceBytes;
         public List<string> roots = new List<string>();
+        public List<string> explicitAssets = new List<string>();
         public List<string> assets = new List<string>();
         public List<string> sharedDependencies = new List<string>();
     }
