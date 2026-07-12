@@ -69,8 +69,16 @@ MonoBehaviour:
       AssetTags: angrymesh;angrymesh.worlds.meadow.shared.configs
       ActiveRuleName: EnableGroup
       Collectors:
-      - CollectPath: Assets/GameAssets/Worlds/Meadow/Shared/Configs
-        CollectorGUID: 52bd8a3205884021ba593b152439daeb
+      - CollectPath: Assets/GameAssets/Worlds/Meadow/Shared/Configs/Post Processing/URP/PP_MeadowEnvironment_04_DioramaExample.asset
+        CollectorGUID: 21b2b241a2201a24e9f4fb6eaefec145
+        CollectorType: 0
+        AddressRuleName: AddressDisable
+        PackRuleName: PackDirectory
+        FilterRuleName: ProjectYooAssetMainAssetFilter
+        AssetTags: angrymesh.worlds.meadow.shared.configs;main
+        UserData: main
+      - CollectPath: Assets/GameAssets/Worlds/Meadow/Shared/Configs/Post Processing/URP/PP_MeadowEnvironment_05_Overview.asset
+        CollectorGUID: cdc4d60f66ee7aa47908cd7040aea8e4
         CollectorType: 0
         AddressRuleName: AddressDisable
         PackRuleName: PackDirectory
@@ -108,8 +116,18 @@ MonoBehaviour:
       AssetTags: angrymesh;angrymesh.worlds.meadow.season.autumn.configs
       ActiveRuleName: EnableGroup
       Collectors:
-      - CollectPath: Assets/GameAssets/Worlds/Meadow/Seasons/Autumn/Configs
-        CollectorGUID: b7e7680aca1c4665b55c22202b7e2af1
+      - CollectPath: Assets/GameAssets/Worlds/Meadow/Seasons/Autumn/Configs/Post
+          Processing/URP/PP_MeadowEnvironment_02_Autumn.asset
+        CollectorGUID: dd24d9bf62b0f5f469a86d393c599d46
+        CollectorType: 0
+        AddressRuleName: AddressDisable
+        PackRuleName: PackDirectory
+        FilterRuleName: ProjectYooAssetMainAssetFilter
+        AssetTags: angrymesh.worlds.meadow.season.autumn.configs;main
+        UserData: main
+      - CollectPath: Assets/GameAssets/Worlds/Meadow/Seasons/Autumn/Configs/Post
+          Processing/URP/PP_MeadowEnvironment_02_Autumn_LocalCave.asset
+        CollectorGUID: 93b607e5987f6dd4b97a99a74dcf5c94
         CollectorType: 0
         AddressRuleName: AddressDisable
         PackRuleName: PackDirectory
@@ -251,8 +269,18 @@ MonoBehaviour:
       AssetTags: angrymesh;angrymesh.worlds.meadow.season.summer.configs
       ActiveRuleName: EnableGroup
       Collectors:
-      - CollectPath: Assets/GameAssets/Worlds/Meadow/Seasons/Summer/Configs
-        CollectorGUID: db1be29368c2416b995d43bc299499e0
+      - CollectPath: Assets/GameAssets/Worlds/Meadow/Seasons/Summer/Configs/Post
+          Processing/URP/PP_MeadowEnvironment_01_Summer.asset
+        CollectorGUID: fcd0090c7365e1045a58befab74000de
+        CollectorType: 0
+        AddressRuleName: AddressDisable
+        PackRuleName: PackDirectory
+        FilterRuleName: ProjectYooAssetMainAssetFilter
+        AssetTags: angrymesh.worlds.meadow.season.summer.configs;main
+        UserData: main
+      - CollectPath: Assets/GameAssets/Worlds/Meadow/Seasons/Summer/Configs/Post
+          Processing/URP/PP_MeadowEnvironment_01_Summer_LocalCave.asset
+        CollectorGUID: c43aba9db28b34c4cb8b4795d46d5ec5
         CollectorType: 0
         AddressRuleName: AddressDisable
         PackRuleName: PackDirectory
@@ -407,8 +435,18 @@ MonoBehaviour:
       AssetTags: angrymesh;angrymesh.worlds.meadow.season.winter.configs
       ActiveRuleName: EnableGroup
       Collectors:
-      - CollectPath: Assets/GameAssets/Worlds/Meadow/Seasons/Winter/Configs
-        CollectorGUID: cd098746c95846de967a8c54bacb376f
+      - CollectPath: Assets/GameAssets/Worlds/Meadow/Seasons/Winter/Configs/Post
+          Processing/URP/PP_MeadowEnvironment_03_Winter.asset
+        CollectorGUID: c8a4ed276840dda4eaefa4c6337bd5f9
+        CollectorType: 0
+        AddressRuleName: AddressDisable
+        PackRuleName: PackDirectory
+        FilterRuleName: ProjectYooAssetMainAssetFilter
+        AssetTags: angrymesh.worlds.meadow.season.winter.configs;main
+        UserData: main
+      - CollectPath: Assets/GameAssets/Worlds/Meadow/Seasons/Winter/Configs/Post
+          Processing/URP/PP_MeadowEnvironment_03_Winter_LocalCave.asset
+        CollectorGUID: 3882b9d000f07e64b96c546a5efc25bd
         CollectorType: 0
         AddressRuleName: AddressDisable
         PackRuleName: PackDirectory
