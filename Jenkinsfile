@@ -120,6 +120,8 @@ PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Sync-PerforceAss
                         bat '''
 @echo on
 if exist ".workspace\\builds" rmdir /s /q ".workspace\\builds"
+if exist ".workspace\\artifacts\\yooasset-build" rmdir /s /q ".workspace\\artifacts\\yooasset-build"
+if exist "Assets\\StreamingAssets\\yoo" rmdir /s /q "Assets\\StreamingAssets\\yoo"
 if exist "Logs\\build-windows.log" del /f /q "Logs\\build-windows.log"
 if not exist ".workspace\\builds\\windows" mkdir ".workspace\\builds\\windows"
 if not exist "Logs" mkdir "Logs"
@@ -134,7 +136,7 @@ if not exist "%UNITY_EXE%" (
   echo Unity not found: %UNITY_EXE%
   exit /b 1
 )
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Invoke-Unity.ps1" -ProjectPath . -batchmode -quit -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment -logFile "%UNITY_LOG%" --ci-output "%WINDOWS_EXE%" --addressables-target StandaloneWindows64 --addressables-include-source-assets --addressables-plan-output "%WORKSPACE%\\.workspace\\artifacts\\addressables\\StandaloneWindows64\\angrymesh\\addressables_build_plan.json"
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Invoke-Unity.ps1" -ProjectPath . -batchmode -quit -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment -logFile "%UNITY_LOG%" --ci-output "%WINDOWS_EXE%" --yooasset-target StandaloneWindows64 --yooasset-include-source-assets --yooasset-package-name DefaultPackage --yooasset-package-version "%BUILD_NUMBER%" --yooasset-build-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build" --yooasset-plan-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset\\StandaloneWindows64\\angrymesh\\yooasset_build_plan.json"
 set UNITY_EXIT=%ERRORLEVEL%
 if exist "%WORKSPACE%\\%UNITY_LOG%" type "%WORKSPACE%\\%UNITY_LOG%"
 exit /b %UNITY_EXIT%

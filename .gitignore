@@ -9,6 +9,11 @@ UserSettings/
 /Build/
 /Builds/
 
+# YooAsset generated built-in bundles
+/Assets/StreamingAssets.meta
+/Assets/StreamingAssets/yoo.meta
+/Assets/StreamingAssets/yoo/
+
 # Codex workspace artifacts
 .workspace/
 

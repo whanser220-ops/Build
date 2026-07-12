@@ -1,7 +1,6 @@
 {
   "dependencies": {
     "com.unity.adaptiveperformance": "5.1.4",
-    "com.unity.addressables": "2.7.6",
     "com.unity.ai.navigation": "2.0.6",
     "com.unity.burst": "1.8.19",
     "com.unity.cinemachine": "2.10.3",
@@ -20,6 +19,7 @@
     "com.unity.render-pipelines.universal-config": "17.0.3",
     "com.unity.rendering.light-transport": "1.0.1",
     "com.unity.searcher": "4.9.2",
+    "com.unity.scriptablebuildpipeline": "1.21.25",
     "com.unity.shadergraph": "17.0.4",
     "com.unity.terrain-tools": "5.2.1",
     "com.unity.test-framework": "1.5.1",
@@ -60,6 +60,16 @@
     "com.unity.modules.video": "1.0.0",
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.wind": "1.0.0",
-    "com.unity.modules.xr": "1.0.0"
-  }
+    "com.unity.modules.xr": "1.0.0",
+    "com.tuyoogame.yooasset": "3.0.3-beta"
+  },
+  "scopedRegistries": [
+    {
+      "name": "package.openupm.com",
+      "url": "https://package.openupm.com",
+      "scopes": [
+        "com.tuyoogame.yooasset"
+      ]
+    }
+  ]
 }

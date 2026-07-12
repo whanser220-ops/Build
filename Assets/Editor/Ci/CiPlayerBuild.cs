@@ -39,8 +39,8 @@ namespace Unity6.Ci
 
             SwitchBuildTargetIfNeeded(BuildTarget.StandaloneWindows64);
 
-            Debug.Log("Preparing Addressables groups for CI player build.");
-            ProjectAddressablesBuild.PrepareGroupsFromCommandLine();
+            Debug.Log("Building YooAsset content for CI player build.");
+            ProjectYooAssetBuild.BuildFromCommandLine();
 
             Debug.Log("Starting Windows development player build.");
             Debug.Log("Output: " + outputPath);
