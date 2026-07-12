@@ -21,10 +21,13 @@ public static class ProjectYooAssetBuild
     private const string ChunksDirectoryName = "Chunks";
     private const string CommonDirectoryName = "Common";
     private const string SharedDirectoryName = "Shared";
+    private const string MaterialsDirectoryName = "Materials";
     private const string WorldsDirectoryName = "Worlds";
     private const string SeasonsDirectoryName = "Seasons";
     private const string ScenesDirectoryName = "Scenes";
     private const string CommonShaderRoot = "Common/Shaders";
+    private const string CommonFontsRoot = "Common/Fonts";
+    private const string CommonFunctionsRoot = "Common/Functions";
     private const string SharedTextureRoot = "Assets/GameResources/Stylized Pack - Common/Sources/Textures";
     private const string MeadowEnvironmentPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Environment";
     private const string MeadowTerrainDetailsPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Terrain Details";
@@ -96,7 +99,8 @@ public static class ProjectYooAssetBuild
         SwitchBuildTargetIfNeeded(buildTarget);
 
         bool includeSamples = HasArgument(args, "--yooasset-include-samples");
-        bool includeSourceAssets = HasArgument(args, "--yooasset-include-source-assets");
+        bool includeSourceAssets = !HasArgument(args, "--yooasset-exclude-source-assets") ||
+                                   HasArgument(args, "--yooasset-include-source-assets");
         string packageName = ResolvePackageName(args);
 
         string buildRoot = NormalizeAssetPath(GetArgumentValue(args, "--yooasset-build-root"));
@@ -191,6 +195,7 @@ public static class ProjectYooAssetBuild
         };
 
         List<ProjectGroupSpec> specs = CreateGameAssetSpecs(buildRoot);
+        specs.AddRange(CreateGameAssetDependencySpecs(buildRoot));
         if (includeSourceAssets)
             specs.AddRange(CreateGameResourceSpecs());
 
@@ -209,7 +214,7 @@ public static class ProjectYooAssetBuild
             if (assetPaths.Count == 0)
                 continue;
 
-            AddPlanGroups(plan, spec, assetPaths, groupNames);
+            AddPlanGroup(plan, spec, assetPaths, groupNames);
         }
 
         FillDependencySummary(plan);
@@ -220,59 +225,95 @@ public static class ProjectYooAssetBuild
         return plan;
     }
 
-    private static void AddPlanGroups(
+    private static void AddPlanGroup(
         YooAssetBuildPlan plan,
         ProjectGroupSpec spec,
         List<string> assetPaths,
         HashSet<string> groupNames)
     {
-        List<List<string>> batches = SplitAssetPathsBySourceBytes(assetPaths, spec.maxSourceBytes).ToList();
-        for (int batchIndex = 0; batchIndex < batches.Count; batchIndex++)
+        string groupName = MakeUniqueGroupName(spec.groupName, groupNames);
+        YooAssetGroupPlan group = new YooAssetGroupPlan
         {
-            List<string> batch = batches[batchIndex];
-            string groupName = batches.Count == 1
-                ? spec.groupName
-                : spec.groupName + ".part" + (batchIndex + 1).ToString("00");
+            name = groupName,
+            assetCount = assetPaths.Count,
+            estimatedSourceBytes = assetPaths.Sum(GetFileSizeSafe),
+            roots = spec.roots.ToList(),
+            explicitAssets = spec.explicitAssets.ToList(),
+            assets = assetPaths
+        };
 
-            groupName = MakeUniqueGroupName(groupName, groupNames);
-            plan.groups.Add(new YooAssetGroupPlan
-            {
-                name = groupName,
-                assetCount = batch.Count,
-                estimatedSourceBytes = batch.Sum(GetFileSizeSafe),
-                roots = spec.roots.ToList(),
-                explicitAssets = spec.explicitAssets.ToList(),
-                assets = batch
-            });
-        }
+        group.collectors = CreateCollectorPlans(spec, groupName, assetPaths, plan);
+        if (group.collectors.Count == 0)
+            return;
+
+        plan.groups.Add(group);
     }
 
-    private static IEnumerable<List<string>> SplitAssetPathsBySourceBytes(List<string> assetPaths, long maxSourceBytes)
+    private static List<YooAssetCollectorPlan> CreateCollectorPlans(
+        ProjectGroupSpec spec,
+        string groupName,
+        IReadOnlyCollection<string> assetPaths,
+        YooAssetBuildPlan plan)
     {
-        if (maxSourceBytes <= 0 || assetPaths.Sum(GetFileSizeSafe) <= maxSourceBytes)
+        HashSet<string> assetSet = new HashSet<string>(assetPaths, StringComparer.OrdinalIgnoreCase);
+        HashSet<string> collectorPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        List<YooAssetCollectorPlan> collectors = new List<YooAssetCollectorPlan>();
+
+        for (int rootIndex = 0; rootIndex < spec.roots.Length; rootIndex++)
         {
-            yield return assetPaths;
-            yield break;
+            string root = NormalizeAssetPath(spec.roots[rootIndex]);
+            if (string.IsNullOrWhiteSpace(root))
+                continue;
+
+            bool hasCollectedAsset = AssetDatabase.IsValidFolder(root)
+                ? assetPaths.Any(assetPath => IsUnderRoot(assetPath, root))
+                : assetSet.Contains(root);
+
+            if (hasCollectedAsset)
+                AddCollectorPlan(collectors, collectorPaths, spec, groupName, root, plan);
         }
 
-        List<string> current = new List<string>();
-        long currentBytes = 0L;
-        foreach (string assetPath in assetPaths)
+        for (int explicitIndex = 0; explicitIndex < spec.explicitAssets.Length; explicitIndex++)
         {
-            long fileSize = Math.Max(1L, GetFileSizeSafe(assetPath));
-            if (current.Count > 0 && currentBytes + fileSize > maxSourceBytes)
-            {
-                yield return current;
-                current = new List<string>();
-                currentBytes = 0L;
-            }
-
-            current.Add(assetPath);
-            currentBytes += fileSize;
+            string assetPath = NormalizeAssetPath(spec.explicitAssets[explicitIndex]);
+            if (assetSet.Contains(assetPath))
+                AddCollectorPlan(collectors, collectorPaths, spec, groupName, assetPath, plan);
         }
 
-        if (current.Count > 0)
-            yield return current;
+        return collectors
+            .OrderBy(collector => collector.collectPath, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static void AddCollectorPlan(
+        List<YooAssetCollectorPlan> collectors,
+        HashSet<string> collectorPaths,
+        ProjectGroupSpec spec,
+        string groupName,
+        string collectPath,
+        YooAssetBuildPlan plan)
+    {
+        string normalizedPath = NormalizeAssetPath(collectPath);
+        if (string.IsNullOrWhiteSpace(normalizedPath) || !collectorPaths.Add(normalizedPath))
+            return;
+
+        string guid = AssetDatabase.AssetPathToGUID(normalizedPath);
+        if (string.IsNullOrWhiteSpace(guid))
+        {
+            plan.errors.Add("Missing GUID for collector path: " + normalizedPath);
+            return;
+        }
+
+        collectors.Add(new YooAssetCollectorPlan
+        {
+            collectPath = normalizedPath,
+            collectorType = spec.collectorType,
+            addressRuleName = spec.addressRuleName,
+            packRuleName = spec.packRuleName,
+            filterRuleName = spec.filterRuleName,
+            assetTags = groupName + ";" + spec.assetClass.ToString().ToLowerInvariant(),
+            userData = spec.assetClass.ToString().ToLowerInvariant()
+        });
     }
 
     private static void ApplyPlan(YooAssetBuildPlan plan)
@@ -306,26 +347,26 @@ public static class ProjectYooAssetBuild
                 ActiveRuleName = nameof(EnableGroup)
             };
 
-            for (int assetIndex = 0; assetIndex < groupPlan.assets.Count; assetIndex++)
+            for (int collectorIndex = 0; collectorIndex < groupPlan.collectors.Count; collectorIndex++)
             {
-                string assetPath = groupPlan.assets[assetIndex];
-                string guid = AssetDatabase.AssetPathToGUID(assetPath);
+                YooAssetCollectorPlan collectorPlan = groupPlan.collectors[collectorIndex];
+                string guid = AssetDatabase.AssetPathToGUID(collectorPlan.collectPath);
                 if (string.IsNullOrWhiteSpace(guid))
                 {
-                    plan.errors.Add("Missing GUID for asset: " + assetPath);
+                    plan.errors.Add("Missing GUID for collector path: " + collectorPlan.collectPath);
                     continue;
                 }
 
                 group.Collectors.Add(new BundleCollector
                 {
-                    CollectPath = assetPath,
+                    CollectPath = collectorPlan.collectPath,
                     CollectorGUID = guid,
-                    CollectorType = ECollectorType.MainAssetCollector,
-                    AddressRuleName = nameof(AddressDisable),
-                    PackRuleName = nameof(PackGroup),
-                    FilterRuleName = nameof(CollectAll),
-                    AssetTags = groupPlan.name,
-                    UserData = "generated"
+                    CollectorType = collectorPlan.collectorType,
+                    AddressRuleName = collectorPlan.addressRuleName,
+                    PackRuleName = collectorPlan.packRuleName,
+                    FilterRuleName = collectorPlan.filterRuleName,
+                    AssetTags = collectorPlan.assetTags,
+                    UserData = collectorPlan.userData
                 });
             }
 
@@ -353,6 +394,7 @@ public static class ProjectYooAssetBuild
         }
 
         List<ProjectGroupSpec> specs = new List<ProjectGroupSpec>();
+        specs.AddRange(CreateStaticRuntimeSpecs(gameAssetsRoot));
         specs.AddRange(CreateSharedRuntimeSpecs(gameAssetsRoot));
         specs.AddRange(CreateCommonRuntimeSpecs(gameAssetsRoot));
         specs.AddRange(CreateWorldRuntimeSpecs(gameAssetsRoot));
@@ -376,6 +418,9 @@ public static class ProjectYooAssetBuild
         {
             AssetPathCombine(gameAssetsRoot, CommonDirectoryName),
             AssetPathCombine(gameAssetsRoot, WorldsDirectoryName),
+            AssetPathCombine(gameAssetsRoot, CommonFontsRoot),
+            AssetPathCombine(gameAssetsRoot, CommonFunctionsRoot),
+            AssetPathCombine(gameAssetsRoot, CommonShaderRoot),
             MeadowEnvironmentPrefabRoot,
             MeadowTerrainDetailsPrefabRoot,
             AssetPathCombine(gameAssetsRoot, MeadowLegacyConfigRoot),
@@ -393,44 +438,69 @@ public static class ProjectYooAssetBuild
     {
         if (AssetDatabase.IsValidFolder(ResourceCheckRoot))
         {
-            return CreateSpecsFromPackageFolders(
-                "angrymesh.gameresources",
-                ResourceCheckRoot,
-                Array.Empty<string>(),
-                DefaultPackageSourceBytes).ToList();
+            return EnumerateDependencyFolders(ResourceCheckRoot)
+                .Where(path => !IsUnderRoot(path, SharedTextureRoot))
+                .Select(path => CreateDependencySpec("angrymesh.dependencies." + SanitizeAssetPath(path), path))
+                .ToList();
         }
 
         return new List<ProjectGroupSpec>
         {
-            new ProjectGroupSpec("angrymesh.gameresources", new[] { ResourceCheckRoot })
+            CreateDependencySpec("angrymesh.dependencies.gameresources", ResourceCheckRoot)
         };
+    }
+
+    private static IEnumerable<ProjectGroupSpec> CreateGameAssetDependencySpecs(string buildRoot)
+    {
+        string gameAssetsRoot = ResolveGameAssetsRoot(buildRoot);
+        if (!AssetDatabase.IsValidFolder(gameAssetsRoot))
+            yield break;
+
+        string[] staticRoots = CreateGameAssetStaticRoots(gameAssetsRoot)
+            .Where(AssetDatabase.IsValidFolder)
+            .ToArray();
+
+        foreach (string dependencyRoot in EnumerateAssetParentFolders(
+                     gameAssetsRoot,
+                     CollectorAssetClass.Depend,
+                     staticRoots))
+        {
+            yield return CreateDependencySpec("angrymesh.dependencies." + SanitizeAssetPath(dependencyRoot), dependencyRoot);
+        }
+    }
+
+    private static IEnumerable<ProjectGroupSpec> CreateStaticRuntimeSpecs(string gameAssetsRoot)
+    {
+        string sharedShaderRoot = AssetPathCombine(gameAssetsRoot, CommonShaderRoot);
+        if (AssetDatabase.IsValidFolder(sharedShaderRoot))
+            yield return CreateStaticSpec("angrymesh.static.common.shaders", sharedShaderRoot);
+
+        string commonFontsRoot = AssetPathCombine(gameAssetsRoot, CommonFontsRoot);
+        if (AssetDatabase.IsValidFolder(commonFontsRoot))
+            yield return CreateStaticSpec("angrymesh.static.common.fonts", commonFontsRoot);
+
+        string commonFunctionsRoot = AssetPathCombine(gameAssetsRoot, CommonFunctionsRoot);
+        if (AssetDatabase.IsValidFolder(commonFunctionsRoot))
+            yield return CreateStaticSpec("angrymesh.static.common.functions", commonFunctionsRoot);
+
+        string worldsRoot = AssetPathCombine(gameAssetsRoot, WorldsDirectoryName);
+        if (!AssetDatabase.IsValidFolder(worldsRoot))
+            yield break;
+
+        foreach (string worldFolder in AssetDatabase.GetSubFolders(worldsRoot).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            string worldName = SanitizeSegment(Path.GetFileName(worldFolder));
+            string sharedMaterialsRoot = AssetPathCombine(worldFolder, SharedDirectoryName + "/" + MaterialsDirectoryName);
+            if (AssetDatabase.IsValidFolder(sharedMaterialsRoot))
+                yield return CreateStaticSpec("angrymesh.static.worlds." + worldName + ".shared.materials", sharedMaterialsRoot);
+        }
     }
 
     private static IEnumerable<ProjectGroupSpec> CreateSharedRuntimeSpecs(string gameAssetsRoot)
     {
-        string sharedShaderRoot = AssetPathCombine(gameAssetsRoot, CommonShaderRoot);
-        if (AssetDatabase.IsValidFolder(sharedShaderRoot))
-        {
-            foreach (ProjectGroupSpec spec in CreateSpecsFromPackageFolders(
-                         "angrymesh.shared.shaders",
-                         sharedShaderRoot,
-                         Array.Empty<string>(),
-                         DefaultPackageSourceBytes))
-            {
-                yield return spec;
-            }
-        }
-
         if (AssetDatabase.IsValidFolder(SharedTextureRoot))
         {
-            foreach (ProjectGroupSpec spec in CreateSpecsFromPackageFolders(
-                         "angrymesh.shared.textures",
-                         SharedTextureRoot,
-                         Array.Empty<string>(),
-                         DefaultPackageSourceBytes))
-            {
-                yield return spec;
-            }
+            yield return CreateDependencySpec("angrymesh.dependencies.shared.textures", SharedTextureRoot);
         }
     }
 
@@ -440,10 +510,9 @@ public static class ProjectYooAssetBuild
         if (!AssetDatabase.IsValidFolder(commonRoot))
             yield break;
 
-        string sharedShaderRoot = AssetPathCombine(gameAssetsRoot, CommonShaderRoot);
-        string[] commonExcludeRoots = AssetDatabase.IsValidFolder(sharedShaderRoot)
-            ? new[] { sharedShaderRoot }
-            : Array.Empty<string>();
+        string[] commonExcludeRoots = CreateCommonStaticRoots(gameAssetsRoot)
+            .Where(AssetDatabase.IsValidFolder)
+            .ToArray();
 
         foreach (ProjectGroupSpec spec in CreateSpecsFromPackageFolders(
                      "angrymesh.gameassets.common",
@@ -471,10 +540,15 @@ public static class ProjectYooAssetBuild
             if (AssetDatabase.IsValidFolder(sharedRoot))
             {
                 worldExcludeRoots.Add(sharedRoot);
+                string sharedMaterialsRoot = AssetPathCombine(sharedRoot, MaterialsDirectoryName);
+                string[] sharedExcludeRoots = AssetDatabase.IsValidFolder(sharedMaterialsRoot)
+                    ? new[] { sharedMaterialsRoot }
+                    : Array.Empty<string>();
+
                 foreach (ProjectGroupSpec spec in CreateSpecsFromPackageFolders(
                              groupPrefix + ".shared",
                              sharedRoot,
-                             Array.Empty<string>(),
+                             sharedExcludeRoots,
                              DefaultPackageSourceBytes))
                 {
                     yield return spec;
@@ -596,24 +670,26 @@ public static class ProjectYooAssetBuild
         string groupPrefix,
         string root,
         string[] excludeRoots,
-        long maxSourceBytes)
+        long maxSourceBytes,
+        ECollectorType collectorType = ECollectorType.MainAssetCollector,
+        string filterRuleName = null,
+        string packRuleName = null,
+        CollectorAssetClass assetClass = CollectorAssetClass.Main)
     {
         string normalizedRoot = NormalizeAssetPath(root);
         if (!AssetDatabase.IsValidFolder(normalizedRoot))
         {
-            yield return new ProjectGroupSpec(groupPrefix, new[] { normalizedRoot }, excludeRoots, null, maxSourceBytes);
-            yield break;
-        }
-
-        List<string> directAssets = CollectDirectAssetPaths(normalizedRoot, excludeRoots);
-        if (directAssets.Count > 0)
-        {
             yield return new ProjectGroupSpec(
-                groupPrefix + ".root",
-                Array.Empty<string>(),
+                groupPrefix,
+                new[] { normalizedRoot },
                 excludeRoots,
-                directAssets.ToArray(),
-                maxSourceBytes);
+                null,
+                maxSourceBytes,
+                collectorType,
+                filterRuleName,
+                packRuleName,
+                assetClass);
+            yield break;
         }
 
         string[] subFolders = AssetDatabase.GetSubFolders(normalizedRoot)
@@ -621,14 +697,46 @@ public static class ProjectYooAssetBuild
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        if (subFolders.Length == 0 && directAssets.Count == 0)
+        List<string> directAssets = CollectDirectAssetPaths(normalizedRoot, excludeRoots, assetClass);
+        if (directAssets.Count > 0 && subFolders.Length == 0)
+        {
+            yield return new ProjectGroupSpec(
+                groupPrefix + ".root",
+                new[] { normalizedRoot },
+                excludeRoots,
+                null,
+                maxSourceBytes,
+                collectorType,
+                filterRuleName,
+                packRuleName,
+                assetClass);
+        }
+        else if (directAssets.Count > 0)
+        {
+            yield return new ProjectGroupSpec(
+                groupPrefix + ".root",
+                Array.Empty<string>(),
+                excludeRoots,
+                directAssets.ToArray(),
+                maxSourceBytes,
+                collectorType,
+                filterRuleName,
+                packRuleName,
+                assetClass);
+        }
+
+        if (subFolders.Length == 0 && directAssets.Count == 0 && (excludeRoots == null || excludeRoots.Length == 0))
         {
             yield return new ProjectGroupSpec(
                 groupPrefix + "." + SanitizeSegment(Path.GetFileName(normalizedRoot)),
                 new[] { normalizedRoot },
                 excludeRoots,
                 null,
-                maxSourceBytes);
+                maxSourceBytes,
+                collectorType,
+                filterRuleName,
+                packRuleName,
+                assetClass);
             yield break;
         }
 
@@ -641,11 +749,18 @@ public static class ProjectYooAssetBuild
                 new[] { subFolder },
                 excludeRoots,
                 null,
-                maxSourceBytes);
+                maxSourceBytes,
+                collectorType,
+                filterRuleName,
+                packRuleName,
+                assetClass);
         }
     }
 
-    private static List<string> CollectDirectAssetPaths(string root, IReadOnlyList<string> excludeRoots)
+    private static List<string> CollectDirectAssetPaths(
+        string root,
+        IReadOnlyList<string> excludeRoots,
+        CollectorAssetClass assetClass)
     {
         List<string> result = new List<string>();
         if (!Directory.Exists(root))
@@ -654,7 +769,7 @@ public static class ProjectYooAssetBuild
         foreach (string filePath in Directory.GetFiles(root, "*", SearchOption.TopDirectoryOnly))
         {
             string assetPath = NormalizeAssetPath(filePath);
-            if (ShouldIncludeAsset(assetPath, excludeRoots))
+            if (ShouldIncludeAssetForClass(assetPath, excludeRoots, assetClass))
                 result.Add(assetPath);
         }
 
@@ -667,7 +782,7 @@ public static class ProjectYooAssetBuild
         for (int index = 0; index < spec.explicitAssets.Length; index++)
         {
             string explicitAsset = NormalizeAssetPath(spec.explicitAssets[index]);
-            if (ShouldIncludeAsset(explicitAsset, spec.excludeRoots))
+            if (ShouldIncludeAssetForClass(explicitAsset, spec.excludeRoots, spec.assetClass))
                 paths.Add(explicitAsset);
         }
 
@@ -679,7 +794,7 @@ public static class ProjectYooAssetBuild
 
             if (!AssetDatabase.IsValidFolder(root))
             {
-                if (ShouldIncludeAsset(root, spec.excludeRoots))
+                if (ShouldIncludeAssetForClass(root, spec.excludeRoots, spec.assetClass))
                     paths.Add(root);
                 else if (!File.Exists(root))
                     plan.warnings.Add("YooAsset root folder does not exist: " + root);
@@ -691,12 +806,35 @@ public static class ProjectYooAssetBuild
             for (int guidIndex = 0; guidIndex < guids.Length; guidIndex++)
             {
                 string assetPath = NormalizeAssetPath(AssetDatabase.GUIDToAssetPath(guids[guidIndex]));
-                if (ShouldIncludeAsset(assetPath, spec.excludeRoots))
+                if (ShouldIncludeAssetForClass(assetPath, spec.excludeRoots, spec.assetClass))
                     paths.Add(assetPath);
             }
         }
 
         return paths;
+    }
+
+    private static bool ShouldIncludeAssetForClass(
+        string assetPath,
+        IReadOnlyList<string> excludeRoots,
+        CollectorAssetClass assetClass)
+    {
+        if (!ShouldIncludeAsset(assetPath, excludeRoots))
+            return false;
+
+        switch (assetClass)
+        {
+            case CollectorAssetClass.Main:
+                return ProjectYooAssetCollectorRuleUtility.IsMainAsset(assetPath);
+            case CollectorAssetClass.Depend:
+                return ProjectYooAssetCollectorRuleUtility.IsDependencyAsset(assetPath);
+            case CollectorAssetClass.Static:
+                return ProjectYooAssetCollectorRuleUtility.IsStaticAsset(assetPath);
+            case CollectorAssetClass.All:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static bool ShouldIncludeAsset(string assetPath, IReadOnlyList<string> excludeRoots)
@@ -1004,6 +1142,124 @@ public static class ProjectYooAssetBuild
         return string.IsNullOrWhiteSpace(result) ? "chunk" : result;
     }
 
+    private static string SanitizeAssetPath(string assetPath)
+    {
+        string normalized = NormalizeAssetPath(assetPath);
+        if (normalized.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized.Substring("Assets/".Length);
+
+        string result = SanitizeSegment(normalized.Replace('/', '.'));
+        return string.IsNullOrWhiteSpace(result) ? "assets" : result;
+    }
+
+    private static string[] CreateCommonStaticRoots(string gameAssetsRoot)
+    {
+        return new[]
+        {
+            AssetPathCombine(gameAssetsRoot, CommonFontsRoot),
+            AssetPathCombine(gameAssetsRoot, CommonFunctionsRoot),
+            AssetPathCombine(gameAssetsRoot, CommonShaderRoot)
+        };
+    }
+
+    private static IEnumerable<string> CreateGameAssetStaticRoots(string gameAssetsRoot)
+    {
+        foreach (string commonRoot in CreateCommonStaticRoots(gameAssetsRoot))
+            yield return commonRoot;
+
+        string worldsRoot = AssetPathCombine(gameAssetsRoot, WorldsDirectoryName);
+        if (!AssetDatabase.IsValidFolder(worldsRoot))
+            yield break;
+
+        foreach (string worldFolder in AssetDatabase.GetSubFolders(worldsRoot).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+            yield return AssetPathCombine(worldFolder, SharedDirectoryName + "/" + MaterialsDirectoryName);
+    }
+
+    private static ProjectGroupSpec CreateDependencySpec(string groupName, string root)
+    {
+        return new ProjectGroupSpec(
+            groupName,
+            new[] { root },
+            Array.Empty<string>(),
+            null,
+            DefaultPackageSourceBytes,
+            ECollectorType.DependAssetCollector,
+            nameof(ProjectYooAssetDependencyAssetFilter),
+            nameof(ProjectYooAssetPackDependencyBucket),
+            CollectorAssetClass.Depend);
+    }
+
+    private static ProjectGroupSpec CreateStaticSpec(
+        string groupName,
+        string root,
+        string filterRuleName = null,
+        string packRuleName = null)
+    {
+        return new ProjectGroupSpec(
+            groupName,
+            new[] { root },
+            Array.Empty<string>(),
+            null,
+            DefaultPackageSourceBytes,
+            ECollectorType.StaticAssetCollector,
+            filterRuleName ?? nameof(ProjectYooAssetStaticAssetFilter),
+            packRuleName ?? nameof(PackGroup),
+            CollectorAssetClass.Static);
+    }
+
+    private static IEnumerable<string> EnumerateDependencyFolders(string root)
+    {
+        string normalizedRoot = NormalizeAssetPath(root);
+        if (!AssetDatabase.IsValidFolder(normalizedRoot))
+            yield break;
+
+        Stack<string> pending = new Stack<string>();
+        pending.Push(normalizedRoot);
+        while (pending.Count > 0)
+        {
+            string current = pending.Pop();
+            string folderName = Path.GetFileName(current);
+            if (ProjectYooAssetCollectorRuleUtility.IsDependencyFolderName(folderName) &&
+                !string.Equals(current, normalizedRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return current;
+                continue;
+            }
+
+            string[] subFolders = AssetDatabase.GetSubFolders(current)
+                .OrderByDescending(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            for (int index = 0; index < subFolders.Length; index++)
+                pending.Push(subFolders[index]);
+        }
+    }
+
+    private static IEnumerable<string> EnumerateAssetParentFolders(
+        string root,
+        CollectorAssetClass assetClass,
+        IReadOnlyList<string> excludeRoots)
+    {
+        string normalizedRoot = NormalizeAssetPath(root);
+        if (!AssetDatabase.IsValidFolder(normalizedRoot))
+            yield break;
+
+        HashSet<string> parentFolders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        string[] guids = AssetDatabase.FindAssets(string.Empty, new[] { normalizedRoot });
+        for (int guidIndex = 0; guidIndex < guids.Length; guidIndex++)
+        {
+            string assetPath = NormalizeAssetPath(AssetDatabase.GUIDToAssetPath(guids[guidIndex]));
+            if (!ShouldIncludeAssetForClass(assetPath, excludeRoots, assetClass))
+                continue;
+
+            string parentFolder = NormalizeAssetPath(Path.GetDirectoryName(assetPath));
+            if (!string.IsNullOrWhiteSpace(parentFolder) && AssetDatabase.IsValidFolder(parentFolder))
+                parentFolders.Add(parentFolder);
+        }
+
+        foreach (string parentFolder in parentFolders.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+            yield return parentFolder;
+    }
+
     private static string MakeUniqueGroupName(string groupName, HashSet<string> existingNames)
     {
         string candidate = groupName;
@@ -1024,20 +1280,42 @@ public static class ProjectYooAssetBuild
         public readonly string[] excludeRoots;
         public readonly string[] explicitAssets;
         public readonly long maxSourceBytes;
+        public readonly ECollectorType collectorType;
+        public readonly string addressRuleName;
+        public readonly string packRuleName;
+        public readonly string filterRuleName;
+        public readonly CollectorAssetClass assetClass;
 
         public ProjectGroupSpec(
             string groupName,
             string[] roots,
             string[] excludeRoots = null,
             string[] explicitAssets = null,
-            long maxSourceBytes = DefaultPackageSourceBytes)
+            long maxSourceBytes = DefaultPackageSourceBytes,
+            ECollectorType collectorType = ECollectorType.MainAssetCollector,
+            string filterRuleName = null,
+            string packRuleName = null,
+            CollectorAssetClass assetClass = CollectorAssetClass.Main)
         {
             this.groupName = groupName;
             this.roots = roots ?? Array.Empty<string>();
             this.excludeRoots = excludeRoots ?? Array.Empty<string>();
             this.explicitAssets = explicitAssets ?? Array.Empty<string>();
             this.maxSourceBytes = maxSourceBytes;
+            this.collectorType = collectorType;
+            this.addressRuleName = nameof(AddressDisable);
+            this.packRuleName = packRuleName ?? nameof(PackDirectory);
+            this.filterRuleName = filterRuleName ?? nameof(ProjectYooAssetMainAssetFilter);
+            this.assetClass = assetClass;
         }
+    }
+
+    private enum CollectorAssetClass
+    {
+        Main,
+        Depend,
+        Static,
+        All
     }
 
     [Serializable]
@@ -1064,7 +1342,188 @@ public static class ProjectYooAssetBuild
         public long estimatedSourceBytes;
         public List<string> roots = new List<string>();
         public List<string> explicitAssets = new List<string>();
+        public List<YooAssetCollectorPlan> collectors = new List<YooAssetCollectorPlan>();
         public List<string> assets = new List<string>();
         public List<string> sharedDependencies = new List<string>();
+    }
+
+    [Serializable]
+    private sealed class YooAssetCollectorPlan
+    {
+        public string collectPath = string.Empty;
+        public ECollectorType collectorType = ECollectorType.MainAssetCollector;
+        public string addressRuleName = string.Empty;
+        public string packRuleName = string.Empty;
+        public string filterRuleName = string.Empty;
+        public string assetTags = string.Empty;
+        public string userData = string.Empty;
+    }
+}
+
+public sealed class ProjectYooAssetMainAssetFilter : IAssetFilterRule
+{
+    public string FindAssetType => EAssetFilterType.All.ToString();
+
+    public bool IsCollectAsset(AssetFilterRuleData data)
+    {
+        return ProjectYooAssetCollectorRuleUtility.IsMainAsset(data.AssetPath);
+    }
+}
+
+public sealed class ProjectYooAssetDependencyAssetFilter : IAssetFilterRule
+{
+    public string FindAssetType => EAssetFilterType.All.ToString();
+
+    public bool IsCollectAsset(AssetFilterRuleData data)
+    {
+        return ProjectYooAssetCollectorRuleUtility.IsDependencyAsset(data.AssetPath);
+    }
+}
+
+public sealed class ProjectYooAssetStaticAssetFilter : IAssetFilterRule
+{
+    public string FindAssetType => EAssetFilterType.All.ToString();
+
+    public bool IsCollectAsset(AssetFilterRuleData data)
+    {
+        return ProjectYooAssetCollectorRuleUtility.IsStaticAsset(data.AssetPath);
+    }
+}
+
+public sealed class ProjectYooAssetPackDependencyBucket : IBundlePackRule
+{
+    public BundlePackRuleResult GetPackRuleResult(BundlePackRuleData data)
+    {
+        string bucket = ProjectYooAssetCollectorRuleUtility.GetDependencyBucket(data.AssetPath);
+        return new BundlePackRuleResult(
+            data.GroupName + "." + bucket,
+            DefaultBundlePackRule.AssetBundleFileExtension);
+    }
+}
+
+public static class ProjectYooAssetCollectorRuleUtility
+{
+    private static readonly HashSet<string> MainAssetExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".asset",
+        ".bytes",
+        ".inputactions",
+        ".json",
+        ".prefab",
+        ".spriteatlas",
+        ".txt",
+        ".unity"
+    };
+
+    private static readonly HashSet<string> DependencyExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".anim",
+        ".controller",
+        ".exr",
+        ".fbx",
+        ".hdr",
+        ".jpg",
+        ".jpeg",
+        ".mat",
+        ".mask",
+        ".mesh",
+        ".mp3",
+        ".ogg",
+        ".png",
+        ".psb",
+        ".psd",
+        ".tga",
+        ".terrainlayer",
+        ".tif",
+        ".tiff",
+        ".wav"
+    };
+
+    private static readonly HashSet<string> StaticExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".asset",
+        ".mat",
+        ".otf",
+        ".shader",
+        ".shadervariants",
+        ".ttf"
+    };
+
+    private static readonly HashSet<string> DependencyFolderNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "Animations",
+        "Audio",
+        "Materials",
+        "Meshes",
+        "Meshs",
+        "Models",
+        "SourceAnimations",
+        "Terrain Data",
+        "Terrain Layers",
+        "Textures"
+    };
+
+    public static bool IsMainAsset(string assetPath)
+    {
+        string normalizedPath = Normalize(assetPath);
+        if (IsStaticAsset(normalizedPath) || IsDependencyAsset(normalizedPath))
+            return false;
+
+        return MainAssetExtensions.Contains(Path.GetExtension(normalizedPath));
+    }
+
+    public static bool IsDependencyAsset(string assetPath)
+    {
+        string normalizedPath = Normalize(assetPath);
+        string extension = Path.GetExtension(normalizedPath);
+        if (DependencyExtensions.Contains(extension))
+            return true;
+
+        return extension.Equals(".asset", StringComparison.OrdinalIgnoreCase) &&
+               (normalizedPath.IndexOf("/Sources/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                normalizedPath.IndexOf("/SourceAnimations/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                normalizedPath.IndexOf("/Terrain Data/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                normalizedPath.IndexOf("/Terrain Layers/", StringComparison.OrdinalIgnoreCase) >= 0);
+    }
+
+    public static bool IsStaticAsset(string assetPath)
+    {
+        string normalizedPath = Normalize(assetPath);
+        string extension = Path.GetExtension(normalizedPath);
+        if (!StaticExtensions.Contains(extension))
+            return false;
+
+        return extension.Equals(".shader", StringComparison.OrdinalIgnoreCase) ||
+               extension.Equals(".shadervariants", StringComparison.OrdinalIgnoreCase) ||
+               normalizedPath.IndexOf("/Common/Fonts/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               normalizedPath.IndexOf("/Common/Functions/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               normalizedPath.IndexOf("/Shared/Materials/", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    public static bool IsDependencyFolderName(string folderName)
+    {
+        return DependencyFolderNames.Contains(folderName ?? string.Empty);
+    }
+
+    public static string GetDependencyBucket(string assetPath)
+    {
+        string fileName = Path.GetFileNameWithoutExtension(Normalize(assetPath));
+        if (string.IsNullOrWhiteSpace(fileName))
+            return "other";
+
+        char first = char.ToLowerInvariant(fileName[0]);
+        if (first >= '0' && first <= '9')
+            return "num";
+        if (first >= 'a' && first <= 'z')
+            return first.ToString();
+
+        return "other";
+    }
+
+    private static string Normalize(string path)
+    {
+        return string.IsNullOrWhiteSpace(path)
+            ? string.Empty
+            : path.Trim().Replace('\\', '/');
     }
 }

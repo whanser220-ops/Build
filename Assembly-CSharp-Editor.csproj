@@ -46,9 +46,24 @@
     <Analyzer Include="C:\Program Files\Unity\Hub\Editor\6000.0.46f1\Editor\Data\Tools\Unity.SourceGenerators\Unity.UIToolkit.SourceGenerator.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Editor\BuildPipeline\Addressables\ProjectAddressablesBuild.cs" />
+    <Compile Include="Assets\Editor\Characters\Qianxia\RenMaterialImportUtility.cs" />
+    <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaMeadowSceneMigrationUtility.cs" />
     <Compile Include="Assets\ThirdParty\UnityTutorialInfo\TutorialInfo\Scripts\Editor\ReadmeEditor.cs" />
-    <Compile Include="Assets\Editor\BuildPipeline\Addressables\AngryMeshAddressablesReferenceConverter.cs" />
+    <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaLodPrefabBuilder.cs" />
+    <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaCrowdTextureApplyUtility.cs" />
+    <Compile Include="Assets\Editor\Characters\Qianxia\WalkingMaterialImportUtility.cs" />
+    <Compile Include="Assets\Editor\Crowds\VAT\CrowdVatBaker.cs" />
+    <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaFbxImportConfigurator.cs" />
+    <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaRigDiagnostics.cs" />
+    <Compile Include="Assets\Editor\BuildPipeline\YooAsset\AngryMeshYooAssetReferenceConverter.cs" />
+    <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaCharacterSetupUtility.cs" />
+    <Compile Include="Assets\Editor\AssetImport\ProjectFbxAutoImporter.cs" />
+    <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaVatBuilder.cs" />
+    <Compile Include="Assets\Editor\AssetImport\ProjectAssetImportRuleSetEditor.cs" />
+    <Compile Include="Assets\Editor\Characters\Qianxia\RenTextureApplyUtility.cs" />
+    <Compile Include="Assets\Editor\AssetImport\ProjectAssetImportRuleSet.cs" />
+    <Compile Include="Assets\Editor\BuildPipeline\YooAsset\ProjectYooAssetBuild.cs" />
+    <Compile Include="Assets\Editor\Ci\CiPlayerBuild.cs" />
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.0.46f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
     </Reference>
@@ -844,9 +859,6 @@
     <Reference Include="Unity.InputSystem.ForUI">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.InputSystem.ForUI.dll</HintPath>
     </Reference>
-    <Reference Include="Unity.Addressables.Editor">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Addressables.Editor.dll</HintPath>
-    </Reference>
     <Reference Include="UnityEditor.UI">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\UnityEditor.UI.dll</HintPath>
     </Reference>
@@ -865,8 +877,8 @@
     <Reference Include="Unity.AdaptivePerformance">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.AdaptivePerformance.dll</HintPath>
     </Reference>
-    <Reference Include="Unity.ResourceManager">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.ResourceManager.dll</HintPath>
+    <Reference Include="YooAsset.Editor">
+      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\YooAsset.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Runtime.Shared">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.RenderPipelines.Core.Runtime.Shared.dll</HintPath>
@@ -886,17 +898,17 @@
     <Reference Include="UnityEngine.UI">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\UnityEngine.UI.dll</HintPath>
     </Reference>
-    <Reference Include="Unity.RenderPipelines.Core.ShaderLibrary">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.RenderPipelines.Core.ShaderLibrary.dll</HintPath>
+    <Reference Include="Unity.ShaderGraph.Editor">
+      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.ShaderGraph.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.PlasticSCM.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.PlasticSCM.Editor.dll</HintPath>
     </Reference>
+    <Reference Include="Unity.RenderPipelines.Core.ShaderLibrary">
+      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.RenderPipelines.Core.ShaderLibrary.dll</HintPath>
+    </Reference>
     <Reference Include="Unity.Multiplayer.Center.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Multiplayer.Center.Editor.dll</HintPath>
-    </Reference>
-    <Reference Include="Unity.ShaderGraph.Editor">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.ShaderGraph.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.ScriptableBuildPipeline.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.ScriptableBuildPipeline.Editor.dll</HintPath>
@@ -921,9 +933,6 @@
     </Reference>
     <Reference Include="Unity.Collections">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Collections.dll</HintPath>
-    </Reference>
-    <Reference Include="Unity.Addressables">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Addressables.dll</HintPath>
     </Reference>
     <Reference Include="Unity.Rendering.LightTransport.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Rendering.LightTransport.Editor.dll</HintPath>
@@ -999,6 +1008,9 @@
     </Reference>
     <Reference Include="Unity.TextMeshPro.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.TextMeshPro.Editor.dll</HintPath>
+    </Reference>
+    <Reference Include="YooAsset">
+      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\YooAsset.dll</HintPath>
     </Reference>
     <Reference Include="Unity.Burst.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Burst.Editor.dll</HintPath>

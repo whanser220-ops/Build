@@ -51,19 +51,23 @@
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\KeepFrame\KeepFrameFeature.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\Interactive.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\PlayerInteractions.cs" />
+    <Compile Include="Assets\Scripts\YooAsset\AngryMeshYooAssetPrefabInstance.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DistortTunnel\DistortTunnelPass_Tunnel.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DistortTunnel\DistortTunnelPass_Distort.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\Door.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\PhysicsObject.cs" />
+    <Compile Include="Assets\Scripts\Crowds\VAT\CrowdVatPlayer.cs" />
     <Compile Include="Assets\ANGRY MESH\Stylized Pack - Common\Scripts\ASPGlobalSettings.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DistortTunnel\DistortTunnelRendererFeature.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\BlitWithMaterial\BlitAndSwapColorRendererFeature.cs" />
+    <Compile Include="Assets\Scripts\Characters\Qianxia\QianxiaRigidBodyProxySetup.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\UnsafePass\UnsafePassRenderFeature.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\Blit\CopyRenderFeature.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\BlitToRTHandle\BlitToRTHandlePass.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\CameraStacking\3D Skybox\Scripts\SkyboxCamera.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DepthBlit\DepthBlitDepthOnlyPass.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\GbufferVisualization\GbufferVisualizationRendererFeature.cs" />
+    <Compile Include="Assets\Scripts\Characters\Qianxia\QianxiaGenshinCameraController.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\BlitToRTHandle\BlitToRTHandleRendererFeature.cs" />
     <Compile Include="Assets\ANGRY MESH\Stylized Pack - Common\Scripts\ObjectFollowTarget.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\FramebufferFetch\FrameBufferFetchRenderFeature.cs" />
@@ -77,16 +81,18 @@
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\RendererList\RendererListRenderFeature.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\LightCulling.cs" />
     <Compile Include="Assets\ThirdParty\Shop\Suntail Village\Scripts\SuntailStartDemo.cs" />
+    <Compile Include="Assets\Scripts\Crowds\VAT\CrowdVatAnimationAsset.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\SharedAssets\Scripts\CheckAssignedRenderPipelineAsset.cs" />
     <Compile Include="Assets\ANGRY MESH\Stylized Pack - Common\Scripts\SimpleText.cs" />
+    <Compile Include="Assets\Scripts\Characters\Qianxia\QianxiaLodCollection.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\LensFlares\Scripts\ScreenSpacePlacement.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DepthBlit\DepthBlitFeature.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\Compute\ComputeRendererFeature.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DepthBlit\DepthBlitEdgePass.cs" />
-    <Compile Include="Assets\Scripts\Addressables\AngryMeshAddressablePrefabInstance.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\RendererFeatures\DepthBlit\DepthBlitCopyDepthPass.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP Package Samples\SharedAssets\Scripts\FirstPersonController.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\OutputTexture\OutputTextureRendererFeature.cs" />
+    <Compile Include="Assets\Scripts\Characters\Qianxia\QianxiaGenshinCharacterController.cs" />
     <Compile Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\Blit w. FrameData\BlitRendererFeature.cs" />
     <None Include="Packages\com.unity.render-pipelines.universal@18be219df6cb\package.json" />
     <None Include="Assets\GameAssets\Common\Shaders\S_Tree_Bark.shader" />
@@ -103,6 +109,7 @@
     <None Include="Assets\GameAssets\Common\Shaders\S_VFX_WindMesh.shader" />
     <None Include="Assets\ANGRY MESH\Stylized Pack - Meadow Environment\Prefabs Terrain Details\Readme.txt" />
     <None Include="Assets\ThirdParty\Shop\Suntail Village\Shaders\Suntail_Surface.shader" />
+    <None Include="Assets\GameAssets\Common\Shaders\Crowds\VAT\CrowdVatLit.shader" />
     <None Include="Assets\GameAssets\Common\Shaders\S_Tree_Leaf.shader" />
     <None Include="Assets\GameAssets\Common\Shaders\S_Grass.shader" />
     <None Include="Assets\Samples\Universal RP\17.0.4\URP RenderGraph Samples\MRT\MrtColor.shader" />
@@ -850,9 +857,6 @@
     <Reference Include="Unity.InputSystem.ForUI">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.InputSystem.ForUI.dll</HintPath>
     </Reference>
-    <Reference Include="Unity.Addressables.Editor">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Addressables.Editor.dll</HintPath>
-    </Reference>
     <Reference Include="UnityEditor.UI">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\UnityEditor.UI.dll</HintPath>
     </Reference>
@@ -871,8 +875,8 @@
     <Reference Include="Unity.AdaptivePerformance">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.AdaptivePerformance.dll</HintPath>
     </Reference>
-    <Reference Include="Unity.ResourceManager">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.ResourceManager.dll</HintPath>
+    <Reference Include="YooAsset.Editor">
+      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\YooAsset.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.RenderPipelines.Core.Runtime.Shared">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.RenderPipelines.Core.Runtime.Shared.dll</HintPath>
@@ -892,17 +896,17 @@
     <Reference Include="UnityEngine.UI">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\UnityEngine.UI.dll</HintPath>
     </Reference>
-    <Reference Include="Unity.RenderPipelines.Core.ShaderLibrary">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.RenderPipelines.Core.ShaderLibrary.dll</HintPath>
+    <Reference Include="Unity.ShaderGraph.Editor">
+      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.ShaderGraph.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.PlasticSCM.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.PlasticSCM.Editor.dll</HintPath>
     </Reference>
+    <Reference Include="Unity.RenderPipelines.Core.ShaderLibrary">
+      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.RenderPipelines.Core.ShaderLibrary.dll</HintPath>
+    </Reference>
     <Reference Include="Unity.Multiplayer.Center.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Multiplayer.Center.Editor.dll</HintPath>
-    </Reference>
-    <Reference Include="Unity.ShaderGraph.Editor">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.ShaderGraph.Editor.dll</HintPath>
     </Reference>
     <Reference Include="Unity.ScriptableBuildPipeline.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.ScriptableBuildPipeline.Editor.dll</HintPath>
@@ -927,9 +931,6 @@
     </Reference>
     <Reference Include="Unity.Collections">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Collections.dll</HintPath>
-    </Reference>
-    <Reference Include="Unity.Addressables">
-      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Addressables.dll</HintPath>
     </Reference>
     <Reference Include="Unity.Rendering.LightTransport.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Rendering.LightTransport.Editor.dll</HintPath>
@@ -1005,6 +1006,9 @@
     </Reference>
     <Reference Include="Unity.TextMeshPro.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.TextMeshPro.Editor.dll</HintPath>
+    </Reference>
+    <Reference Include="YooAsset">
+      <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\YooAsset.dll</HintPath>
     </Reference>
     <Reference Include="Unity.Burst.Editor">
       <HintPath>C:\unity\Unity6\Library\ScriptAssemblies\Unity.Burst.Editor.dll</HintPath>
