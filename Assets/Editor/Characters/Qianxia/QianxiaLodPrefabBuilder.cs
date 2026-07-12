@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -6,12 +6,12 @@ using UnityEngine;
 
 public static class QianxiaLodPrefabBuilder
 {
-    public const string Lod0AssetPath = "Assets/GameResources/Characters/Qianxia/Meshs/LOD2.fbx";
-    public const string Lod1AssetPath = "Assets/GameResources/Characters/Qianxia/Meshs/crowd1000.fbx";
-    public const string Lod2AssetPath = "Assets/GameResources/Characters/Qianxia/Meshs/crowd500.fbx";
-    public const string LodPrefabPath = "Assets/GameAssets/Characters/Qianxia/Generated/QianxiaLodCharacter.prefab";
+    public const string Lod0AssetPath = "Assets/Game/Characters/Qianxia/Art/Meshs/LOD2.fbx";
+    public const string Lod1AssetPath = "Assets/Game/Characters/Qianxia/Art/Meshs/crowd1000.fbx";
+    public const string Lod2AssetPath = "Assets/Game/Characters/Qianxia/Art/Meshs/crowd500.fbx";
+    public const string LodPrefabPath = "Assets/Game/Characters/Qianxia/Runtime/Generated/QianxiaLodCharacter.prefab";
 
-    private const string GeneratedFolder = "Assets/GameAssets/Characters/Qianxia/Generated";
+    private const string GeneratedFolder = "Assets/Game/Characters/Qianxia/Runtime/Generated";
     private const string AnimatorControllerPath = GeneratedFolder + "/QianxiaLocomotion.controller";
     private const string BuildRequestFile = ".workspace/artifacts/qianxia-lod-build.request";
     private const string BuildResultFile = ".workspace/artifacts/qianxia-lod-build.result.txt";

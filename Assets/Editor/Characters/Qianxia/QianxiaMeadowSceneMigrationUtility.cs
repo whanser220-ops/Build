@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -7,8 +7,8 @@ using UnityEngine.Rendering.Universal;
 
 public static class QianxiaMeadowSceneMigrationUtility
 {
-    public const string MeadowSummerScenePath = "Assets/GameAssets/Worlds/Meadow/Scenes/Scene_MeadowEnvironment_01_Summer.unity";
-    public const string CharacterPrefabPath = "Assets/GameAssets/Characters/Qianxia/Generated/QianxiaThirdPerson.prefab";
+    public const string MeadowSummerScenePath = "Assets/Game/Worlds/Meadow/Runtime/Scenes/Scene_MeadowEnvironment_01_Summer.unity";
+    public const string CharacterPrefabPath = "Assets/Game/Characters/Qianxia/Runtime/Generated/QianxiaThirdPerson.prefab";
     public const string CharacterObjectName = "QianxiaThirdPerson";
 
     private const float SpawnDistanceInFrontOfCamera = 4.0f;

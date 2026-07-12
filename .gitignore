@@ -17,8 +17,10 @@ UserSettings/
 # Codex workspace artifacts
 .workspace/
 
-# SVN working copies embedded under Unity asset roots
-.svn/
+# Local Perforce auth
+.p4config
+.p4tickets
+.p4tickets.txt
 
 # IDE
 .idea/
@@ -37,7 +39,9 @@ __pycache__/
 # Built output (do not commit)
 DOC/
 
-# Art assets are versioned by SVN and pinned through svn-assets.lock.json.
+# Unity content assets are versioned by Perforce and pinned through p4-assets.lock.json.
+/Assets/Game/**/Art/**
+/Assets/Game/**/Runtime/**
 /Assets/GameAssets/**
 /Assets/GameResources/**
 /Assets/ThirdParty/**

@@ -1,106 +1,201 @@
-# Assets 目录组织规范
+﻿# Assets 目录组织规范
 
-本文记录当前仓库�?`Assets/` 目录落位规则。目标是让路径可以直接驱动资源检查、导入规则和性能分析，而不是依赖口头约定�?
+本文记录当前仓库的 `Assets/` 资源落位规则。新的主路径放弃顶层 `GameAssets` / `GameResources` 二分法，改为按内容模块组织，并在模块内部区分 `Art` 与 `Runtime`。
+
+## 核心原则
+
+物理目录优先表达“这个资源属于哪个内容模块”，而不是优先表达“它是构建入口还是依赖素材”。
+
+```text
+Assets/Game/<内容域>/<模块>/
+├── Art/          # 美术依赖资产：模型、贴图、材质、动画、音频、VFX 源输入等
+├── Runtime/      # 运行时入口资产：Prefab、Scene、ScriptableObject、Timeline、Animator、直接加载资源等
+├── Editor/       # 只服务该模块的编辑器工具
+├── Generated/    # 可再生成产物；需要进入构建时优先放 Runtime/Generated
+└── Docs/         # 模块内短说明，可选
+```
+
+构建系统扫描 `Runtime`，导入检查和依赖分组扫描 `Art`。普通美术人员进入一个模块目录即可看到该模块的生产素材和运行时装配结果，不需要在两个顶层大目录之间来回跳转。
+
 ## 根级目录
 
-- `Assets/3rd/`：第三方插件�?SDK 隔离区�?- `Assets/Editor/`：项目级构建脚本、管线工具与编辑器工具入口�?- `Assets/GameResources/`：源产区，美术原始素材与导入检查白名单�?- `Assets/GameAssets/`：构建区，运行时资产�?Addressables 构建白名单；包目录直接映射为业务分包颗粒度�?- `Assets/Scenes/`：场景区，启动场景、美术用场景、自动化或临时生成场景�?- `Assets/Scripts/`：代码层，C# 源码主入口�?- `Assets/Settings/`：Unity / URP / 项目级配置�?- `Assets/Tests/`：构建链�?EditMode 测试；CI 只运�?`Project.BuildPipeline.EditMode.Tests`�?- `Assets/Samples/`：Unity Package Manager 导入�?Samples，保�?Unity 默认约定�?- `Assets/Resources/`、`Assets/StreamingAssets/`：仅在确实需�?Unity 特殊目录语义时使用�?
-当前暂留的根级例外：
+- `Assets/Game/`：新增游戏内容主目录，按内容域和模块组织。
+- `Assets/Scripts/`：跨模块运行时代码主入口。
+- `Assets/Editor/`：跨模块构建脚本、管线工具与编辑器工具入口。
+- `Assets/Settings/`：Unity / URP / 项目级配置。
+- `Assets/Tests/`：EditMode / PlayMode 测试。
+- `Assets/ThirdParty/`：外部资源包、Asset Store 包与供应商原始内容。后续第三方插件和 SDK 也可按需要迁到 `Assets/3rd/`。
+- `Assets/Resources/`、`Assets/StreamingAssets/`：仅在确实需要 Unity 特殊目录语义时使用。
 
-- `Assets/Project/`：历史项目代码与工具目录，迁移到 `Assets/Editor` / `Assets/Scripts` / `Assets/GameAssets` 前继续保留�?- `Assets/ThirdParty/`：历史第三方目录，后续第三方插件�?SDK 优先迁入 `Assets/3rd/`�?- `Assets/ANGRY MESH/`：旧插件残留区；当前仅保留脚本、模板包和说明文件。运行时构建资源已迁�?`Assets/GameAssets`，源素材已迁�?`Assets/GameResources`。RenderDoc/性能分析工具链中仍提到此路径的地方需要后续专项迁移�?- `Assets/Adaptive Performance/`、`Assets/URP/`：Unity 或包导入产生的目录，后续如果要迁移，应按包设置专项确认�?
-## `Assets/GameAssets/` 构建�?
-`Assets/GameAssets` 只放运行时需要被构建管线纳入的产成品资源，例�?Prefab、ScriptableObject、Timeline、Animator、可直接加载的大图和运行时配置�?
-当前约定的一级目录如下：
+当前存量兼容说明：
+
+- `Assets/GameAssets/`：旧构建区，物理目录已移除。部分工具仍能识别旧路径，便于处理未迁移分支或历史引用；新增资源不要继续放入。
+- `Assets/GameResources/`：旧源素材区，物理目录已移除。资产版本流已改为 Perforce 管理模块 `Art` / `Runtime` 子树；新增模块素材进入对应模块的 `Art`。
+- `Assets/Project/`：历史代码、渲染实验和工具目录。已有硬编码路径较多，按模块分批迁移。
+- `Assets/ANGRY MESH/`：旧插件残留区，仅保留脚本、模板包和说明文件。
+- `Assets/Adaptive Performance/`、`Assets/URP/`、`Assets/Samples/`：Unity 或包导入产生的目录，迁移前需要专项确认。
+
+## 推荐结构
 
 ```text
-Assets/GameAssets
-├── Common/
-�?  ├── ASP Global Settings/
-�?  ├── Functions/
-�?  ├── Shaders/
-�?  └── Fonts/
-├── Scenes/
-├── Configs/
-�?  └── Post Processing/
-├── Textures/
-├── Prefabs/
-�?  ├── Hero/
-�?  └── Monster/
+Assets/Game/
+├── Characters/
+│   └── Qianxia/
+│       ├── Art/
+│       │   ├── Models/
+│       │   ├── Textures/
+│       │   ├── Materials/
+│       │   └── Animations/
+│       ├── Runtime/
+│       │   ├── Prefabs/
+│       │   ├── Data/
+│       │   └── Generated/
+│       └── Editor/
+│
 ├── Worlds/
-�?  └── Meadow/
-�?      ├── Shared/
-�?      �?  ├── Materials/
-�?      �?  ├── Prefabs/
-�?      �?  └── Configs/
-�?      ├── Seasons/
-�?      �?  ├── Autumn/
-�?      �?  ├── Summer/
-�?      �?  └── Winter/
-�?      ├── Chunks/
-�?      �?  ├── Chunk_000_000/
-�?      �?  ├── Chunk_000_001/
-�?      �?  └── Chunk_001_000/
-�?      └── Scenes/
-└── UIModules/
-    ├── UILogin/
-    └── UIMain/
+│   └── Meadow/
+│       ├── Art/
+│       │   ├── Models/
+│       │   ├── Textures/
+│       │   ├── Materials/
+│       │   ├── TerrainData/
+│       │   └── TerrainLayers/
+│       ├── Runtime/
+│       │   ├── Shared/
+│       │   ├── Seasons/
+│       │   ├── Chunks/
+│       │   ├── Scenes/
+│       │   └── Configs/
+│       └── Generated/
+│
+├── UI/
+│   └── UILogin/
+│       ├── Art/
+│       │   ├── Sprites/
+│       │   ├── Materials/
+│       │   └── Animations/
+│       └── Runtime/
+│           ├── Prefabs/
+│           └── Data/
+│
+├── VFX/
+│   └── Fireball/
+│       ├── Art/
+│       └── Runtime/
+│
+├── Shared/
+│   └── StylizedPackCommon/
+│       ├── Art/
+│       └── Runtime/
+│           ├── Shaders/
+│           ├── ShaderVariants/
+│           ├── Fonts/
+│           └── Functions/
+│
+└── Core/
+    └── Input/
+        └── Runtime/
 ```
 
-打包脚本默认扫描 `Assets/GameAssets`。`Common/`、`Worlds/` 和共�?shader / texture 有显式分组规则；其他目录继续按叶子目录或包含直接资源文件的中间目录生�?`angrymesh.gameassets.<relative.path>` 业务组。源素材、PSD/FBX 原始制作文件和导入中间态不要放进这里�?
-## `Assets/GameResources/` 源产�?
-`Assets/GameResources` 只放源素材和导入检查对象。资源检查、导入规则和 Shader / Material 风险预检默认只扫描此目录�?
-当前已迁移的 ANGRY MESH 源素材：
+## 构建收集规则
+
+- 主资源从 `Assets/Game/**/Runtime/**` 收集。
+- `Art` 默认没有运行时地址，不作为代码直接加载入口。
+- `Art` 中的模型、材质、贴图、动画、音频等通过依赖关系进入包；需要公共化时由构建分析提升为依赖包或静态公共包。
+- 目录提供默认模块边界，最终 AssetBundle 粒度仍由加载生命周期、更新频率、依赖关系和显式 Pack Rule 决定。
+- `Runtime` 中可以有 `Prefabs/`、`Scenes/`、`Data/`、`Configs/`、`Generated/` 等子目录，但不要把底层 DCC 源文件放入 `Runtime`。
+
+YooAsset 当前已支持：
 
 ```text
-Assets/GameResources/Stylized Pack - Common/Sources
-Assets/GameResources/Stylized Pack - Meadow Environment/Sources
+Assets/Game/**/Runtime/**       -> 主资源 Collector
+Assets/Game/**/Art/**           -> 依赖资源 Collector
+历史 `Assets/GameAssets/**` / `Assets/GameResources/**` 路径只作为工具兼容入口，不作为当前物理目录。
 ```
 
-当前已迁移的 ANGRY MESH 运行时构建资源：
+## 依赖方向
+
+允许：
 
 ```text
-Assets/GameAssets/Common/ASP Global Settings
-Assets/GameAssets/Common/Functions
-Assets/GameAssets/Common/Shaders
-Assets/GameAssets/Worlds/Meadow/Shared
-Assets/GameAssets/Worlds/Meadow/Seasons/Autumn
-Assets/GameAssets/Worlds/Meadow/Seasons/Summer
-Assets/GameAssets/Worlds/Meadow/Seasons/Winter
-Assets/GameAssets/Worlds/Meadow/Chunks
-Assets/GameAssets/Worlds/Meadow/Scenes
+Runtime -> Art
+Runtime -> Shared/*/Runtime
+Runtime -> Shared/*/Art
 ```
+
+禁止：
+
+```text
+Art -> Runtime
+Art -> 其他模块 Runtime
+```
+
+如果 `Art` 资源必须被运行时代码直接加载，应将它提升到同模块的 `Runtime`，并明确其加载语义。
+
+## 存量迁移映射
+
+后续迁移按模块分批执行，不做一次性全仓搬迁。
+
+```text
+Assets/Game/Characters/Qianxia/Art
+  -> Assets/Game/Characters/Qianxia/Art
+
+Assets/Game/Characters/Qianxia/Runtime
+  -> Assets/Game/Characters/Qianxia/Runtime
+
+Assets/Game/Worlds/Meadow/Art/Sources
+  -> Assets/Game/Worlds/Meadow/Art/Sources
+
+Assets/Game/Worlds/Meadow/Runtime
+  -> Assets/Game/Worlds/Meadow/Runtime
+
+Assets/Game/Shared/StylizedPackCommon/Art/Sources
+  -> Assets/Game/Shared/StylizedPackCommon/Art/Sources
+
+Assets/Game/Shared/StylizedPackCommon/Runtime
+  -> Assets/Game/Shared/StylizedPackCommon/Runtime
+
+Assets/Game/Core/Input/Runtime
+  -> Assets/Game/Core/Input/Runtime
+```
+
+每个迁移批次都需要同步：
+
+- `.meta` 文件和资源 GUID。
+- Editor 工具中的硬编码路径。
+- YooAsset 构建计划和 `BundleCollectorSetting.asset`。
+- 场景、Prefab、ScriptableObject 中保存的字符串路径。
+- 相关方案文档和测试。
 
 ## `Assets/Project/` 历史目录
 
-`Assets/Project` 是当前存量代码和工具目录。迁移完成前，已有模块仍按资源类型划分；新增运行时资源优先进�?`Assets/GameAssets`，新增源素材优先进入 `Assets/GameResources`，新增代码优先进�?`Assets/Scripts` �?`Assets/Editor`�?
-- `Configs/`：输入配置、Terrain 数据、Volume Profile、ScriptableObject 配置资产�?- `Materials/`：项目材质和 Terrain Layer�?- `Models/`：项目自研模型源文件�?- `Prefabs/`：项�?prefab�?- `Scripts/`：通用脚本入口；既有模块脚本在迁移前可保留原路径�?- `Shaders/`：Shader、Compute Shader、HLSL include�?- `Textures/`：项目贴图�?- `Tools/`：Editor 工具、性能分析工具、模板与辅助链路�?- `VFX/`、`Audio/`、`Animations/`、`Fonts/`、`Sprites/`、`Timelines/`：有对应资源时再创建或使用�?
-当前存在�?`Characters/`、`Crowds/`、`CS/`、`sky/`、`qianxia/` 是历史模块根目录。它们包含大量硬编码路径、测试和方案文档引用，后续若要继续迁移，应按模块分批处理并同步测试与文档�?
-## 三级目录原则
+`Assets/Project` 仍是当前 URP / RenderGraph、Crowd VAT、Scene Query 和 RenderDoc 工具链的存量实现目录。已有模块包含大量硬编码路径、测试和方案文档引用，迁移时按模块单独执行。
 
-- `Textures/`、`Models/`、`Audio/` 的三级目录优先按子类型或导入策略划分，例�?`Textures/Grass/`、`Models/StaticModels/`、`Audio/Streaming/`�?- 其他资源类型可以在三级目录按功能域划分，但不要让功能域回到二级目录�?- 生命周期目录少用；大世界运行时资源例外，`Worlds/<World>/Shared + Seasons + Chunks` �?Addressables 加载/卸载边界。确实需要临时资源时，优先放 `.workspace/`；必须进 Unity 导入链路时再建立明确�?`Generated/` �?`Experimental/` 子目录�?- 目录命名应能服务自动化导入规则和资产检查。例如同�?Terrain 数据放在 `Configs/Terrain/`，Terrain Layer 放在 `Materials/Terrain/`�?
-## 本次整理后的关键落点
+新增内容规则：
 
-- 输入资产：`Assets/GameAssets/Configs/Input/InputSystem_Actions.inputactions`
-- Sky 配置：`Assets/Project/Configs/Sky/`
-- Terrain 数据：`Assets/Project/Configs/Terrain/`
-- Terrain Layer：`Assets/Project/Materials/Terrain/`
-- Grass 分布贴图：`Assets/Project/Textures/Grass/`
-- Sky 资源：`Assets/Project/Scripts/Sky/`、`Assets/Project/Materials/Sky/`、`Assets/Project/Models/Sky/`、`Assets/Project/Shaders/Sky/`、`Assets/Project/Textures/Sky/`
-- Crowd 战斗 FX 贴图：`Assets/Project/Textures/Crowds/CombatFx/`
-- HLSL include：`Assets/Project/Shaders/Includes/`
-- 旧模板：`Assets/Project/Tools/Templates/LegacyRenderTemplates/`
-- 外部资源包：`Assets/ThirdParty/ADG_Textures/`、`Assets/ThirdParty/Raygeas/`、`Assets/ThirdParty/Shop/`
-- 千夏 MMD 原始包：`Assets/ThirdParty/QianxiaMmdSource/`
-- Unity 模板说明资源：`Assets/ThirdParty/UnityTutorialInfo/`
+- 新增游戏内容资源进入 `Assets/Game/<内容域>/<模块>/Art` 或 `Runtime`。
+- 新增跨模块运行时代码进入 `Assets/Scripts/`。
+- 新增跨模块编辑器工具进入 `Assets/Editor/`。
+- 与旧模块强绑定的临时改动可以先留在 `Assets/Project/`，但需要在对应方案文档中标明迁移状态。
 
-## 千夏第三人称资源落点
+## Perforce 与外部源文件
 
-`Assets/Project` 不再作为千夏第三人称控制的落点。当前按资源生命周期拆分如下�?
-- 运行时代码：`Assets/Scripts/Characters/Qianxia/`
-- 编辑器工具：`Assets/Editor/Characters/Qianxia/`
-- 输入配置、prefab、材质、Animator 与生成资源：`Assets/GameAssets/Characters/Qianxia/`、`Assets/GameAssets/Configs/Input/`
-- 源模型、源动画、参考贴图与参�?FBX：`Assets/GameResources/Characters/Qianxia/`
-- VAT 播放运行时代码：`Assets/Scripts/Crowds/VAT/`
-- VAT 烘焙编辑器代码：`Assets/Editor/Crowds/VAT/`
-- VAT shader 资源：`Assets/GameAssets/Common/Shaders/Crowds/VAT/`
+真正的 DCC 工程文件（如 `.blend`、`.ma`、`.spp`、`.psd`）优先放在仓库外部美术源资产库。进入 Unity 的交换资产和导入后依赖资产放到模块 `Art`。
 
-其中只有 `Assets/GameResources/**` 继续由 SVN 管理，Git 不新增 LFS 规则。
+Unity 内容资产由 Perforce 管理，当前 view 见 `tools/perforce-assets.p4view`。Git 只管理模块根目录、`Art.meta`、`Runtime.meta` 等目录级 `.meta`，`Art` / `Runtime` 内部资源和内部 `.meta` 不进 Git。
+
+当前 Perforce 管理范围包括：
+
+```text
+Assets/Game/Characters/Qianxia/Art/**
+Assets/Game/Characters/Qianxia/Runtime/**
+Assets/Game/Core/Input/Runtime/**
+Assets/Game/Shared/StylizedPackCommon/Art/**
+Assets/Game/Shared/StylizedPackCommon/Runtime/**
+Assets/Game/UI/UILogin/Runtime/**
+Assets/Game/UI/UIMain/Runtime/**
+Assets/Game/Worlds/Meadow/Art/**
+Assets/Game/Worlds/Meadow/Runtime/**
+```
+
+同步和提交流程见 `docs/perforce-art-assets-workflow.md`。

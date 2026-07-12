@@ -1350,7 +1350,7 @@ public sealed class ProjectAssetImportRuleSet : ScriptableObject
                 Filter(
                     ProjectAssetClass.Model,
                     ProjectAssetStringMatchMode.Contains,
-                    "Stylized Pack - Meadow Environment/Sources/Meshes/"),
+                    "Worlds/Meadow/Art/Sources/Meshes/"),
                 ModelProperties(
                     ("ModelImporter.preserveHierarchy", "true"))),
             Rule(

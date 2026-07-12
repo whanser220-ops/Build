@@ -1,4 +1,4 @@
-# 千夏 3D 角色走路移动设计文档
+﻿# 千夏 3D 角色走路移动设计文档
 
 ## 文档信息
 
@@ -14,7 +14,7 @@
   - `Assets/Project/Characters/Qianxia/Generated/QianxiaThirdPerson.prefab`
   - `Assets/Project/Characters/Qianxia/Editor/QianxiaCharacterSetupUtility.cs`
   - `Assets/Project/Characters/Qianxia/Editor/QianxiaMeadowSceneMigrationUtility.cs`
-  - `Assets/GameAssets/Worlds/Meadow/Scenes/Scene_MeadowEnvironment_01_Summer.unity`
+  - `Assets/Game/Worlds/Meadow/Runtime/Scenes/Scene_MeadowEnvironment_01_Summer.unity`
 - 最后实现核对：2026-06-15
 - 关联实现：
   - `Assets/Project/Configs/Input/InputSystem_Actions.inputactions`

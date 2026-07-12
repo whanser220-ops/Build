@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
@@ -6,10 +6,10 @@ using UnityEngine;
 
 public static class QianxiaRigDiagnostics
 {
-    private const string MotionSourceAssetPath = "Assets/GameResources/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
+    private const string MotionSourceAssetPath = "Assets/Game/Characters/Qianxia/Art/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
     private const string VatTargetAssetPath = QianxiaLodPrefabBuilder.Lod0AssetPath;
-    private const string WalkClipAssetPath = "Assets/GameResources/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
-    private const string BoneTextureAssetPath = "Assets/GameAssets/Characters/Qianxia/Generated/VAT/QianxiaCrowdLod0Vat_BoneTex.asset";
+    private const string WalkClipAssetPath = "Assets/Game/Characters/Qianxia/Art/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
+    private const string BoneTextureAssetPath = "Assets/Game/Characters/Qianxia/Runtime/Generated/VAT/QianxiaCrowdLod0Vat_BoneTex.asset";
 
     [MenuItem("Tools/Qianxia/Run Rig Diagnostics")]
     public static void RunRigDiagnosticsMenu()

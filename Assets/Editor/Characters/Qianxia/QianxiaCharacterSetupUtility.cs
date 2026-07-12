@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -10,14 +10,14 @@ public static class QianxiaCharacterSetupUtility
 {
     private const string ExternalModelPath = @"D:\mouxin\mhy\qianxia\Qianxia_Rokoko_BlenderClean.fbx";
     private const string ExternalWalkPath = @"D:\mouxin\donghua\Walking.fbx";
-    private const string SourceModelsFolder = "Assets/GameResources/Characters/Qianxia/Meshs";
-    private const string SourceAnimationsFolder = "Assets/GameResources/Characters/Qianxia/SourceAnimations";
-    private const string SourceWalkFolder = "Assets/GameResources/Characters/Qianxia/SourceAnimations/Walk";
-    private const string CharacterMaterialsFolder = "Assets/GameResources/Characters/Qianxia/Materials";
-    private const string GeneratedFolder = "Assets/GameAssets/Characters/Qianxia/Generated";
+    private const string SourceModelsFolder = "Assets/Game/Characters/Qianxia/Art/Meshs";
+    private const string SourceAnimationsFolder = "Assets/Game/Characters/Qianxia/Art/SourceAnimations";
+    private const string SourceWalkFolder = "Assets/Game/Characters/Qianxia/Art/SourceAnimations/Walk";
+    private const string CharacterMaterialsFolder = "Assets/Game/Characters/Qianxia/Art/Materials";
+    private const string GeneratedFolder = "Assets/Game/Characters/Qianxia/Runtime/Generated";
     private const string AnimatorControllerPath = GeneratedFolder + "/QianxiaLocomotion.controller";
     private const string PrefabPath = GeneratedFolder + "/QianxiaThirdPerson.prefab";
-    private const string InputActionsPath = "Assets/GameAssets/Configs/Input/InputSystem_Actions.inputactions";
+    private const string InputActionsPath = "Assets/Game/Core/Input/Runtime/InputSystem_Actions.inputactions";
     private const string InstallRequestFile = ".workspace/artifacts/qianxia-install.request";
     private const string InstallResultFile = ".workspace/artifacts/qianxia-install.result.txt";
 

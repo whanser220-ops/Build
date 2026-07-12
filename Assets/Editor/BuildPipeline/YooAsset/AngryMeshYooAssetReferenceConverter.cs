@@ -10,7 +10,8 @@ using UnityEngine.SceneManagement;
 
 public static class AngryMeshYooAssetReferenceConverter
 {
-    private const string GameAssetsRoot = "Assets/GameAssets/";
+    private const string LegacyGameAssetsRoot = "Assets/GameAssets/";
+    private const string GameContentRoot = "Assets/Game/";
     private const string LegacyAngryMeshRoot = "Assets/ANGRY MESH/";
     private const string DefaultConvertedScenePath = "Assets/Scenes/Scenes 1/Scene_MeadowEnvironment_01_Summer_YooAsset.unity";
 
@@ -158,8 +159,16 @@ public static class AngryMeshYooAssetReferenceConverter
 
     private static bool IsConvertibleYooAssetAssetPath(string assetPath)
     {
-        return assetPath.StartsWith(GameAssetsRoot, StringComparison.OrdinalIgnoreCase) ||
+        return assetPath.StartsWith(LegacyGameAssetsRoot, StringComparison.OrdinalIgnoreCase) ||
+               IsContentModuleRuntimeAssetPath(assetPath) ||
                assetPath.StartsWith(LegacyAngryMeshRoot, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsContentModuleRuntimeAssetPath(string assetPath)
+    {
+        string normalizedPath = NormalizeAssetPath(assetPath);
+        return normalizedPath.StartsWith(GameContentRoot, StringComparison.OrdinalIgnoreCase) &&
+               normalizedPath.IndexOf("/Runtime/", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static void ReplacePrefabInstanceWithLoader(GameObject prefabRoot, string address)

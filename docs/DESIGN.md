@@ -30,7 +30,8 @@
 ## 资源与项目文件约定
 
 - `Assets/` 目录落位以 `docs/assets-directory-layout.md` 为准。
-- 新增项目资源优先进入 `Assets/Project/`，二级目录按资源类型划分。
+- 新增游戏内容资源优先进入 `Assets/Game/<内容域>/<模块>/Art` 或 `Runtime`，不要继续新增到顶层 `GameAssets` / `GameResources` 二分结构。
+- 新增跨模块运行时代码优先进入 `Assets/Scripts/`，新增跨模块编辑器工具优先进入 `Assets/Editor/`。
 - 外部资源包优先进入 `Assets/ThirdParty/`，除非 Unity 包或现有工具链对根级路径有硬依赖。
 - 不要无意义修改 `.meta` 文件。
 - 不要顺手保存无关场景、预制体或项目设置。

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "port": "ssl:1.117.232.198:1666",
+  "changelist": "",
+  "viewFile": "tools/perforce-assets.p4view",
+  "roots": [
+    {
+      "depotPath": "//depot/Assets/Game/Characters/Qianxia/Art/...",
+      "localPath": "Assets/Game/Characters/Qianxia/Art"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/Characters/Qianxia/Runtime/...",
+      "localPath": "Assets/Game/Characters/Qianxia/Runtime"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/Core/Input/Runtime/...",
+      "localPath": "Assets/Game/Core/Input/Runtime"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/Shared/StylizedPackCommon/Art/...",
+      "localPath": "Assets/Game/Shared/StylizedPackCommon/Art"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/Shared/StylizedPackCommon/Runtime/...",
+      "localPath": "Assets/Game/Shared/StylizedPackCommon/Runtime"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/UI/UILogin/Runtime/...",
+      "localPath": "Assets/Game/UI/UILogin/Runtime"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/UI/UIMain/Runtime/...",
+      "localPath": "Assets/Game/UI/UIMain/Runtime"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/Worlds/Meadow/Art/...",
+      "localPath": "Assets/Game/Worlds/Meadow/Art"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/Worlds/Meadow/Runtime/...",
+      "localPath": "Assets/Game/Worlds/Meadow/Runtime"
+    }
+  ]
+}

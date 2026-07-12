@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Text;
 using UnityEditor;
@@ -6,8 +6,8 @@ using UnityEngine;
 
 public static class RenMaterialImportUtility
 {
-    private const string RenAssetPath = "Assets/GameResources/Characters/Qianxia/Reference/Ren/ren.fbx";
-    private const string TargetModelPath = "Assets/GameResources/Characters/Qianxia/Meshs/Qianxia_Rokoko_BlenderClean.fbx";
+    private const string RenAssetPath = "Assets/Game/Characters/Qianxia/Art/Reference/Ren/ren.fbx";
+    private const string TargetModelPath = "Assets/Game/Characters/Qianxia/Art/Meshs/Qianxia_Rokoko_BlenderClean.fbx";
 
     [MenuItem("Tools/Qianxia/Inspect Ren FBX Materials")]
     public static void InspectRenFbxMaterialsMenu()

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -6,9 +6,9 @@ using UnityEngine.Rendering;
 
 public static class RenTextureApplyUtility
 {
-    private const string RenAssetPath = "Assets/GameResources/Characters/Qianxia/Reference/Ren/ren.fbx";
-    private const string DiffuseTexturePath = "Assets/GameResources/Characters/Qianxia/Reference/Walking1/ExtractedTextures/Ch36_1001_Diffuse.png";
-    private const string MaterialFolderPath = "Assets/GameResources/Characters/Qianxia/Reference/Ren/Materials";
+    private const string RenAssetPath = "Assets/Game/Characters/Qianxia/Art/Reference/Ren/ren.fbx";
+    private const string DiffuseTexturePath = "Assets/Game/Characters/Qianxia/Art/Reference/Walking1/ExtractedTextures/Ch36_1001_Diffuse.png";
+    private const string MaterialFolderPath = "Assets/Game/Characters/Qianxia/Art/Reference/Ren/Materials";
     private const string MaterialAPath = MaterialFolderPath + "/Ch36_Body.mat";
     private const string MaterialBPath = MaterialFolderPath + "/Ch36_Body_001.mat";
 

@@ -19,11 +19,11 @@
 - `assets-directory-layout.md`
   - `Assets/` 目录组织规则、例外目录与后续资源落位约定。
 - `angry-mesh-sources-import-workflow.md`
-  - `Assets/GameResources` 源素材导入检查、规则匹配与持久化工作流。
+  - `Assets/Game/**/Art` 源素材导入检查、规则匹配与持久化工作流。
 - `fbx-auto-import-rules.md`
   - FBX 自动导入器的路径、节点命名、动画、LOD、碰撞和材质槽规则。
-- `svn-art-assets-workflow.md`
-  - Git 管代码、SVN 管美术资产的本地同步、lock 文件与提交流程。
+- `perforce-art-assets-workflow.md`
+  - Git 管代码、Perforce 管 Unity 内容资产的本地同步、lock 文件与提交流程。
 - `codex-context-engineering.md`
   - 上下文卸载、artifact、记忆文件和 RenderDoc 分析分层约定。
 - `agents/README.md`

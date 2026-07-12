@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Text;
 using UnityEditor;
@@ -6,8 +6,8 @@ using UnityEngine;
 
 public static class WalkingMaterialImportUtility
 {
-    private const string WalkingAssetPath = "Assets/GameResources/Characters/Qianxia/Reference/Walking1/Walking (1).fbx";
-    private const string RenAssetPath = "Assets/GameResources/Characters/Qianxia/Reference/Ren/ren.fbx";
+    private const string WalkingAssetPath = "Assets/Game/Characters/Qianxia/Art/Reference/Walking1/Walking (1).fbx";
+    private const string RenAssetPath = "Assets/Game/Characters/Qianxia/Art/Reference/Ren/ren.fbx";
 
     [MenuItem("Tools/Qianxia/Inspect Walking FBX Materials")]
     public static void InspectWalkingFbxMaterialsMenu()
