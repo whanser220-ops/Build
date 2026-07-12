@@ -274,11 +274,29 @@ public static class ProjectYooAssetBuild
             if (string.IsNullOrWhiteSpace(root))
                 continue;
 
-            bool hasCollectedAsset = AssetDatabase.IsValidFolder(root)
-                ? assetPaths.Any(assetPath => IsUnderRoot(assetPath, root))
-                : assetSet.Contains(root);
+            if (AssetDatabase.IsValidFolder(root))
+            {
+                List<string> rootAssets = assetPaths
+                    .Where(assetPath => IsUnderRoot(assetPath, root))
+                    .OrderBy(assetPath => assetPath, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
-            if (hasCollectedAsset)
+                if (rootAssets.Count == 0)
+                    continue;
+
+                if (CanUseFolderCollector(root, spec, assetSet, plan))
+                {
+                    AddCollectorPlan(collectors, collectorPaths, spec, groupName, root, plan);
+                    continue;
+                }
+
+                for (int assetIndex = 0; assetIndex < rootAssets.Count; assetIndex++)
+                    AddCollectorPlan(collectors, collectorPaths, spec, groupName, rootAssets[assetIndex], plan);
+
+                continue;
+            }
+
+            if (assetSet.Contains(root))
                 AddCollectorPlan(collectors, collectorPaths, spec, groupName, root, plan);
         }
 
@@ -323,6 +341,56 @@ public static class ProjectYooAssetBuild
             assetTags = groupName + ";" + spec.assetClass.ToString().ToLowerInvariant(),
             userData = spec.assetClass.ToString().ToLowerInvariant()
         });
+    }
+
+    private static bool CanUseFolderCollector(
+        string root,
+        ProjectGroupSpec spec,
+        HashSet<string> plannedAssets,
+        YooAssetBuildPlan plan)
+    {
+        string[] guids = AssetDatabase.FindAssets(string.Empty, new[] { root });
+        for (int guidIndex = 0; guidIndex < guids.Length; guidIndex++)
+        {
+            string assetPath = NormalizeAssetPath(AssetDatabase.GUIDToAssetPath(guids[guidIndex]));
+            if (string.IsNullOrWhiteSpace(assetPath) || AssetDatabase.IsValidFolder(assetPath) || !File.Exists(assetPath))
+                continue;
+
+            if (!WouldCollectorFilterIncludeAsset(assetPath, spec.assetClass))
+                continue;
+
+            Type mainAssetType = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
+            if (mainAssetType == null)
+            {
+                plan.warnings.Add("YooAsset folder collector downgraded to explicit assets because Unity cannot resolve asset type: " + assetPath);
+                return false;
+            }
+
+            if (!plannedAssets.Contains(assetPath))
+            {
+                plan.warnings.Add("YooAsset folder collector downgraded to explicit assets because the folder contains filtered asset: " + assetPath);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool WouldCollectorFilterIncludeAsset(string assetPath, CollectorAssetClass assetClass)
+    {
+        switch (assetClass)
+        {
+            case CollectorAssetClass.Main:
+                return ProjectYooAssetCollectorRuleUtility.IsMainAsset(assetPath);
+            case CollectorAssetClass.Depend:
+                return ProjectYooAssetCollectorRuleUtility.IsDependencyAsset(assetPath);
+            case CollectorAssetClass.Static:
+                return ProjectYooAssetCollectorRuleUtility.IsStaticAsset(assetPath);
+            case CollectorAssetClass.All:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static void ApplyPlan(YooAssetBuildPlan plan)
