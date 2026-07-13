@@ -201,9 +201,9 @@ PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreferen
 @echo on
 cd "%BUNDLE_REPORT_WEB_DIR%"
 set NEXT_PUBLIC_BASE_PATH=%BUNDLE_REPORT_BASE_PATH%
-npm ci
-npm run typecheck
-npm run build
+call npm ci
+call npm run typecheck
+call npm run build
 '''
                     }
 
