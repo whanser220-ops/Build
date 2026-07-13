@@ -139,8 +139,21 @@ REMOTE_USER='$SshUser'
 sudo rm -rf "`$REMOTE_APP_DIR"
 sudo mkdir -p "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR"
 sudo chown -R "`$REMOTE_USER":"`$REMOTE_USER" "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR"
-unzip -oq "`$APP_ARCHIVE" -d "`$REMOTE_APP_DIR"
-unzip -oq "`$DATA_ARCHIVE" -d "`$REMOTE_DATA_DIR"
+
+unzip_allow_warnings() {
+  archive="`$1"
+  destination="`$2"
+  set +e
+  unzip -oq "`$archive" -d "`$destination"
+  rc="`$?"
+  set -e
+  if [ "`$rc" -gt 1 ]; then
+    exit "`$rc"
+  fi
+}
+
+unzip_allow_warnings "`$APP_ARCHIVE" "`$REMOTE_APP_DIR"
+unzip_allow_warnings "`$DATA_ARCHIVE" "`$REMOTE_DATA_DIR"
 
 REMOTE_DATA_DIR="`$REMOTE_DATA_DIR" node <<'NODE'
 const fs = require('fs');
