@@ -152,8 +152,9 @@ if not exist "%UNITY_EXE%" (
   echo Unity not found: %UNITY_EXE%
   exit /b 1
 )
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Invoke-Unity.ps1" -ProjectPath . -batchmode -quit -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment -logFile "%UNITY_LOG%" --ci-output "%WINDOWS_EXE%" --yooasset-target StandaloneWindows64 --yooasset-include-source-assets --yooasset-package-name DefaultPackage --yooasset-package-version "%BUILD_NUMBER%" --yooasset-build-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build" --yooasset-plan-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset\\StandaloneWindows64\\angrymesh\\yooasset_build_plan.json"
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Invoke-Unity.ps1" -ProjectPath . -batchmode -quit -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment -logFile "%UNITY_LOG%" --ci-output "%WINDOWS_EXE%" --yooasset-target StandaloneWindows64 --yooasset-exclude-source-assets --yooasset-package-name DefaultPackage --yooasset-package-version "%BUILD_NUMBER%" --yooasset-build-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build" --yooasset-plan-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset\\StandaloneWindows64\\angrymesh\\yooasset_build_plan.json"
 set UNITY_EXIT=%ERRORLEVEL%
+if "%UNITY_EXIT%"=="0" if exist "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build\\StandaloneWindows64\\DefaultPackage\\OutputCache" rmdir /s /q "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build\\StandaloneWindows64\\DefaultPackage\\OutputCache"
 if exist "%WORKSPACE%\\%UNITY_LOG%" type "%WORKSPACE%\\%UNITY_LOG%"
 exit /b %UNITY_EXIT%
 '''
