@@ -105,6 +105,27 @@ public sealed class ProjectYooAssetBundleReportTests
         Assert.That(chain, Does.Contain("c"));
     }
 
+    [Test]
+    public void LayoutCaptureTask_OnlyInjectsSbpInterfaceContextKeys()
+    {
+        Type taskType = GetRequiredType("ProjectSbpBundleLayoutCaptureTask");
+        string injectContextAttributeName = "UnityEditor.Build.Pipeline.Injector.InjectContextAttribute";
+
+        List<FieldInfo> injectedFields = taskType
+            .GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
+            .Where(field => field.GetCustomAttributes(false)
+                .Any(attribute => attribute.GetType().FullName == injectContextAttributeName))
+            .ToList();
+
+        Assert.That(injectedFields.Select(field => field.Name), Is.EquivalentTo(new[] { "_writeData", "_results" }));
+        Assert.That(injectedFields.All(field => field.FieldType.IsInterface), Is.True);
+
+        FieldInfo captureStateField = taskType.GetField("_captureState", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.That(captureStateField, Is.Not.Null, "Missing ProjectSbpBundleLayoutCaptureTask._captureState field.");
+        Assert.That(captureStateField.GetCustomAttributes(false)
+            .Any(attribute => attribute.GetType().FullName == injectContextAttributeName), Is.False);
+    }
+
     private static string ResolveModuleOwner(string assetPath, string fallbackBundleName)
     {
         return InvokeStatic<string>(
