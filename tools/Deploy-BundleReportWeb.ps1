@@ -154,7 +154,7 @@ unzip_allow_warnings() {
 
 unzip_allow_warnings "`$APP_ARCHIVE" "`$REMOTE_APP_DIR"
 unzip_allow_warnings "`$DATA_ARCHIVE" "`$REMOTE_DATA_DIR"
-find "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR" -type d -exec chmod u+rwx {} +
+chmod -R u+rwX "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR"
 
 REMOTE_DATA_DIR="`$REMOTE_DATA_DIR" node <<'NODE'
 const fs = require('fs');
@@ -215,11 +215,7 @@ server {
     listen 80;
     server_name $SshHost;
 
-    location = $BasePath {
-        return 301 $BasePath/;
-    }
-
-    location $BasePath/ {
+    location $BasePath {
         proxy_pass http://127.0.0.1:$RemotePort;
         proxy_http_version 1.1;
         proxy_set_header Host \`$host;
