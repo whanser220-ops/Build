@@ -101,8 +101,8 @@ public static class ProjectYooAssetBuild
         SwitchBuildTargetIfNeeded(buildTarget);
 
         bool includeSamples = HasArgument(args, "--yooasset-include-samples");
-        bool includeSourceAssets = !HasArgument(args, "--yooasset-exclude-source-assets") ||
-                                   HasArgument(args, "--yooasset-include-source-assets");
+        bool includeSourceAssets = HasArgument(args, "--yooasset-include-source-assets") &&
+                                   !HasArgument(args, "--yooasset-exclude-source-assets");
         string packageName = ResolvePackageName(args);
 
         string buildRoot = NormalizeAssetPath(GetArgumentValue(args, "--yooasset-build-root"));
