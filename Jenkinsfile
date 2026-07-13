@@ -47,7 +47,7 @@ properties([
         ),
         booleanParam(
             name: 'BUNDLE_REPORT_DEPLOY_ENABLED',
-            defaultValue: false,
+            defaultValue: true,
             description: 'Deploy the YooAsset bundle report web app. Requires BUNDLE_REPORT_SSH_CREDENTIALS_ID to exist in Jenkins.'
         ),
         string(
@@ -209,7 +209,7 @@ call npm run build
 
                     stage('Deploy Bundle Report Web') {
                         script {
-                            def deployEnabled = params.BUNDLE_REPORT_DEPLOY_ENABLED == null ? false : params.BUNDLE_REPORT_DEPLOY_ENABLED
+                            def deployEnabled = params.BUNDLE_REPORT_DEPLOY_ENABLED == null ? true : params.BUNDLE_REPORT_DEPLOY_ENABLED
                             if (!deployEnabled) {
                                 echo 'Skipping bundle report web deploy because BUNDLE_REPORT_DEPLOY_ENABLED=false.'
                             } else {
