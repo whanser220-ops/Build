@@ -42,6 +42,40 @@ p4-assets.lock.json
 tools/perforce-assets.p4view
 ```
 
+## 中央仓库目录迁移
+
+修改 Git 中的 `p4-assets.lock.json` 或 `tools/perforce-assets.p4view` 只会改变后续同步视图，不会自动移动 Perforce 中央仓库里的 depot 路径。
+
+如果 P4 中央仓库仍然保持旧目录，需要单独运行迁移脚本提交 P4 changelist：
+
+```powershell
+$env:P4_USERNAME = "<user>"
+$env:P4_PASSWORD = "<ticket-or-password>"
+
+# 只预览，不打开文件
+.\tools\Migrate-PerforceAssetLayout.ps1 -Client "<migration-client>" -Root .
+
+# 打开 p4 move / p4 delete，但不提交，便于在 P4V 中检查
+.\tools\Migrate-PerforceAssetLayout.ps1 -Client "<migration-client>" -Root . -Apply
+
+# 打开并提交迁移 changelist
+.\tools\Migrate-PerforceAssetLayout.ps1 -Client "<migration-client>" -Root . -Submit
+```
+
+当前迁移脚本会执行：
+
+- `Assets/GameResources/Characters/Qianxia` -> `Assets/Game/Characters/Qianxia/Art`
+- `Assets/GameAssets/Characters/Qianxia` -> `Assets/Game/Characters/Qianxia/Runtime`
+- `Assets/GameResources/Stylized Pack - Meadow Environment` -> `Assets/Game/Worlds/Meadow/Art`
+- `Assets/GameAssets/Worlds/Meadow` 中的 `Shared`、`Seasons`、`Scenes` -> `Assets/Game/Worlds/Meadow/Runtime`
+- `Assets/GameAssets/Configs/Post Processing` -> `Assets/Game/Worlds/Meadow/Runtime/Configs/Post Processing`
+- `Assets/GameResources/Stylized Pack - Common` -> `Assets/Game/Shared/StylizedPackCommon/Art`
+- `Assets/GameAssets/Common` -> `Assets/Game/Shared/StylizedPackCommon/Runtime`
+- `Assets/GameAssets/Configs/Input` -> `Assets/Game/Core/Input/Runtime`
+- `Assets/GameAssets/UIModules/UILogin` -> `Assets/Game/UI/UILogin/Runtime`
+- `Assets/GameAssets/UIModules/UIMain` -> `Assets/Game/UI/UIMain/Runtime`
+- 删除 Meadow 的旧 `Chunks` / `Runtime/Chunks`
+
 如果需要临时覆盖端口、view 或 changelist：
 
 ```powershell
