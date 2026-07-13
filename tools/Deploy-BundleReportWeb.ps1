@@ -224,8 +224,14 @@ rm -f "`$APP_ARCHIVE" "`$DATA_ARCHIVE"
 "@
 
 $remoteScriptPath = Join-Path $stagingRoot "remote-deploy.sh"
-Set-Content -LiteralPath $remoteScriptPath -Value $remoteScript -Encoding UTF8
-Get-Content -Raw -LiteralPath $remoteScriptPath | & ssh @sshOptions $sshTarget "bash -s"
+$remoteScriptContent = ($remoteScript -replace "`r`n", "`n") -replace "`r", "`n"
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($remoteScriptPath, $remoteScriptContent, $utf8NoBom)
+
+$remoteScriptName = Split-Path $remoteScriptPath -Leaf
+& scp @sshOptions $remoteScriptPath "${sshTarget}:/tmp/$remoteScriptName"
+if ($LASTEXITCODE -ne 0) { throw "scp remote deploy script failed." }
+& ssh @sshOptions $sshTarget "bash /tmp/$remoteScriptName; status=`$?; rm -f /tmp/$remoteScriptName; exit `$status"
 if ($LASTEXITCODE -ne 0) { throw "remote deploy failed." }
 
 Write-Host "Bundle report web deployed: http://$SshHost$BasePath"
