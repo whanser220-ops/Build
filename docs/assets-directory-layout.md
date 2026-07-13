@@ -63,7 +63,6 @@ Assets/Game/
 │       ├── Runtime/
 │       │   ├── Shared/
 │       │   ├── Seasons/
-│       │   ├── Chunks/
 │       │   ├── Scenes/
 │       │   └── Configs/
 │       └── Generated/

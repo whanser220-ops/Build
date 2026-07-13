@@ -37,8 +37,20 @@
       "localPath": "Assets/Game/Worlds/Meadow/Art"
     },
     {
-      "depotPath": "//depot/Assets/Game/Worlds/Meadow/Runtime/...",
-      "localPath": "Assets/Game/Worlds/Meadow/Runtime"
+      "depotPath": "//depot/Assets/Game/Worlds/Meadow/Runtime/Configs/...",
+      "localPath": "Assets/Game/Worlds/Meadow/Runtime/Configs"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/Worlds/Meadow/Runtime/Scenes/...",
+      "localPath": "Assets/Game/Worlds/Meadow/Runtime/Scenes"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/Worlds/Meadow/Runtime/Seasons/...",
+      "localPath": "Assets/Game/Worlds/Meadow/Runtime/Seasons"
+    },
+    {
+      "depotPath": "//depot/Assets/Game/Worlds/Meadow/Runtime/Shared/...",
+      "localPath": "Assets/Game/Worlds/Meadow/Runtime/Shared"
     }
   ]
 }

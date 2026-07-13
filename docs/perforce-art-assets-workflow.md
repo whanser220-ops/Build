@@ -19,7 +19,10 @@ Assets/Game/Shared/StylizedPackCommon/Runtime/**
 Assets/Game/UI/UILogin/Runtime/**
 Assets/Game/UI/UIMain/Runtime/**
 Assets/Game/Worlds/Meadow/Art/**
-Assets/Game/Worlds/Meadow/Runtime/**
+Assets/Game/Worlds/Meadow/Runtime/Configs/**
+Assets/Game/Worlds/Meadow/Runtime/Scenes/**
+Assets/Game/Worlds/Meadow/Runtime/Seasons/**
+Assets/Game/Worlds/Meadow/Runtime/Shared/**
 ```
 
 ## 本地同步

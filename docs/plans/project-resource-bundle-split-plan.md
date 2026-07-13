@@ -57,10 +57,6 @@ Assets/GameAssets
 │       │   ├── Autumn/
 │       │   ├── Summer/
 │       │   └── Winter/
-│       ├── Chunks/
-│       │   ├── Chunk_000_000/
-│       │   ├── Chunk_000_001/
-│       │   └── Chunk_001_000/
 │       └── Scenes/
 └── UIModules/
     ├── UILogin/
@@ -79,7 +75,6 @@ Assets/Game/Worlds/Meadow/Runtime/Shared
 Assets/Game/Worlds/Meadow/Runtime/Seasons/Autumn
 Assets/Game/Worlds/Meadow/Runtime/Seasons/Summer
 Assets/Game/Worlds/Meadow/Runtime/Seasons/Winter
-Assets/Game/Worlds/Meadow/Runtime/Chunks
 Assets/Game/Worlds/Meadow/Runtime/Scenes
 ```
 
@@ -103,9 +98,6 @@ Assets/Game/Worlds/Meadow/Art/Sources
 | `angrymesh.worlds.meadow.season.autumn` | `Assets/Game/Worlds/Meadow/Runtime/Seasons/Autumn` |
 | `angrymesh.worlds.meadow.season.summer` | `Assets/Game/Worlds/Meadow/Runtime/Seasons/Summer` |
 | `angrymesh.worlds.meadow.season.winter` | `Assets/Game/Worlds/Meadow/Runtime/Seasons/Winter` |
-| `angrymesh.worlds.meadow.chunks.chunk_000_000` | `Assets/Game/Worlds/Meadow/Runtime/Chunks/Chunk_000_000` |
-| `angrymesh.worlds.meadow.chunks.chunk_000_001` | `Assets/Game/Worlds/Meadow/Runtime/Chunks/Chunk_000_001` |
-| `angrymesh.worlds.meadow.chunks.chunk_001_000` | `Assets/Game/Worlds/Meadow/Runtime/Chunks/Chunk_001_000` |
 | `angrymesh.worlds.meadow.scenes` | `Assets/Game/Worlds/Meadow/Runtime/Scenes` |
 | `angrymesh.gameassets.textures` | `Assets/GameAssets/Textures` |
 | `angrymesh.gameassets.prefabs.hero` | `Assets/GameAssets/Prefabs/Hero` |
@@ -113,7 +105,7 @@ Assets/Game/Worlds/Meadow/Art/Sources
 | `angrymesh.gameassets.uimodules.uilogin` | `Assets/Game/UI/UILogin/Runtime` |
 | `angrymesh.gameassets.uimodules.uimain` | `Assets/Game/UI/UIMain/Runtime` |
 
-`Worlds/<World>` 下按生命周期显式生成 `shared`、`season.<Season>`、`chunks.<ChunkId>` 与 `scenes` 组；其他 GameAssets 目录继续按 `angrymesh.gameassets.<相对目录路径>` 自动生成，路径分隔符会转换为 `.`。当 `Assets/Game/Worlds/Meadow/Runtime` 存在时，旧 Meadow prefab、config 和 scene 路径会从默认扫描中排除。
+`Worlds/<World>` 下按生命周期显式生成 `shared`、`season.<Season>` 与 `scenes` 组；其他 GameAssets 目录继续按 `angrymesh.gameassets.<相对目录路径>` 自动生成，路径分隔符会转换为 `.`。当 `Assets/Game/Worlds/Meadow/Runtime` 存在时，旧 Meadow prefab、config 和 scene 路径会从默认扫描中排除。
 
 只有显式传入 `--addressables-include-source-assets` 时，才会额外从 `Assets/GameResources` 生成 `angrymesh.gameresources.*` 组。
 

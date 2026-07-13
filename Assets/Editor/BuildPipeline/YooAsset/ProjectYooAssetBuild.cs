@@ -21,7 +21,6 @@ public static class ProjectYooAssetBuild
     private const string LegacyGameAssetsDirectoryName = "GameAssets";
     private const string ArtDirectoryName = "Art";
     private const string RuntimeDirectoryName = "Runtime";
-    private const string ChunksDirectoryName = "Chunks";
     private const string CommonDirectoryName = "Common";
     private const string SharedDirectoryName = "Shared";
     private const string MaterialsDirectoryName = "Materials";
@@ -808,21 +807,9 @@ public static class ProjectYooAssetBuild
                 }
             }
 
-            string chunksRoot = AssetPathCombine(worldFolder, ChunksDirectoryName);
-            if (AssetDatabase.IsValidFolder(chunksRoot))
-            {
-                worldExcludeRoots.Add(chunksRoot);
-                foreach (string chunkFolder in AssetDatabase.GetSubFolders(chunksRoot).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-                {
-                    string chunkName = SanitizeChunkSegment(Path.GetFileName(chunkFolder));
-                    yield return new ProjectGroupSpec(
-                        groupPrefix + ".chunks." + chunkName,
-                        new[] { chunkFolder },
-                        Array.Empty<string>(),
-                        null,
-                        ScenePackageSourceBytes);
-                }
-            }
+            string retiredChunksRoot = AssetPathCombine(worldFolder, "Chunks");
+            if (AssetDatabase.IsValidFolder(retiredChunksRoot))
+                worldExcludeRoots.Add(retiredChunksRoot);
 
             string scenesRoot = AssetPathCombine(worldFolder, ScenesDirectoryName);
             if (AssetDatabase.IsValidFolder(scenesRoot))
@@ -1356,25 +1343,6 @@ public static class ProjectYooAssetBuild
             result = result.Replace("..", ".");
 
         return string.IsNullOrWhiteSpace(result) ? "group" : result;
-    }
-
-    private static string SanitizeChunkSegment(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return "chunk";
-
-        StringBuilder builder = new StringBuilder(value.Length);
-        for (int index = 0; index < value.Length; index++)
-        {
-            char c = char.ToLowerInvariant(value[index]);
-            builder.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '.');
-        }
-
-        string result = builder.ToString().Trim('.');
-        while (result.Contains(".."))
-            result = result.Replace("..", ".");
-
-        return string.IsNullOrWhiteSpace(result) ? "chunk" : result;
     }
 
     private static string SanitizeAssetPath(string assetPath)
