@@ -84,7 +84,7 @@ function Test-P4HasFiles {
     param([string] $DepotPath)
 
     $result = Invoke-P4 -Arguments @('files', $DepotPath) -AllowFailure
-    return ($result.Output | Where-Object { $_ -match '^//' }).Count -gt 0
+    return ($result.Output | Where-Object { $_ -match '^//.+#\d+\s+-\s+' }).Count -gt 0
 }
 
 function New-P4Change {
@@ -179,10 +179,10 @@ $moveFileMappings = @(
 )
 
 $deletePaths = @(
-    Join-DepotPath 'Assets/GameAssets/Worlds/Meadow/Chunks/...',
-    Join-DepotPath 'Assets/GameAssets/Worlds/Meadow/Chunks.meta',
-    Join-DepotPath 'Assets/Game/Worlds/Meadow/Runtime/Chunks/...',
-    Join-DepotPath 'Assets/Game/Worlds/Meadow/Runtime/Chunks.meta'
+    (Join-DepotPath 'Assets/GameAssets/Worlds/Meadow/Chunks/...'),
+    (Join-DepotPath 'Assets/GameAssets/Worlds/Meadow/Chunks.meta'),
+    (Join-DepotPath 'Assets/Game/Worlds/Meadow/Runtime/Chunks/...'),
+    (Join-DepotPath 'Assets/Game/Worlds/Meadow/Runtime/Chunks.meta')
 )
 
 $allViewPaths = New-Object System.Collections.Generic.List[string]
