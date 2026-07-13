@@ -840,7 +840,7 @@ public static class ProjectYooAssetBuild
     {
         foreach (ProjectGroupSpec spec in CreateSpecsForOptionalRoot(
                      "angrymesh.meadow.environment.prefabs",
-                     MeadowEnvironmentPrefabRoot,
+                     LegacyMeadowEnvironmentPrefabRoot,
                      DefaultPackageSourceBytes))
         {
             yield return spec;
@@ -848,7 +848,7 @@ public static class ProjectYooAssetBuild
 
         foreach (ProjectGroupSpec spec in CreateSpecsForOptionalRoot(
                      "angrymesh.meadow.terrain.details",
-                     MeadowTerrainDetailsPrefabRoot,
+                     LegacyMeadowTerrainDetailsPrefabRoot,
                      DefaultPackageSourceBytes))
         {
             yield return spec;
