@@ -48,7 +48,7 @@ properties([
         booleanParam(
             name: 'BUNDLE_REPORT_DEPLOY_ENABLED',
             defaultValue: true,
-            description: 'Deploy the YooAsset bundle report web app. Requires BUNDLE_REPORT_SSH_CREDENTIALS_ID to exist in Jenkins.'
+            description: 'Deploy the YooAsset bundle report web app.'
         ),
         string(
             name: 'BUNDLE_REPORT_HOST',
@@ -63,7 +63,12 @@ properties([
         string(
             name: 'BUNDLE_REPORT_SSH_CREDENTIALS_ID',
             defaultValue: 'bundle-report-ssh-key',
-            description: 'Jenkins SSH private key credential ID for bundle report deployment.'
+            description: 'Jenkins SSH private key credential ID for bundle report deployment. Ignored when BUNDLE_REPORT_SSH_KEY_PATH is set.'
+        ),
+        string(
+            name: 'BUNDLE_REPORT_SSH_KEY_PATH',
+            defaultValue: '',
+            description: 'Optional private key file path on the Jenkins agent, used as a fallback without storing the PEM path in source.'
         )
     ])
 ])
@@ -218,19 +223,29 @@ call npm run build
                                     def reportHost = params.BUNDLE_REPORT_HOST?.trim() ?: '1.117.232.198'
                                     def reportUser = params.BUNDLE_REPORT_SSH_USER?.trim() ?: 'ubuntu'
                                     def reportCredentialsId = params.BUNDLE_REPORT_SSH_CREDENTIALS_ID?.trim() ?: 'bundle-report-ssh-key'
-
-                                    withCredentials([sshUserPrivateKey(
-                                        credentialsId: reportCredentialsId,
-                                        keyFileVariable: 'BUNDLE_REPORT_SSH_KEY'
-                                    )]) {
+                                    def reportSshKeyPath = params.BUNDLE_REPORT_SSH_KEY_PATH?.trim()
+                                    def deployWithKey = { sshKeyPath ->
                                         withEnv([
                                             "BUNDLE_REPORT_DEPLOY_HOST=${reportHost}",
-                                            "BUNDLE_REPORT_DEPLOY_USER=${reportUser}"
+                                            "BUNDLE_REPORT_DEPLOY_USER=${reportUser}",
+                                            "BUNDLE_REPORT_SSH_KEY=${sshKeyPath}"
                                         ]) {
                                             bat '''
 @echo on
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Deploy-BundleReportWeb.ps1" -AppDir "%WORKSPACE%\\%BUNDLE_REPORT_WEB_DIR%" -ReportRoot "%WORKSPACE%\\%BUNDLE_REPORT_ROOT%" -SshHost "%BUNDLE_REPORT_DEPLOY_HOST%" -SshUser "%BUNDLE_REPORT_DEPLOY_USER%" -SshKeyPath "%BUNDLE_REPORT_SSH_KEY%" -BasePath "%BUNDLE_REPORT_BASE_PATH%" -SkipBuild
 '''
+                                        }
+                                    }
+
+                                    if (reportSshKeyPath) {
+                                        echo 'Using BUNDLE_REPORT_SSH_KEY_PATH for bundle report deployment.'
+                                        deployWithKey(reportSshKeyPath)
+                                    } else {
+                                        withCredentials([sshUserPrivateKey(
+                                            credentialsId: reportCredentialsId,
+                                            keyFileVariable: 'BUNDLE_REPORT_SSH_KEY'
+                                        )]) {
+                                            deployWithKey(env.BUNDLE_REPORT_SSH_KEY)
                                         }
                                     }
                                 }
