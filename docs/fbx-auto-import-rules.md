@@ -1,4 +1,4 @@
-# 资产导入规则与 FBX DCC JSON 装配
+﻿# 资产导入规则与 FBX DCC JSON 装配
 
 本文档说明当前资产处理器的两层职责：
 
@@ -41,7 +41,7 @@ Assets/Editor/AssetImport/ProjectAssetImportRuleSet.asset
 主动执行按钮只扫描：
 
 ```text
-Assets/GameResources
+Assets/Game/**/Art
 ```
 
 不会列出、检查或修改该目录之外的资源。
@@ -120,7 +120,7 @@ Asset Class: Texture2D
 7. 同优先级规则对同一属性设置相同值时合并来源；设置不同值时视为规则冲突。
 8. 存在规则冲突时，预览和检查/应用报告会列出冲突，自动导入与手动 Apply 都会跳过该资产，不做部分写入。
 
-例如 `Assets/GameResources` 下的 `Package Name: Contains SM` 是一个较广范围规则；`Assets/GameResources/.../Meshes` 和 `Assets/GameResources/.../Meshes/Props` 是更具体目录规则。后两者优先级更高，前者修改过的字段会在后两者规则面板左侧用黄色小方块标出，表示这些字段来自低优先级重叠规则。
+例如 `Assets/Game/**/Art` 下的 `Package Name: Contains SM` 是一个较广范围规则；`Assets/Game/.../Art/.../Meshes` 和 `Assets/Game/.../Art/.../Meshes/Props` 是更具体目录规则。后两者优先级更高，前者修改过的字段会在后两者规则面板左侧用黄色小方块标出，表示这些字段来自低优先级重叠规则。
 
 窗口底部的 `Effective Import Settings Preview` 可输入资产路径和资产类型，查看：
 
@@ -170,7 +170,7 @@ JSON v1 只描述装配，不描述导入设置。旧 JSON 如果仍带 `importS
   "assembly": {
     "prefab": {
       "enabled": true,
-      "outputPath": "Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/P_zzz.prefab",
+      "outputPath": "Assets/Game/Worlds/Meadow/Runtime/Shared/Prefabs/P_zzz.prefab",
       "overwrite": false
     },
     "lodGroup": {
@@ -186,7 +186,7 @@ JSON v1 只描述装配，不描述导入设置。旧 JSON 如果仍带 `importS
       { "nodePath": "UCX_body", "type": "Mesh", "convex": true, "disableRenderer": true }
     ],
     "materials": [
-      { "slotName": "M_Wood", "materialPath": "Assets/GameAssets/Materials/M_Wood.mat" }
+      { "slotName": "M_Wood", "materialPath": "Assets/Game/Shared/StylizedPackCommon/Runtime/Materials/M_Wood.mat" }
     ]
   }
 }

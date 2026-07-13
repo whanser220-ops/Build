@@ -1,12 +1,14 @@
-# ANGRY MESH Addressables 构建方案
+﻿# ANGRY MESH Addressables 构建方案
 
-- 状态：迁移中
+- 状态：历史方案，已被 `Assets/Game/**/{Art,Runtime}` 目录规范与 YooAsset 构建器替代
 - 同步级别：弱同步
 - 当前实现锚点：
   - `Assets/Editor/BuildPipeline/Addressables/ProjectAddressablesBuild.cs`
   - `Assets/Editor/BuildPipeline/Addressables/AngryMeshAddressablesReferenceConverter.cs`
   - `Assets/Scripts/Addressables/AngryMeshAddressablePrefabInstance.cs`
-- 最后实现核对：2026-06-13
+- 最后实现核对：2026-07-12
+
+> 当前实现不再以顶层 `Assets/GameAssets` / `Assets/GameResources` 作为主路径。本文以下内容仅保留历史设计背景；新的资源落位以 `docs/assets-directory-layout.md` 为准，构建收集以 `Assets/Editor/BuildPipeline/YooAsset/ProjectYooAssetBuild.cs` 为准。
 
 ## 当前方向
 
@@ -27,7 +29,7 @@ Assets/GameAssets
 Assets/GameResources
 ```
 
-其中 `Assets/GameAssets` 是运行时资产构建白名单，打包脚本默认只扫描该目录；`Assets/GameResources` 是源素材产区，只参与资源质量检查，只有显式传入 `--addressables-include-source-assets` 时才会额外生成源素材 Addressables 组。少量跨生态运行时共享贴图可以通过显式 `angrymesh.shared.*` 组纳入构建，例如当前 `Assets/GameResources/Stylized Pack - Common/Sources/Textures` 下的风噪声贴图。
+其中 `Assets/GameAssets` 是运行时资产构建白名单，打包脚本默认只扫描该目录；`Assets/GameResources` 是源素材产区，只参与资源质量检查，只有显式传入 `--addressables-include-source-assets` 时才会额外生成源素材 Addressables 组。少量跨生态运行时共享贴图可以通过显式 `angrymesh.shared.*` 组纳入构建，例如当前 `Assets/Game/Shared/StylizedPackCommon/Art/Sources/Textures` 下的风噪声贴图。
 
 `Assets/GameAssets` 下的包目录直接映射为业务 AssetBundle / Addressables group 颗粒度。当前规则分为显式生命周期组和通用目录组：
 
@@ -55,10 +57,6 @@ Assets/GameAssets
 │       │   ├── Autumn/
 │       │   ├── Summer/
 │       │   └── Winter/
-│       ├── Chunks/
-│       │   ├── Chunk_000_000/
-│       │   ├── Chunk_000_001/
-│       │   └── Chunk_001_000/
 │       └── Scenes/
 └── UIModules/
     ├── UILogin/
@@ -70,22 +68,21 @@ Assets/GameAssets
 当前已迁移的 ANGRY MESH 运行时资源：
 
 ```text
-Assets/GameAssets/Common/ASP Global Settings
-Assets/GameAssets/Common/Functions
-Assets/GameAssets/Common/Shaders
-Assets/GameAssets/Worlds/Meadow/Shared
-Assets/GameAssets/Worlds/Meadow/Seasons/Autumn
-Assets/GameAssets/Worlds/Meadow/Seasons/Summer
-Assets/GameAssets/Worlds/Meadow/Seasons/Winter
-Assets/GameAssets/Worlds/Meadow/Chunks
-Assets/GameAssets/Worlds/Meadow/Scenes
+Assets/Game/Shared/StylizedPackCommon/Runtime/ASP Global Settings
+Assets/Game/Shared/StylizedPackCommon/Runtime/Functions
+Assets/Game/Shared/StylizedPackCommon/Runtime/Shaders
+Assets/Game/Worlds/Meadow/Runtime/Shared
+Assets/Game/Worlds/Meadow/Runtime/Seasons/Autumn
+Assets/Game/Worlds/Meadow/Runtime/Seasons/Summer
+Assets/Game/Worlds/Meadow/Runtime/Seasons/Winter
+Assets/Game/Worlds/Meadow/Runtime/Scenes
 ```
 
 当前已迁移的 ANGRY MESH 源素材：
 
 ```text
-Assets/GameResources/Stylized Pack - Common/Sources
-Assets/GameResources/Stylized Pack - Meadow Environment/Sources
+Assets/Game/Shared/StylizedPackCommon/Art/Sources
+Assets/Game/Worlds/Meadow/Art/Sources
 ```
 
 ## 默认 Addressables Group
@@ -94,24 +91,21 @@ Assets/GameResources/Stylized Pack - Meadow Environment/Sources
 
 | Group | 当前输入范围 |
 |---|---|
-| `angrymesh.shared.shaders` | `Assets/GameAssets/Common/Shaders` |
-| `angrymesh.shared.textures` | `Assets/GameResources/Stylized Pack - Common/Sources/Textures` |
-| `angrymesh.gameassets.common` | `Assets/GameAssets/Common`，排除已显式进入 `angrymesh.shared.shaders` 的 shader |
-| `angrymesh.worlds.meadow.shared` | `Assets/GameAssets/Worlds/Meadow/Shared` |
-| `angrymesh.worlds.meadow.season.autumn` | `Assets/GameAssets/Worlds/Meadow/Seasons/Autumn` |
-| `angrymesh.worlds.meadow.season.summer` | `Assets/GameAssets/Worlds/Meadow/Seasons/Summer` |
-| `angrymesh.worlds.meadow.season.winter` | `Assets/GameAssets/Worlds/Meadow/Seasons/Winter` |
-| `angrymesh.worlds.meadow.chunks.chunk_000_000` | `Assets/GameAssets/Worlds/Meadow/Chunks/Chunk_000_000` |
-| `angrymesh.worlds.meadow.chunks.chunk_000_001` | `Assets/GameAssets/Worlds/Meadow/Chunks/Chunk_000_001` |
-| `angrymesh.worlds.meadow.chunks.chunk_001_000` | `Assets/GameAssets/Worlds/Meadow/Chunks/Chunk_001_000` |
-| `angrymesh.worlds.meadow.scenes` | `Assets/GameAssets/Worlds/Meadow/Scenes` |
+| `angrymesh.shared.shaders` | `Assets/Game/Shared/StylizedPackCommon/Runtime/Shaders` |
+| `angrymesh.shared.textures` | `Assets/Game/Shared/StylizedPackCommon/Art/Sources/Textures` |
+| `angrymesh.gameassets.common` | `Assets/Game/Shared/StylizedPackCommon/Runtime`，排除已显式进入 `angrymesh.shared.shaders` 的 shader |
+| `angrymesh.worlds.meadow.shared` | `Assets/Game/Worlds/Meadow/Runtime/Shared` |
+| `angrymesh.worlds.meadow.season.autumn` | `Assets/Game/Worlds/Meadow/Runtime/Seasons/Autumn` |
+| `angrymesh.worlds.meadow.season.summer` | `Assets/Game/Worlds/Meadow/Runtime/Seasons/Summer` |
+| `angrymesh.worlds.meadow.season.winter` | `Assets/Game/Worlds/Meadow/Runtime/Seasons/Winter` |
+| `angrymesh.worlds.meadow.scenes` | `Assets/Game/Worlds/Meadow/Runtime/Scenes` |
 | `angrymesh.gameassets.textures` | `Assets/GameAssets/Textures` |
 | `angrymesh.gameassets.prefabs.hero` | `Assets/GameAssets/Prefabs/Hero` |
 | `angrymesh.gameassets.prefabs.monster` | `Assets/GameAssets/Prefabs/Monster` |
-| `angrymesh.gameassets.uimodules.uilogin` | `Assets/GameAssets/UIModules/UILogin` |
-| `angrymesh.gameassets.uimodules.uimain` | `Assets/GameAssets/UIModules/UIMain` |
+| `angrymesh.gameassets.uimodules.uilogin` | `Assets/Game/UI/UILogin/Runtime` |
+| `angrymesh.gameassets.uimodules.uimain` | `Assets/Game/UI/UIMain/Runtime` |
 
-`Worlds/<World>` 下按生命周期显式生成 `shared`、`season.<Season>`、`chunks.<ChunkId>` 与 `scenes` 组；其他 GameAssets 目录继续按 `angrymesh.gameassets.<相对目录路径>` 自动生成，路径分隔符会转换为 `.`。当 `Assets/GameAssets/Worlds/Meadow` 存在时，旧 Meadow prefab、config 和 scene 路径会从默认扫描中排除。
+`Worlds/<World>` 下按生命周期显式生成 `shared`、`season.<Season>` 与 `scenes` 组；其他 GameAssets 目录继续按 `angrymesh.gameassets.<相对目录路径>` 自动生成，路径分隔符会转换为 `.`。当 `Assets/Game/Worlds/Meadow/Runtime` 存在时，旧 Meadow prefab、config 和 scene 路径会从默认扫描中排除。
 
 只有显式传入 `--addressables-include-source-assets` 时，才会额外从 `Assets/GameResources` 生成 `angrymesh.gameresources.*` 组。
 

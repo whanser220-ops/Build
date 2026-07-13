@@ -27,7 +27,7 @@ public sealed class ProjectAssetImportRuleSetWindow : EditorWindow
     private bool _previewExpanded = true;
     private bool[] _ruleExpanded = Array.Empty<bool>();
     private int[] _ruleTabIndices = Array.Empty<int>();
-    private string _previewAssetPath = "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/zzz.fbx";
+    private string _previewAssetPath = "Assets/Game/Worlds/Meadow/Art/Sources/Meshes/zzz.fbx";
     private ProjectAssetClass _previewAssetClass = ProjectAssetClass.Model;
 
     [MenuItem(MenuPath)]
@@ -1516,7 +1516,9 @@ internal enum ProjectAssetProcessorAction
 
 internal static class ProjectAssetProcessorRunner
 {
-    private const string ProcessorRootPath = "Assets/GameResources";
+    private const string GameContentRootPath = "Assets/Game";
+    private const string LegacyProcessorRootPath = "Assets/GameResources";
+    private static readonly string[] ProcessorSearchRoots = { GameContentRootPath, LegacyProcessorRootPath };
     private const string SpecialWriteOnlyClipName = "modelimporter.clipnamefromasset";
 
     public static string Run(ProjectAssetImportRuleSet ruleSet, ProjectAssetImportRule rule, ProjectAssetProcessorAction action)
@@ -1633,13 +1635,14 @@ internal static class ProjectAssetProcessorRunner
     private static List<ProjectAssetRuleContext> FindMatchingAssets(ProjectAssetImportRule rule, StringBuilder report)
     {
         List<ProjectAssetRuleContext> matches = new List<ProjectAssetRuleContext>();
-        if (!AssetDatabase.IsValidFolder(ProcessorRootPath))
+        string[] existingRoots = GetExistingProcessorSearchRoots();
+        if (existingRoots.Length == 0)
         {
-            report.AppendLine($"扫描目录不存在: {ProcessorRootPath}");
+            report.AppendLine($"扫描目录不存在: {GetProcessorScopeLabel()}");
             return matches;
         }
 
-        string[] assetGuids = AssetDatabase.FindAssets(string.Empty, new[] { ProcessorRootPath });
+        string[] assetGuids = AssetDatabase.FindAssets(string.Empty, existingRoots);
 
         try
         {
@@ -1914,7 +1917,7 @@ internal static class ProjectAssetProcessorRunner
         report.AppendLine("Asset Processor Report");
         report.AppendLine($"Action: {action}");
         report.AppendLine($"Rule: {ruleName}");
-        report.AppendLine($"Scope: {ProcessorRootPath}");
+        report.AppendLine($"Scope: {GetProcessorScopeLabel()}");
         report.AppendLine($"Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         report.AppendLine(new string('-', 72));
     }
@@ -2054,11 +2057,38 @@ internal static class ProjectAssetProcessorRunner
         return (assetPath ?? string.Empty).Replace('\\', '/');
     }
 
+    private static string[] GetExistingProcessorSearchRoots()
+    {
+        List<string> roots = new List<string>();
+        for (int index = 0; index < ProcessorSearchRoots.Length; index++)
+        {
+            string root = NormalizeAssetPath(ProcessorSearchRoots[index]);
+            if (AssetDatabase.IsValidFolder(root))
+                roots.Add(root);
+        }
+
+        return roots.ToArray();
+    }
+
+    private static string GetProcessorScopeLabel()
+    {
+        return "Assets/Game/**/Art/**; " + LegacyProcessorRootPath + "/**";
+    }
+
     private static bool IsUnderProcessorRoot(string assetPath)
     {
         string normalizedPath = NormalizeAssetPath(assetPath);
-        return string.Equals(normalizedPath, ProcessorRootPath, StringComparison.OrdinalIgnoreCase) ||
-            normalizedPath.StartsWith(ProcessorRootPath + "/", StringComparison.OrdinalIgnoreCase);
+        return IsUnderRoot(normalizedPath, LegacyProcessorRootPath) ||
+            (IsUnderRoot(normalizedPath, GameContentRootPath) &&
+             normalizedPath.IndexOf("/Art/", StringComparison.OrdinalIgnoreCase) >= 0);
+    }
+
+    private static bool IsUnderRoot(string assetPath, string root)
+    {
+        string normalizedPath = NormalizeAssetPath(assetPath);
+        string normalizedRoot = NormalizeAssetPath(root).TrimEnd('/');
+        return string.Equals(normalizedPath, normalizedRoot, StringComparison.OrdinalIgnoreCase) ||
+            normalizedPath.StartsWith(normalizedRoot + "/", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizePropertyKey(string propertyPath)

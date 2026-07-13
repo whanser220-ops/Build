@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
@@ -11,15 +11,15 @@ public sealed class ProjectFbxAutoImporterTests
     public void SidecarPath_AppendsJsonToFbxAssetPath()
     {
         Assert.That(
-            GetSidecarAssetPath("Assets/GameResources/Props/zzz.fbx"),
-            Is.EqualTo("Assets/GameResources/Props/zzz.fbx.json"));
+            GetSidecarAssetPath("Assets/Game/Props/Generic/Art/zzz.fbx"),
+            Is.EqualTo("Assets/Game/Props/Generic/Art/zzz.fbx.json"));
     }
 
     [Test]
     public void TryLoad_MissingSidecarReturnsAssemblyMissingState()
     {
         bool result = TryLoad(
-            "Assets/GameResources/Props/Missing.fbx",
+            "Assets/Game/Props/Generic/Art/Missing.fbx",
             out object manifest,
             out string error);
 
@@ -32,62 +32,62 @@ public sealed class ProjectFbxAutoImporterTests
     public void ImportRuleSet_DefaultRulesMatchProjectPaths()
     {
         AssertResolvedProperty(
-            "Assets/GameResources/Characters/Hero/SourceAnimations/Walk/Hero_Walk.fbx",
+            "Assets/Game/Characters/Hero/Art/SourceAnimations/Walk/Hero_Walk.fbx",
             "Model",
             "ModelImporter.animationType",
             "Human");
         AssertResolvedProperty(
-            "Assets/GameResources/Characters/Hero/SourceAnimations/Walk/Hero_Walk.fbx",
+            "Assets/Game/Characters/Hero/Art/SourceAnimations/Walk/Hero_Walk.fbx",
             "Model",
             "ModelImporter.importBlendShapes",
             "false");
         AssertResolvedProperty(
-            "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx",
+            "Assets/Game/Characters/Qianxia/Art/Meshs/Ch36_nonPBR@Walking.fbx",
             "Model",
             "ModelImporter.animationType",
             "Human");
         AssertResolvedProperty(
-            "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx",
+            "Assets/Game/Characters/Qianxia/Art/Meshs/Ch36_nonPBR@Walking.fbx",
             "Model",
             "ModelImporter.clipNameFromAsset",
             "true");
         AssertResolvedProperty(
-            "Assets/GameResources/Characters/Hero/HeroBody.fbx",
+            "Assets/Game/Characters/Hero/Art/HeroBody.fbx",
             "Model",
             "ModelImporter.importBlendShapes",
             "true");
         AssertResolvedProperty(
-            "Assets/GameResources/Props/Crates/SM_Crate.fbx",
+            "Assets/Game/Props/Generic/Art/Crates/SM_Crate.fbx",
             "Model",
             "ModelImporter.addCollider",
             "true");
         AssertResolvedProperty(
-            "Assets/GameResources/Props/Crates/SM_Crate.fbx",
+            "Assets/Game/Props/Generic/Art/Crates/SM_Crate.fbx",
             "Model",
             "ModelImporter.generateSecondaryUV",
             "true");
         AssertResolvedProperty(
-            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/zzz.fbx",
+            "Assets/Game/Worlds/Meadow/Art/Sources/Meshes/zzz.fbx",
             "Model",
             "ModelImporter.preserveHierarchy",
             "true");
         AssertResolvedProperty(
-            "Assets/GameResources/Environment/Trees/SM_Tree_LOD0.fbx",
+            "Assets/Game/Environment/Trees/Art/SM_Tree_LOD0.fbx",
             "Model",
             "ModelImporter.preserveHierarchy",
             "true");
         AssertResolvedProperty(
-            "Assets/GameResources/Environment/Rocks/SM_Rock.fbx",
+            "Assets/Game/Environment/Rocks/Art/SM_Rock.fbx",
             "Model",
             "ModelImporter.animationType",
             "None");
         AssertResolvedProperty(
-            "Assets/GameResources/Textures/Wood_N.png",
+            "Assets/Game/Shared/Textures/Art/Wood_N.png",
             "Texture2D",
             "TextureImporter.textureType",
             "NormalMap");
         AssertResolvedProperty(
-            "Assets/GameResources/Textures/Wood_N.png",
+            "Assets/Game/Shared/Textures/Art/Wood_N.png",
             "Texture2D",
             "TextureImporter.wrapModeU",
             "Clamp");
@@ -96,11 +96,11 @@ public sealed class ProjectFbxAutoImporterTests
     [Test]
     public void ImportRuleSet_StringMatchersSupportDirectoryAndPackageName()
     {
-        Assert.That(StringMatches("Contains", "Characters/", "Assets/GameResources/Characters/Hero"), Is.True);
+        Assert.That(StringMatches("Contains", "Characters/", "Assets/Game/Characters/Hero"), Is.True);
         Assert.That(StringMatches("EndsWith", "_N", "Wood_N"), Is.True);
         Assert.That(StringMatches("Regex", "_N$", "Wood_N"), Is.True);
         Assert.That(StringMatches("Glob", "*LOD*", "SM_Tree_LOD2"), Is.True);
-        Assert.That(StringMatches("Contains", "Props/", "Assets/GameResources/Characters/Hero"), Is.False);
+        Assert.That(StringMatches("Contains", "Props/", "Assets/Game/Characters/Hero"), Is.False);
     }
 
     [Test]
@@ -114,7 +114,7 @@ public sealed class ProjectFbxAutoImporterTests
                 "ModelImporter.addCollider",
                 "false",
                 directoryMatch: "Contains",
-                directoryPattern: "Assets/GameResources/Characters/"),
+                directoryPattern: "Assets/Game/Characters/"),
             CreateImportRule(
                 "Hero Name",
                 "Model",
@@ -125,7 +125,7 @@ public sealed class ProjectFbxAutoImporterTests
 
         AssertResolvedProperty(
             ruleSet,
-            "Assets/GameResources/Characters/Main/Player_Hero.fbx",
+            "Assets/Game/Characters/Main/Art/Player_Hero.fbx",
             "Model",
             "ModelImporter.addCollider",
             "false");
@@ -136,12 +136,12 @@ public sealed class ProjectFbxAutoImporterTests
     {
         object ruleSet = CreateRuleSetWithRules(
             CreateImportRule(
-                "GameResources SM Models",
+                "Game Art SM Models",
                 "Model",
                 "ModelImporter.addCollider",
                 "false",
                 directoryMatch: "Contains",
-                directoryPattern: "Assets/GameResources/",
+                directoryPattern: "Assets/Game/",
                 packageNameMatch: "Contains",
                 packageNamePattern: "SM"),
             CreateImportRule(
@@ -150,24 +150,24 @@ public sealed class ProjectFbxAutoImporterTests
                 "ModelImporter.addCollider",
                 "true",
                 directoryMatch: "Contains",
-                directoryPattern: "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/"),
+                directoryPattern: "Assets/Game/Worlds/Meadow/Art/Sources/Meshes/"),
             CreateImportRule(
                 "Meadow Props",
                 "Model",
                 "ModelImporter.addCollider",
                 "false",
                 directoryMatch: "Contains",
-                directoryPattern: "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Props/"));
+                directoryPattern: "Assets/Game/Worlds/Meadow/Art/Sources/Meshes/Props/"));
 
         AssertResolvedProperty(
             ruleSet,
-            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/SM_Tree.fbx",
+            "Assets/Game/Worlds/Meadow/Art/Sources/Meshes/SM_Tree.fbx",
             "Model",
             "ModelImporter.addCollider",
             "true");
         AssertResolvedProperty(
             ruleSet,
-            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/Props/SM_Crate.fbx",
+            "Assets/Game/Worlds/Meadow/Art/Sources/Meshes/Props/SM_Crate.fbx",
             "Model",
             "ModelImporter.addCollider",
             "false");
@@ -183,16 +183,16 @@ public sealed class ProjectFbxAutoImporterTests
                 "ModelImporter.animationType",
                 "Human",
                 directoryMatch: "Contains",
-                directoryPattern: "Assets/GameResources/Characters/",
+                directoryPattern: "Assets/Game/Characters/",
                 packageNameMatch: "Contains",
                 packageNamePattern: "@"),
             CreateImportRule(
-                "GameResources At-Sign",
+                "Game Art At-Sign",
                 "Model",
                 "ModelImporter.animationType",
                 "Generic",
                 directoryMatch: "Contains",
-                directoryPattern: "Assets/GameResources/",
+                directoryPattern: "Assets/Game/",
                 packageNameMatch: "Contains",
                 packageNamePattern: "@"),
             CreateImportRule(
@@ -205,13 +205,13 @@ public sealed class ProjectFbxAutoImporterTests
 
         object effectiveSettings = BuildEffectiveImportSettings(
             ruleSet,
-            "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx",
+            "Assets/Game/Characters/Qianxia/Art/Meshs/Ch36_nonPBR@Walking.fbx",
             "Model");
 
         Assert.That(GetField<bool>(effectiveSettings, "hasConflicts"), Is.False);
         AssertResolvedProperty(
             ruleSet,
-            "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx",
+            "Assets/Game/Characters/Qianxia/Art/Meshs/Ch36_nonPBR@Walking.fbx",
             "Model",
             "ModelImporter.animationType",
             "Human");
@@ -227,20 +227,20 @@ public sealed class ProjectFbxAutoImporterTests
                 "ModelImporter.addCollider",
                 "false",
                 directoryMatch: "Contains",
-                directoryPattern: "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/"),
+                directoryPattern: "Assets/Game/Worlds/Meadow/Art/Sources/Meshes/"),
             CreateImportRule(
                 "Meadow SM Meshes",
                 "Model",
                 "ModelImporter.addCollider",
                 "true",
                 directoryMatch: "Contains",
-                directoryPattern: "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/",
+                directoryPattern: "Assets/Game/Worlds/Meadow/Art/Sources/Meshes/",
                 packageNameMatch: "Contains",
                 packageNamePattern: "SM"));
 
         AssertResolvedProperty(
             ruleSet,
-            "Assets/GameResources/Stylized Pack - Meadow Environment/Sources/Meshes/SM_Tree.fbx",
+            "Assets/Game/Worlds/Meadow/Art/Sources/Meshes/SM_Tree.fbx",
             "Model",
             "ModelImporter.addCollider",
             "true");
@@ -256,18 +256,18 @@ public sealed class ProjectFbxAutoImporterTests
                 "ModelImporter.addCollider",
                 "false",
                 directoryMatch: "Contains",
-                directoryPattern: "Assets/GameResources/Characters/"),
+                directoryPattern: "Assets/Game/Characters/"),
             CreateImportRule(
                 "Hero Characters",
                 "Model",
                 "ModelImporter.addCollider",
                 "true",
                 directoryMatch: "Contains",
-                directoryPattern: "Assets/GameResources/Characters/Hero/"));
+                directoryPattern: "Assets/Game/Characters/Hero/Art/"));
 
         AssertResolvedProperty(
             ruleSet,
-            "Assets/GameResources/Characters/Hero/Body.fbx",
+            "Assets/Game/Characters/Hero/Art/Body.fbx",
             "Model",
             "ModelImporter.addCollider",
             "true");
@@ -288,13 +288,13 @@ public sealed class ProjectFbxAutoImporterTests
 
         AssertResolvedProperty(
             ruleSet,
-            "Assets/GameResources/Characters/Main/Player_Hero.fbx",
+            "Assets/Game/Characters/Main/Art/Player_Hero.fbx",
             "Model",
             "ModelImporter.meshCompression",
             "Low");
         AssertResolvedProperty(
             ruleSet,
-            "Assets/GameResources/Characters/Main/Player_Hero.fbx",
+            "Assets/Game/Characters/Main/Art/Player_Hero.fbx",
             "Model",
             "ModelImporter.addCollider",
             "true");
@@ -321,13 +321,13 @@ public sealed class ProjectFbxAutoImporterTests
 
         object effectiveSettings = BuildEffectiveImportSettings(
             ruleSet,
-            "Assets/GameResources/Props/BigRock.fbx",
+            "Assets/Game/Props/Generic/Art/BigRock.fbx",
             "Model");
 
         Assert.That(GetField<bool>(effectiveSettings, "hasConflicts"), Is.False);
         AssertResolvedProperty(
             ruleSet,
-            "Assets/GameResources/Props/BigRock.fbx",
+            "Assets/Game/Props/Generic/Art/BigRock.fbx",
             "Model",
             "ModelImporter.addCollider",
             "true");
@@ -354,7 +354,7 @@ public sealed class ProjectFbxAutoImporterTests
 
         object effectiveSettings = BuildEffectiveImportSettings(
             ruleSet,
-            "Assets/GameResources/Props/BigRock.fbx",
+            "Assets/Game/Props/Generic/Art/BigRock.fbx",
             "Model");
         Array conflicts = GetField<Array>(effectiveSettings, "conflicts");
         Array propertyItems = (Array)effectiveSettings.GetType()
@@ -369,7 +369,7 @@ public sealed class ProjectFbxAutoImporterTests
     [Test]
     public void TryParseJson_AssemblyOnlyManifestParsesAssemblySettings()
     {
-        bool result = TryParseJson(ValidJson, "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error);
+        bool result = TryParseJson(ValidJson, "Assets/Game/Props/Generic/Art/zzz.fbx", out object manifest, out string error);
 
         Assert.That(result, Is.True, error);
         Assert.That(GetField<int>(manifest, "schemaVersion"), Is.EqualTo(1));
@@ -377,13 +377,13 @@ public sealed class ProjectFbxAutoImporterTests
 
         object assembly = GetField<object>(manifest, "assembly");
         object prefab = GetField<object>(assembly, "prefab");
-        Assert.That(GetField<string>(prefab, "outputPath"), Is.EqualTo("Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/P_zzz.prefab"));
+        Assert.That(GetField<string>(prefab, "outputPath"), Is.EqualTo("Assets/Game/Worlds/Meadow/Runtime/Shared/Prefabs/P_zzz.prefab"));
     }
 
     [Test]
     public void TryParseJson_LegacyImportSettingsFieldIsIgnored()
     {
-        bool result = TryParseJson(LegacyJsonWithImportSettings, "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error);
+        bool result = TryParseJson(LegacyJsonWithImportSettings, "Assets/Game/Props/Generic/Art/zzz.fbx", out object manifest, out string error);
 
         Assert.That(result, Is.True, error);
         Assert.That(manifest.GetType().GetField("importSettings", BindingFlags.Public | BindingFlags.Instance), Is.Null);
@@ -394,7 +394,7 @@ public sealed class ProjectFbxAutoImporterTests
     {
         string json = ValidJson.Replace("\"schemaVersion\": 1", "\"schemaVersion\": 2");
 
-        bool result = TryParseJson(json, "Assets/GameResources/Props/zzz.fbx", out _, out string error);
+        bool result = TryParseJson(json, "Assets/Game/Props/Generic/Art/zzz.fbx", out _, out string error);
 
         Assert.That(result, Is.False);
         Assert.That(error, Does.Contain("schemaVersion must be 1"));
@@ -404,10 +404,10 @@ public sealed class ProjectFbxAutoImporterTests
     public void TryParseJson_EmptyPrefabPathFailsWhenPrefabEnabled()
     {
         string json = ValidJson.Replace(
-            "\"outputPath\": \"Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/P_zzz.prefab\"",
+            "\"outputPath\": \"Assets/Game/Worlds/Meadow/Runtime/Shared/Prefabs/P_zzz.prefab\"",
             "\"outputPath\": \"\"");
 
-        bool result = TryParseJson(json, "Assets/GameResources/Props/zzz.fbx", out _, out string error);
+        bool result = TryParseJson(json, "Assets/Game/Props/Generic/Art/zzz.fbx", out _, out string error);
 
         Assert.That(result, Is.False);
         Assert.That(error, Does.Contain("assembly.prefab.outputPath is required"));
@@ -424,7 +424,7 @@ public sealed class ProjectFbxAutoImporterTests
       ]",
             @"""levels"": []");
 
-        bool result = TryParseJson(json, "Assets/GameResources/Props/zzz.fbx", out _, out string error);
+        bool result = TryParseJson(json, "Assets/Game/Props/Generic/Art/zzz.fbx", out _, out string error);
 
         Assert.That(result, Is.False);
         Assert.That(error, Does.Contain("assembly.lodGroup.levels must contain at least one level"));
@@ -433,7 +433,7 @@ public sealed class ProjectFbxAutoImporterTests
     [Test]
     public void AssemblyProcessor_JsonLodLevelsCreateLodGroup()
     {
-        Assert.That(TryParseJson(LodOnlyJson(), "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error), Is.True, error);
+        Assert.That(TryParseJson(LodOnlyJson(), "Assets/Game/Props/Generic/Art/zzz.fbx", out object manifest, out string error), Is.True, error);
 
         GameObject root = CreateLodFixture();
         try
@@ -453,7 +453,7 @@ public sealed class ProjectFbxAutoImporterTests
     [Test]
     public void AssemblyProcessor_JsonColliderCreatesRequestedColliderAndDisablesRenderer()
     {
-        Assert.That(TryParseJson(WithoutMaterials(ValidJson), "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error), Is.True, error);
+        Assert.That(TryParseJson(WithoutMaterials(ValidJson), "Assets/Game/Props/Generic/Art/zzz.fbx", out object manifest, out string error), Is.True, error);
 
         GameObject root = CreateLodFixture();
         GameObject colliderNode = new GameObject("UCX_body");
@@ -481,8 +481,8 @@ public sealed class ProjectFbxAutoImporterTests
     {
         const string materialPath = "Assets/Tests/BuildPipeline/EditMode/TempDccJsonMaterial.mat";
         Material targetMaterial = CreateMaterialAsset(materialPath, "M_Wood_Target");
-        string json = WithoutColliders(ValidJson).Replace("Assets/GameAssets/Materials/M_Wood.mat", materialPath);
-        Assert.That(TryParseJson(json, "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error), Is.True, error);
+        string json = WithoutColliders(ValidJson).Replace("Assets/Game/Shared/StylizedPackCommon/Runtime/Materials/M_Wood.mat", materialPath);
+        Assert.That(TryParseJson(json, "Assets/Game/Props/Generic/Art/zzz.fbx", out object manifest, out string error), Is.True, error);
 
         GameObject root = CreateLodFixture();
         Renderer renderer = root.transform.Find("zz_LOD0_LOD0").GetComponent<Renderer>();
@@ -504,7 +504,7 @@ public sealed class ProjectFbxAutoImporterTests
     [Test]
     public void PrefabGenerator_OverwriteFalseSkipsExistingPrefab()
     {
-        Assert.That(TryParseJson(ValidJson, "Assets/GameResources/Props/zzz.fbx", out object manifest, out string error), Is.True, error);
+        Assert.That(TryParseJson(ValidJson, "Assets/Game/Props/Generic/Art/zzz.fbx", out object manifest, out string error), Is.True, error);
         object prefabConfig = GetField<object>(GetField<object>(manifest, "assembly"), "prefab");
         const string prefabPath = "Assets/Tests/BuildPipeline/EditMode/TempExistingDccPrefab.prefab";
         SetField(prefabConfig, "outputPath", prefabPath);
@@ -654,7 +654,7 @@ public sealed class ProjectFbxAutoImporterTests
     {
         return json.Replace(
             @"    ""materials"": [
-      { ""slotName"": ""M_Wood"", ""materialPath"": ""Assets/GameAssets/Materials/M_Wood.mat"" }
+      { ""slotName"": ""M_Wood"", ""materialPath"": ""Assets/Game/Shared/StylizedPackCommon/Runtime/Materials/M_Wood.mat"" }
     ]",
             @"    ""materials"": []");
     }
@@ -814,7 +814,7 @@ public sealed class ProjectFbxAutoImporterTests
   ""assembly"": {
     ""prefab"": {
       ""enabled"": true,
-      ""outputPath"": ""Assets/GameAssets/Worlds/Meadow/Shared/Prefabs/P_zzz.prefab"",
+      ""outputPath"": ""Assets/Game/Worlds/Meadow/Runtime/Shared/Prefabs/P_zzz.prefab"",
       ""overwrite"": false
     },
     ""lodGroup"": {
@@ -830,7 +830,7 @@ public sealed class ProjectFbxAutoImporterTests
       { ""nodePath"": ""UCX_body"", ""type"": ""Mesh"", ""convex"": true, ""disableRenderer"": true }
     ],
     ""materials"": [
-      { ""slotName"": ""M_Wood"", ""materialPath"": ""Assets/GameAssets/Materials/M_Wood.mat"" }
+      { ""slotName"": ""M_Wood"", ""materialPath"": ""Assets/Game/Shared/StylizedPackCommon/Runtime/Materials/M_Wood.mat"" }
     ]
   }
 }";

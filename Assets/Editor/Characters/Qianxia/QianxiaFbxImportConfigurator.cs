@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using UnityEditor;
 using UnityEngine;
 
 public class QianxiaFbxImportConfigurator : AssetPostprocessor
 {
-    public const string ModelAssetPath = "Assets/GameResources/Characters/Qianxia/Meshs/Qianxia_Rokoko_BlenderClean.fbx";
-    public const string WalkAssetPath = "Assets/GameResources/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
-    public const string SourceAnimationsRoot = "Assets/GameResources/Characters/Qianxia/SourceAnimations/";
+    public const string ModelAssetPath = "Assets/Game/Characters/Qianxia/Art/Meshs/Qianxia_Rokoko_BlenderClean.fbx";
+    public const string WalkAssetPath = "Assets/Game/Characters/Qianxia/Art/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
+    public const string SourceAnimationsRoot = "Assets/Game/Characters/Qianxia/Art/SourceAnimations/";
 
     private void OnPreprocessModel()
     {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,13 +12,15 @@ using YooAsset.Editor;
 public static class ProjectYooAssetBuild
 {
     private const string DefaultBuildRoot = "Assets";
-    private const string ResourceCheckRoot = "Assets/GameResources";
+    private const string LegacyResourceCheckRoot = "Assets/GameResources";
     private const string DefaultPlanRoot = ".workspace/artifacts/yooasset";
     private const string DefaultBuildOutputRoot = ".workspace/artifacts/yooasset-build";
     private const string PlanFileName = "yooasset_build_plan.json";
     private const string DefaultPackageName = "DefaultPackage";
-    private const string GameAssetsDirectoryName = "GameAssets";
-    private const string ChunksDirectoryName = "Chunks";
+    private const string GameContentDirectoryName = "Game";
+    private const string LegacyGameAssetsDirectoryName = "GameAssets";
+    private const string ArtDirectoryName = "Art";
+    private const string RuntimeDirectoryName = "Runtime";
     private const string CommonDirectoryName = "Common";
     private const string SharedDirectoryName = "Shared";
     private const string MaterialsDirectoryName = "Materials";
@@ -28,9 +30,9 @@ public static class ProjectYooAssetBuild
     private const string CommonShaderRoot = "Common/Shaders";
     private const string CommonFontsRoot = "Common/Fonts";
     private const string CommonFunctionsRoot = "Common/Functions";
-    private const string SharedTextureRoot = "Assets/GameResources/Stylized Pack - Common/Sources/Textures";
-    private const string MeadowEnvironmentPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Environment";
-    private const string MeadowTerrainDetailsPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Terrain Details";
+    private const string SharedTextureRoot = "Assets/Game/Shared/StylizedPackCommon/Art/Sources/Textures";
+    private const string LegacyMeadowEnvironmentPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Environment";
+    private const string LegacyMeadowTerrainDetailsPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Terrain Details";
     private const string MeadowLegacyConfigRoot = "Configs/Post Processing/Meadow Environment";
     private const string MeadowLegacySceneRoot = "Scenes/Meadow Environment";
     private const string MeadowGeneratedSceneRoot = "Worlds/Meadow/Scenes";
@@ -194,10 +196,16 @@ public static class ProjectYooAssetBuild
             includeSourceAssets = includeSourceAssets
         };
 
-        List<ProjectGroupSpec> specs = CreateGameAssetSpecs(buildRoot);
+        List<ProjectGroupSpec> specs = CreateContentModuleStaticRuntimeSpecs(buildRoot).ToList();
+        specs.AddRange(CreateContentModuleRuntimeSpecs(buildRoot));
+        specs.AddRange(CreateGameAssetSpecs(buildRoot));
+        specs.AddRange(CreateContentModuleRuntimeDependencySpecs(buildRoot));
         specs.AddRange(CreateGameAssetDependencySpecs(buildRoot));
         if (includeSourceAssets)
+        {
+            specs.AddRange(CreateContentModuleArtDependencySpecs(buildRoot));
             specs.AddRange(CreateGameResourceSpecs());
+        }
 
         if (includeSamples)
             specs.Add(new ProjectGroupSpec("angrymesh.samples.urp", new[] { "Assets/Samples/Universal RP" }));
@@ -454,12 +462,7 @@ public static class ProjectYooAssetBuild
         string gameAssetsRoot = ResolveGameAssetsRoot(buildRoot);
         string[] excludeRoots = CreateGameAssetExcludeRoots(gameAssetsRoot);
         if (!AssetDatabase.IsValidFolder(gameAssetsRoot))
-        {
-            return new List<ProjectGroupSpec>
-            {
-                new ProjectGroupSpec("angrymesh.gameassets", new[] { gameAssetsRoot }, excludeRoots)
-            };
-        }
+            return new List<ProjectGroupSpec>();
 
         List<ProjectGroupSpec> specs = new List<ProjectGroupSpec>();
         specs.AddRange(CreateStaticRuntimeSpecs(gameAssetsRoot));
@@ -471,13 +474,179 @@ public static class ProjectYooAssetBuild
         return specs;
     }
 
+    private static IEnumerable<ProjectGroupSpec> CreateContentModuleStaticRuntimeSpecs(string buildRoot)
+    {
+        string gameContentRoot = ResolveGameContentRoot(buildRoot);
+        if (!AssetDatabase.IsValidFolder(gameContentRoot))
+            yield break;
+
+        foreach (string runtimeRoot in EnumerateContentModuleRuntimeRoots(gameContentRoot))
+        {
+            string groupKey = GetContentModuleGroupKey(gameContentRoot, runtimeRoot);
+            foreach (string staticRoot in EnumerateStaticRuntimeFolders(runtimeRoot))
+            {
+                yield return CreateStaticSpec(
+                    "game.static." + groupKey + "." + SanitizeAssetPath(staticRoot),
+                    staticRoot);
+            }
+        }
+    }
+
+    private static List<ProjectGroupSpec> CreateContentModuleRuntimeSpecs(string buildRoot)
+    {
+        string gameContentRoot = ResolveGameContentRoot(buildRoot);
+        if (!AssetDatabase.IsValidFolder(gameContentRoot))
+            return new List<ProjectGroupSpec>();
+
+        List<ProjectGroupSpec> specs = new List<ProjectGroupSpec>();
+        foreach (string runtimeRoot in EnumerateContentModuleRuntimeRoots(gameContentRoot))
+        {
+            string groupPrefix = "game.runtime." + GetContentModuleGroupKey(gameContentRoot, runtimeRoot);
+            specs.AddRange(CreateSpecsFromPackageFolders(
+                groupPrefix,
+                runtimeRoot,
+                Array.Empty<string>(),
+                DefaultPackageSourceBytes));
+        }
+
+        return specs;
+    }
+
+    private static IEnumerable<ProjectGroupSpec> CreateContentModuleRuntimeDependencySpecs(string buildRoot)
+    {
+        string gameContentRoot = ResolveGameContentRoot(buildRoot);
+        if (!AssetDatabase.IsValidFolder(gameContentRoot))
+            yield break;
+
+        foreach (string runtimeRoot in EnumerateContentModuleRuntimeRoots(gameContentRoot))
+        {
+            foreach (string dependencyRoot in EnumerateAssetParentFolders(
+                         runtimeRoot,
+                         CollectorAssetClass.Depend,
+                         Array.Empty<string>()))
+            {
+                yield return CreateDependencySpec("game.dependencies." + SanitizeAssetPath(dependencyRoot), dependencyRoot);
+            }
+        }
+    }
+
+    private static IEnumerable<ProjectGroupSpec> CreateContentModuleArtDependencySpecs(string buildRoot)
+    {
+        string gameContentRoot = ResolveGameContentRoot(buildRoot);
+        if (!AssetDatabase.IsValidFolder(gameContentRoot))
+            yield break;
+
+        foreach (string artRoot in EnumerateContentModuleArtRoots(gameContentRoot))
+        {
+            string groupKey = GetContentModuleGroupKey(gameContentRoot, artRoot);
+            foreach (string dependencyRoot in EnumerateDependencyFolders(artRoot))
+            {
+                yield return CreateDependencySpec(
+                    "game.dependencies." + groupKey + "." + SanitizeSegment(Path.GetFileName(dependencyRoot)),
+                    dependencyRoot);
+            }
+        }
+    }
+
+    private static string ResolveGameContentRoot(string buildRoot)
+    {
+        string normalizedBuildRoot = NormalizeAssetPath(buildRoot).TrimEnd('/');
+        if (string.Equals(Path.GetFileName(normalizedBuildRoot), GameContentDirectoryName, StringComparison.OrdinalIgnoreCase))
+            return normalizedBuildRoot;
+
+        return AssetPathCombine(normalizedBuildRoot, GameContentDirectoryName);
+    }
+
+    private static IEnumerable<string> EnumerateContentModuleRuntimeRoots(string gameContentRoot)
+    {
+        return EnumerateContentModuleSectionRoots(gameContentRoot, RuntimeDirectoryName);
+    }
+
+    private static IEnumerable<string> EnumerateContentModuleArtRoots(string gameContentRoot)
+    {
+        return EnumerateContentModuleSectionRoots(gameContentRoot, ArtDirectoryName);
+    }
+
+    private static IEnumerable<string> EnumerateContentModuleSectionRoots(string gameContentRoot, string sectionName)
+    {
+        string normalizedRoot = NormalizeAssetPath(gameContentRoot);
+        if (!AssetDatabase.IsValidFolder(normalizedRoot))
+            yield break;
+
+        Stack<string> pending = new Stack<string>();
+        pending.Push(normalizedRoot);
+        while (pending.Count > 0)
+        {
+            string current = pending.Pop();
+            string folderName = Path.GetFileName(current);
+            if (string.Equals(folderName, sectionName, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(current, normalizedRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return current;
+                continue;
+            }
+
+            string[] subFolders = AssetDatabase.GetSubFolders(current)
+                .OrderByDescending(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            for (int index = 0; index < subFolders.Length; index++)
+                pending.Push(subFolders[index]);
+        }
+    }
+
+    private static IEnumerable<string> EnumerateStaticRuntimeFolders(string runtimeRoot)
+    {
+        string normalizedRoot = NormalizeAssetPath(runtimeRoot);
+        if (!AssetDatabase.IsValidFolder(normalizedRoot))
+            yield break;
+
+        Stack<string> pending = new Stack<string>();
+        pending.Push(normalizedRoot);
+        while (pending.Count > 0)
+        {
+            string current = pending.Pop();
+            string folderName = Path.GetFileName(current);
+            if (IsStaticRuntimeFolderName(folderName) &&
+                !string.Equals(current, normalizedRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                yield return current;
+                continue;
+            }
+
+            string[] subFolders = AssetDatabase.GetSubFolders(current)
+                .OrderByDescending(path => path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            for (int index = 0; index < subFolders.Length; index++)
+                pending.Push(subFolders[index]);
+        }
+    }
+
+    private static bool IsStaticRuntimeFolderName(string folderName)
+    {
+        return string.Equals(folderName, "Shaders", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(folderName, "ShaderVariants", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(folderName, "Fonts", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(folderName, "Functions", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetContentModuleGroupKey(string gameContentRoot, string runtimeRoot)
+    {
+        string modulePath = NormalizeAssetPath(Path.GetDirectoryName(NormalizeAssetPath(runtimeRoot)));
+        string normalizedRoot = NormalizeAssetPath(gameContentRoot).TrimEnd('/');
+        string relativePath = modulePath;
+        if (relativePath.StartsWith(normalizedRoot + "/", StringComparison.OrdinalIgnoreCase))
+            relativePath = relativePath.Substring(normalizedRoot.Length + 1);
+
+        return SanitizeSegment(relativePath.Replace('/', '.'));
+    }
+
     private static string ResolveGameAssetsRoot(string buildRoot)
     {
         string normalizedBuildRoot = NormalizeAssetPath(buildRoot).TrimEnd('/');
-        if (string.Equals(Path.GetFileName(normalizedBuildRoot), GameAssetsDirectoryName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(Path.GetFileName(normalizedBuildRoot), LegacyGameAssetsDirectoryName, StringComparison.OrdinalIgnoreCase))
             return normalizedBuildRoot;
 
-        return AssetPathCombine(normalizedBuildRoot, GameAssetsDirectoryName);
+        return AssetPathCombine(normalizedBuildRoot, LegacyGameAssetsDirectoryName);
     }
 
     private static string[] CreateGameAssetExcludeRoots(string gameAssetsRoot)
@@ -489,8 +658,8 @@ public static class ProjectYooAssetBuild
             AssetPathCombine(gameAssetsRoot, CommonFontsRoot),
             AssetPathCombine(gameAssetsRoot, CommonFunctionsRoot),
             AssetPathCombine(gameAssetsRoot, CommonShaderRoot),
-            MeadowEnvironmentPrefabRoot,
-            MeadowTerrainDetailsPrefabRoot,
+            LegacyMeadowEnvironmentPrefabRoot,
+            LegacyMeadowTerrainDetailsPrefabRoot,
             AssetPathCombine(gameAssetsRoot, MeadowLegacyConfigRoot),
             AssetPathCombine(gameAssetsRoot, MeadowLegacySceneRoot),
             AssetPathCombine(gameAssetsRoot, MeadowGeneratedSceneRoot)
@@ -504,18 +673,15 @@ public static class ProjectYooAssetBuild
 
     private static List<ProjectGroupSpec> CreateGameResourceSpecs()
     {
-        if (AssetDatabase.IsValidFolder(ResourceCheckRoot))
+        if (AssetDatabase.IsValidFolder(LegacyResourceCheckRoot))
         {
-            return EnumerateDependencyFolders(ResourceCheckRoot)
+            return EnumerateDependencyFolders(LegacyResourceCheckRoot)
                 .Where(path => !IsUnderRoot(path, SharedTextureRoot))
                 .Select(path => CreateDependencySpec("angrymesh.dependencies." + SanitizeAssetPath(path), path))
                 .ToList();
         }
 
-        return new List<ProjectGroupSpec>
-        {
-            CreateDependencySpec("angrymesh.dependencies.gameresources", ResourceCheckRoot)
-        };
+        return new List<ProjectGroupSpec>();
     }
 
     private static IEnumerable<ProjectGroupSpec> CreateGameAssetDependencySpecs(string buildRoot)
@@ -641,21 +807,9 @@ public static class ProjectYooAssetBuild
                 }
             }
 
-            string chunksRoot = AssetPathCombine(worldFolder, ChunksDirectoryName);
-            if (AssetDatabase.IsValidFolder(chunksRoot))
-            {
-                worldExcludeRoots.Add(chunksRoot);
-                foreach (string chunkFolder in AssetDatabase.GetSubFolders(chunksRoot).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-                {
-                    string chunkName = SanitizeChunkSegment(Path.GetFileName(chunkFolder));
-                    yield return new ProjectGroupSpec(
-                        groupPrefix + ".chunks." + chunkName,
-                        new[] { chunkFolder },
-                        Array.Empty<string>(),
-                        null,
-                        ScenePackageSourceBytes);
-                }
-            }
+            string retiredChunksRoot = AssetPathCombine(worldFolder, "Chunks");
+            if (AssetDatabase.IsValidFolder(retiredChunksRoot))
+                worldExcludeRoots.Add(retiredChunksRoot);
 
             string scenesRoot = AssetPathCombine(worldFolder, ScenesDirectoryName);
             if (AssetDatabase.IsValidFolder(scenesRoot))
@@ -1191,25 +1345,6 @@ public static class ProjectYooAssetBuild
         return string.IsNullOrWhiteSpace(result) ? "group" : result;
     }
 
-    private static string SanitizeChunkSegment(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return "chunk";
-
-        StringBuilder builder = new StringBuilder(value.Length);
-        for (int index = 0; index < value.Length; index++)
-        {
-            char c = char.ToLowerInvariant(value[index]);
-            builder.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '.');
-        }
-
-        string result = builder.ToString().Trim('.');
-        while (result.Contains(".."))
-            result = result.Replace("..", ".");
-
-        return string.IsNullOrWhiteSpace(result) ? "chunk" : result;
-    }
-
     private static string SanitizeAssetPath(string assetPath)
     {
         string normalized = NormalizeAssetPath(assetPath);
@@ -1565,6 +1700,8 @@ public static class ProjectYooAssetCollectorRuleUtility
                extension.Equals(".shadervariants", StringComparison.OrdinalIgnoreCase) ||
                normalizedPath.IndexOf("/Common/Fonts/", StringComparison.OrdinalIgnoreCase) >= 0 ||
                normalizedPath.IndexOf("/Common/Functions/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               normalizedPath.IndexOf("/Runtime/Fonts/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               normalizedPath.IndexOf("/Runtime/Functions/", StringComparison.OrdinalIgnoreCase) >= 0 ||
                normalizedPath.IndexOf("/Shared/Materials/", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 

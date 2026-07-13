@@ -1,6 +1,5 @@
 param(
-    [Parameter(Mandatory = $true)]
-    [string] $Port,
+    [string] $Port = '',
 
     [Parameter(Mandatory = $true)]
     [string] $Client,
@@ -8,8 +7,9 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $Root,
 
-    [Parameter(Mandatory = $true)]
-    [string] $ViewFile,
+    [string] $ViewFile = '',
+
+    [string] $LockFile = 'p4-assets.lock.json',
 
     [string] $Changelist = '',
 
@@ -86,7 +86,36 @@ if (-not $script:P4Exe) {
 }
 
 $resolvedRoot = (Resolve-Path -LiteralPath $Root).Path
-$resolvedViewFile = (Resolve-Path -LiteralPath $ViewFile).Path
+$resolvedLockFile = Join-Path $resolvedRoot $LockFile
+if (Test-Path -LiteralPath $resolvedLockFile -PathType Leaf) {
+    $lock = Get-Content -LiteralPath $resolvedLockFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ([string]::IsNullOrWhiteSpace($Port) -and -not [string]::IsNullOrWhiteSpace([string]$lock.port)) {
+        $Port = [string]$lock.port
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ViewFile) -and -not [string]::IsNullOrWhiteSpace([string]$lock.viewFile)) {
+        $ViewFile = [string]$lock.viewFile
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Changelist) -and -not [string]::IsNullOrWhiteSpace([string]$lock.changelist)) {
+        $Changelist = [string]$lock.changelist
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($Port)) {
+    throw 'Perforce port is required. Pass -Port or set p4-assets.lock.json port.'
+}
+
+if ([string]::IsNullOrWhiteSpace($ViewFile)) {
+    throw 'Perforce view file is required. Pass -ViewFile or set p4-assets.lock.json viewFile.'
+}
+
+$viewFilePath = if ([System.IO.Path]::IsPathRooted($ViewFile)) {
+    $ViewFile
+} else {
+    Join-Path $resolvedRoot $ViewFile
+}
+$resolvedViewFile = (Resolve-Path -LiteralPath $viewFilePath).Path
 $resolvedLogDir = Split-Path -Parent (Join-Path $resolvedRoot $LogPath)
 $resolvedManifestDir = Split-Path -Parent (Join-Path $resolvedRoot $ManifestPath)
 

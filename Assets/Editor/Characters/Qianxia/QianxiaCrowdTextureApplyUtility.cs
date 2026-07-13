@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
@@ -7,14 +7,14 @@ using UnityEngine;
 
 public static class QianxiaCrowdTextureApplyUtility
 {
-    private const string SourceWalkingFbxPath = "Assets/GameResources/Characters/Qianxia/Meshs/Ch36_nonPBR@Walking.fbx";
-    private const string OutputTextureFolder = "Assets/GameAssets/Characters/Qianxia/Generated/Textures/Walking";
+    private const string SourceWalkingFbxPath = "Assets/Game/Characters/Qianxia/Art/Meshs/Ch36_nonPBR@Walking.fbx";
+    private const string OutputTextureFolder = "Assets/Game/Characters/Qianxia/Runtime/Generated/Textures/Walking";
     private const string DiffuseTextureName = "Ch36_1001_Diffuse.png";
     private const string NormalTextureName = "Ch36_1001_Normal.png";
     private const string SpecularTextureName = "Ch36_1001_Specular.png";
     private const string GlossinessTextureName = "Ch36_1001_Glossiness.png";
     private const string SpecGlossTextureName = "Ch36_1001_SpecGloss.png";
-    private const string VatMaterialsFolder = "Assets/GameAssets/Characters/Qianxia/Generated/VAT/Materials";
+    private const string VatMaterialsFolder = "Assets/Game/Characters/Qianxia/Runtime/Generated/VAT/Materials";
 
     private static readonly string[] ExpectedTextureNames =
     {

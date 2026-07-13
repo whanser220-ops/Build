@@ -105,7 +105,7 @@ MonoBehaviour:
     enabled: 1
     filter:
       directoryMatch: 1
-      directoryPattern: Stylized Pack - Meadow Environment/Sources/Meshes/
+      directoryPattern: Worlds/Meadow/Art/Sources/Meshes/
       packageNameMatch: 0
       packageNamePattern:
       assetClass: 1

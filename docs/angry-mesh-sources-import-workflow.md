@@ -1,10 +1,12 @@
-# GameResources Sources 导入检查工作流
+# 模块 Art 资源导入检查工作流
 
-本文记录 `Assets/GameResources` 下源素材的专用导入/检查工作流。当前已纳入：
+本文记录 `Assets/Game/**/Art` 下源素材的导入/检查工作流。旧 `Assets/GameResources` 已迁移并移除，不再作为新增源素材入口。
+
+当前已纳入：
 
 ```text
-Assets/GameResources/Stylized Pack - Common/Sources
-Assets/GameResources/Stylized Pack - Meadow Environment/Sources
+Assets/Game/Shared/StylizedPackCommon/Art/Sources
+Assets/Game/Worlds/Meadow/Art/Sources
 ```
 
 ## 目标
@@ -13,7 +15,7 @@ Assets/GameResources/Stylized Pack - Meadow Environment/Sources
 - 规则通过路径、文件名、glob 和正则表达式匹配资源。
 - 导入配置持久化在 JSON profile 中，便于版本管理和代码审查。
 - 每个资源的已应用规则、源文件大小、修改时间和设置哈希持久化在 state JSON 中。
-- 当 `Assets/GameResources` 下资源被修改或重新导入时，Editor Postprocessor 会按 profile 自动校正导入设置并更新 state。
+- 当模块 `Art` 下资源被修改或重新导入时，Editor Postprocessor 会按 profile 自动校正导入设置并更新 state。
 
 ## 文件入口
 
@@ -27,7 +29,7 @@ Assets/GameResources/Stylized Pack - Meadow Environment/Sources
 规则按 `order` 从小到大匹配，第一条命中的规则生效。每条规则可同时限制：
 
 - `assetKind`：`Texture`、`Model`、`Material`、`TerrainLayer`、`Generic`、`Any`
-- `pathGlobs`：相对 `Assets/GameResources` 的路径通配符，例如 `*/Sources/Textures/**`、`*/Sources/Meshes/Grass/**`
+- `pathGlobs`：相对各模块 `Art` 根的路径通配符，例如 `*/Sources/Textures/**`、`*/Sources/Meshes/Grass/**`
 - `fileNameGlobs`：文件名通配符，例如 `*_N.tif`、`*.fbx`
 - `pathRegex` / `fileNameRegex`：可选正则表达式
 - `excludeGlobs`：排除路径

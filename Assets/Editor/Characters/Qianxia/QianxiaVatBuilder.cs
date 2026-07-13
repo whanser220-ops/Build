@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -7,12 +7,12 @@ using UnityEngine;
 
 public static class QianxiaVatBuilder
 {
-    private const string WalkClipAssetPath = "Assets/GameResources/Characters/Qianxia/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
+    private const string WalkClipAssetPath = "Assets/Game/Characters/Qianxia/Art/SourceAnimations/Walk/Qianxia_Walk_Slow.fbx";
     private const string WalkClipName = "Qianxia_Walk_Slow";
-    private const string IdleClipAssetPath = "Assets/GameResources/Characters/Qianxia/SourceAnimations/Idle/Ch36_nonPBR@Zombie Idle.fbx";
+    private const string IdleClipAssetPath = "Assets/Game/Characters/Qianxia/Art/SourceAnimations/Idle/Ch36_nonPBR@Zombie Idle.fbx";
     private const string IdleClipName = "Ch36_nonPBR@Zombie Idle";
-    private const string OutputFolder = "Assets/GameAssets/Characters/Qianxia/Generated/VAT";
-    private const string ShaderPath = "Assets/GameAssets/Common/Shaders/Crowds/VAT/CrowdVatLit.shader";
+    private const string OutputFolder = "Assets/Game/Characters/Qianxia/Runtime/Generated/VAT";
+    private const string ShaderPath = "Assets/Game/Shared/StylizedPackCommon/Runtime/Shaders/Crowds/VAT/CrowdVatLit.shader";
     private const string BuildRequestFile = ".workspace/artifacts/qianxia-vat-build.request";
     private const string BuildResultFile = ".workspace/artifacts/qianxia-vat-build.result.txt";
 
