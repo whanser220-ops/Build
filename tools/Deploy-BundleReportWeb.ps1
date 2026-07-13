@@ -136,7 +136,7 @@ APP_ARCHIVE='/tmp/$appArchiveName'
 DATA_ARCHIVE='/tmp/$dataArchiveName'
 REMOTE_USER='$SshUser'
 
-sudo rm -rf "`$REMOTE_APP_DIR"
+sudo rm -rf "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR"
 sudo mkdir -p "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR"
 sudo chown -R "`$REMOTE_USER":"`$REMOTE_USER" "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR"
 
@@ -154,6 +154,7 @@ unzip_allow_warnings() {
 
 unzip_allow_warnings "`$APP_ARCHIVE" "`$REMOTE_APP_DIR"
 unzip_allow_warnings "`$DATA_ARCHIVE" "`$REMOTE_DATA_DIR"
+find "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR" -type d -exec chmod u+rwx {} +
 
 REMOTE_DATA_DIR="`$REMOTE_DATA_DIR" node <<'NODE'
 const fs = require('fs');
