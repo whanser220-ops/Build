@@ -44,6 +44,26 @@ properties([
 //depot/Assets/Game/Worlds/Meadow/Runtime/Seasons/... //${P4_CLIENT}/Assets/Game/Worlds/Meadow/Runtime/Seasons/...
 //depot/Assets/Game/Worlds/Meadow/Runtime/Shared/... //${P4_CLIENT}/Assets/Game/Worlds/Meadow/Runtime/Shared/...''',
             description: 'Perforce client view for Unity assets. Use ${P4_CLIENT} as the client placeholder.'
+        ),
+        booleanParam(
+            name: 'BUNDLE_REPORT_DEPLOY_ENABLED',
+            defaultValue: true,
+            description: 'Deploy the YooAsset bundle report web app after a successful formal build.'
+        ),
+        string(
+            name: 'BUNDLE_REPORT_HOST',
+            defaultValue: '1.117.232.198',
+            description: 'Bundle report web server host.'
+        ),
+        string(
+            name: 'BUNDLE_REPORT_SSH_USER',
+            defaultValue: 'ubuntu',
+            description: 'SSH user for bundle report deployment.'
+        ),
+        string(
+            name: 'BUNDLE_REPORT_SSH_CREDENTIALS_ID',
+            defaultValue: 'bundle-report-ssh-key',
+            description: 'Jenkins SSH private key credential ID for bundle report deployment.'
         )
     ])
 ])
@@ -74,7 +94,10 @@ def runWindowsPlayerBuild = {
                 'WINDOWS_EXE=.workspace\\builds\\windows\\Unity6-Windows-Development\\Unity6.exe',
                 'WINDOWS_ZIP=.workspace\\builds\\windows\\Unity6-Windows-Development.zip',
                 'P4_SYNC_LOG=Logs\\p4-sync.log',
-                'BUILD_MANIFEST=.workspace\\build-manifest.json'
+                'BUILD_MANIFEST=.workspace\\build-manifest.json',
+                'BUNDLE_REPORT_ROOT=.workspace\\artifacts\\bundle-report',
+                'BUNDLE_REPORT_WEB_DIR=tools\\bundle-report-web',
+                'BUNDLE_REPORT_BASE_PATH=/bundle-report'
             ]) {
                 stage('Checkout') {
                         if (env.JENKINSFILE_BOOTSTRAPPED != 'true') {
@@ -137,9 +160,11 @@ PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Sync-PerforceAss
 @echo on
 if exist ".workspace\\builds" rmdir /s /q ".workspace\\builds"
 if exist ".workspace\\artifacts\\yooasset-build" rmdir /s /q ".workspace\\artifacts\\yooasset-build"
+if exist ".workspace\\artifacts\\bundle-report-web" rmdir /s /q ".workspace\\artifacts\\bundle-report-web"
 if exist "Assets\\StreamingAssets\\yoo" rmdir /s /q "Assets\\StreamingAssets\\yoo"
 if exist "Logs\\build-windows.log" del /f /q "Logs\\build-windows.log"
 if not exist ".workspace\\builds\\windows" mkdir ".workspace\\builds\\windows"
+if not exist "%BUNDLE_REPORT_ROOT%\\StandaloneWindows64\\DefaultPackage\\%BUILD_NUMBER%" mkdir "%BUNDLE_REPORT_ROOT%\\StandaloneWindows64\\DefaultPackage\\%BUILD_NUMBER%"
 if not exist "Logs" mkdir "Logs"
 '''
                     }
@@ -152,7 +177,7 @@ if not exist "%UNITY_EXE%" (
   echo Unity not found: %UNITY_EXE%
   exit /b 1
 )
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Invoke-Unity.ps1" -ProjectPath . -batchmode -quit -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment -logFile "%UNITY_LOG%" --ci-output "%WINDOWS_EXE%" --yooasset-target StandaloneWindows64 --yooasset-include-source-assets --yooasset-package-name DefaultPackage --yooasset-package-version "%BUILD_NUMBER%" --yooasset-build-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build" --yooasset-plan-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset\\StandaloneWindows64\\angrymesh\\yooasset_build_plan.json"
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Invoke-Unity.ps1" -ProjectPath . -batchmode -quit -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment -logFile "%UNITY_LOG%" --ci-output "%WINDOWS_EXE%" --yooasset-target StandaloneWindows64 --yooasset-include-source-assets --yooasset-package-name DefaultPackage --yooasset-package-version "%BUILD_NUMBER%" --yooasset-build-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build" --yooasset-plan-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset\\StandaloneWindows64\\angrymesh\\yooasset_build_plan.json" --bundle-report-output "%WORKSPACE%\\%BUNDLE_REPORT_ROOT%\\StandaloneWindows64\\DefaultPackage\\%BUILD_NUMBER%\\bundle_report.json"
 set UNITY_EXIT=%ERRORLEVEL%
 if exist "%WORKSPACE%\\%UNITY_LOG%" type "%WORKSPACE%\\%UNITY_LOG%"
 exit /b %UNITY_EXIT%
@@ -164,6 +189,49 @@ exit /b %UNITY_EXIT%
 @echo on
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference = 'Stop'; if (-not (Test-Path $env:WINDOWS_EXE)) { throw ('Windows player executable was not found: ' + $env:WINDOWS_EXE) }; if (Test-Path $env:WINDOWS_ZIP) { Remove-Item -LiteralPath $env:WINDOWS_ZIP -Force }; Compress-Archive -Path (Join-Path $env:WINDOWS_BUILD_DIR '*') -DestinationPath $env:WINDOWS_ZIP -Force"
 '''
+                    }
+
+                    stage('Archive Bundle Reports') {
+                        archiveArtifacts artifacts: '.workspace/artifacts/bundle-report/**, .workspace/artifacts/yooasset-build/**/*.report', allowEmptyArchive: false
+                    }
+
+                    stage('Build Bundle Report Web') {
+                        bat '''
+@echo on
+cd "%BUNDLE_REPORT_WEB_DIR%"
+set NEXT_PUBLIC_BASE_PATH=%BUNDLE_REPORT_BASE_PATH%
+npm ci
+npm run typecheck
+npm run build
+'''
+                    }
+
+                    stage('Deploy Bundle Report Web') {
+                        script {
+                            def deployEnabled = params.BUNDLE_REPORT_DEPLOY_ENABLED == null ? true : params.BUNDLE_REPORT_DEPLOY_ENABLED
+                            if (!deployEnabled) {
+                                echo 'Skipping bundle report web deploy because BUNDLE_REPORT_DEPLOY_ENABLED=false.'
+                            } else {
+                                def reportHost = params.BUNDLE_REPORT_HOST?.trim() ?: '1.117.232.198'
+                                def reportUser = params.BUNDLE_REPORT_SSH_USER?.trim() ?: 'ubuntu'
+                                def reportCredentialsId = params.BUNDLE_REPORT_SSH_CREDENTIALS_ID?.trim() ?: 'bundle-report-ssh-key'
+
+                                withCredentials([sshUserPrivateKey(
+                                    credentialsId: reportCredentialsId,
+                                    keyFileVariable: 'BUNDLE_REPORT_SSH_KEY'
+                                )]) {
+                                    withEnv([
+                                        "BUNDLE_REPORT_DEPLOY_HOST=${reportHost}",
+                                        "BUNDLE_REPORT_DEPLOY_USER=${reportUser}"
+                                    ]) {
+                                        bat '''
+@echo on
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Deploy-BundleReportWeb.ps1" -AppDir "%WORKSPACE%\\%BUNDLE_REPORT_WEB_DIR%" -ReportRoot "%WORKSPACE%\\%BUNDLE_REPORT_ROOT%" -SshHost "%BUNDLE_REPORT_DEPLOY_HOST%" -SshUser "%BUNDLE_REPORT_DEPLOY_USER%" -SshKeyPath "%BUNDLE_REPORT_SSH_KEY%" -BasePath "%BUNDLE_REPORT_BASE_PATH%" -SkipBuild
+'''
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

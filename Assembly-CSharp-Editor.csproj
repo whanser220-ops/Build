@@ -48,6 +48,7 @@
   <ItemGroup>
     <Compile Include="Assets\Editor\Characters\Qianxia\RenMaterialImportUtility.cs" />
     <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaMeadowSceneMigrationUtility.cs" />
+    <Compile Include="Assets\Editor\BuildPipeline\YooAsset\ProjectYooAssetBundleReport.cs" />
     <Compile Include="Assets\ThirdParty\UnityTutorialInfo\TutorialInfo\Scripts\Editor\ReadmeEditor.cs" />
     <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaLodPrefabBuilder.cs" />
     <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaCrowdTextureApplyUtility.cs" />
@@ -61,6 +62,7 @@
     <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaVatBuilder.cs" />
     <Compile Include="Assets\Editor\AssetImport\ProjectAssetImportRuleSetEditor.cs" />
     <Compile Include="Assets\Editor\Characters\Qianxia\RenTextureApplyUtility.cs" />
+    <Compile Include="Assets\Editor\BuildPipeline\YooAsset\ProjectYooAssetScriptableBuildPipeline.cs" />
     <Compile Include="Assets\Editor\AssetImport\ProjectAssetImportRuleSet.cs" />
     <Compile Include="Assets\Editor\BuildPipeline\YooAsset\ProjectYooAssetBuild.cs" />
     <Compile Include="Assets\Editor\Ci\CiPlayerBuild.cs" />

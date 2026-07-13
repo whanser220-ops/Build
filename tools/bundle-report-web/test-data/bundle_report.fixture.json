@@ -1,0 +1,178 @@
+{
+  "schemaVersion": "1",
+  "summary": {
+    "reportId": "StandaloneWindows64_DefaultPackage_fixture-1001",
+    "generatedAt": "2026-07-13T08:00:00Z",
+    "buildTarget": "StandaloneWindows64",
+    "packageName": "DefaultPackage",
+    "packageVersion": "fixture-1001",
+    "unityVersion": "6000.0.46f1",
+    "yooAssetVersion": "3.0.3-beta",
+    "planPath": ".workspace/artifacts/yooasset/StandaloneWindows64/angrymesh/yooasset_build_plan.json",
+    "yooReportPath": ".workspace/artifacts/yooasset-build/DefaultPackage_fixture-1001.report",
+    "outputPath": ".workspace/artifacts/bundle-report/StandaloneWindows64/DefaultPackage/fixture-1001/bundle_report.json",
+    "bundleCount": 5,
+    "assetCount": 18,
+    "duplicateAssetCount": 1,
+    "smallBundleCount": 1,
+    "largeBundleCount": 1,
+    "maxDependencyDepth": 4,
+    "totalUncompressedSizeBytes": 452984832,
+    "totalCompressedSizeBytes": 265289728,
+    "totalRedundantSizeBytes": 8808038
+  },
+  "thresholds": {
+    "smallBundleBytes": 131072,
+    "largeBundleBytes": 52428800,
+    "dependencyDepthWarningEdges": 4
+  },
+  "duplicateAssets": [
+    {
+      "assetPath": "Assets/GameResources/VFX/Smoke/Smoke_01.png",
+      "assetType": "Texture2D",
+      "buildSizeBytes": 2936013,
+      "bundleCount": 4,
+      "bundles": [
+        {
+          "bundleName": "characters.qianxia.bundle",
+          "copySizeBytes": 2936013
+        },
+        {
+          "bundleName": "vfx.smoke.bundle",
+          "copySizeBytes": 2936013
+        },
+        {
+          "bundleName": "worlds.meadow.bundle",
+          "copySizeBytes": 2936013
+        },
+        {
+          "bundleName": "worlds.dungeon.bundle",
+          "copySizeBytes": 2936013
+        }
+      ],
+      "redundantSizeBytes": 8808038,
+      "directReferrers": [
+        "Assets/Game/Characters/Qianxia/Art/VFX/Qianxia_Smoke.prefab",
+        "Assets/Game/Worlds/Meadow/Runtime/Scenes/Meadow.unity"
+      ],
+      "moduleOwners": ["Characters/Qianxia", "Worlds/Meadow", "Worlds/Dungeon"]
+    }
+  ],
+  "bundles": [
+    {
+      "bundleName": "worlds.meadow.bundle",
+      "fileName": "worlds.meadow_2a7a2db0.bundle",
+      "uncompressedSizeBytes": 201326592,
+      "compressedSizeBytes": 134217728,
+      "assetCount": 9,
+      "directAssetCount": 4,
+      "dependencyAssetCount": 5,
+      "dependBundles": ["common_ui.bundle", "common_material.bundle"],
+      "referenceBundles": [],
+      "moduleOwner": "Worlds/Meadow",
+      "isSmall": false,
+      "isLarge": true
+    },
+    {
+      "bundleName": "characters.qianxia.bundle",
+      "fileName": "characters.qianxia_f2b54f71.bundle",
+      "uncompressedSizeBytes": 125829120,
+      "compressedSizeBytes": 41943040,
+      "assetCount": 5,
+      "directAssetCount": 3,
+      "dependencyAssetCount": 2,
+      "dependBundles": ["common_material.bundle"],
+      "referenceBundles": [],
+      "moduleOwner": "Characters/Qianxia",
+      "isSmall": false,
+      "isLarge": false
+    },
+    {
+      "bundleName": "ui_inventory.bundle",
+      "fileName": "ui_inventory_1a2b3c4d.bundle",
+      "uncompressedSizeBytes": 6291456,
+      "compressedSizeBytes": 3145728,
+      "assetCount": 2,
+      "directAssetCount": 1,
+      "dependencyAssetCount": 1,
+      "dependBundles": ["common_ui.bundle"],
+      "referenceBundles": [],
+      "moduleOwner": "UI/Inventory",
+      "isSmall": false,
+      "isLarge": false
+    },
+    {
+      "bundleName": "tiny.marker.bundle",
+      "fileName": "tiny.marker_00000001.bundle",
+      "uncompressedSizeBytes": 98304,
+      "compressedSizeBytes": 65536,
+      "assetCount": 1,
+      "directAssetCount": 1,
+      "dependencyAssetCount": 0,
+      "dependBundles": [],
+      "referenceBundles": [],
+      "moduleOwner": "Tiny/Marker",
+      "isSmall": true,
+      "isLarge": false
+    },
+    {
+      "bundleName": "common_ui.bundle",
+      "fileName": "common_ui_778899aa.bundle",
+      "uncompressedSizeBytes": 119537664,
+      "compressedSizeBytes": 47185920,
+      "assetCount": 1,
+      "directAssetCount": 1,
+      "dependencyAssetCount": 0,
+      "dependBundles": ["common_material.bundle"],
+      "referenceBundles": ["ui_inventory.bundle", "worlds.meadow.bundle"],
+      "moduleOwner": "Common/Ui",
+      "isSmall": false,
+      "isLarge": false
+    }
+  ],
+  "smallBundles": [
+    {
+      "bundleName": "tiny.marker.bundle",
+      "fileName": "tiny.marker_00000001.bundle",
+      "uncompressedSizeBytes": 98304,
+      "compressedSizeBytes": 65536,
+      "assetCount": 1,
+      "directAssetCount": 1,
+      "dependencyAssetCount": 0,
+      "dependBundles": [],
+      "referenceBundles": [],
+      "moduleOwner": "Tiny/Marker",
+      "isSmall": true,
+      "isLarge": false
+    }
+  ],
+  "largeBundles": [
+    {
+      "bundleName": "worlds.meadow.bundle",
+      "fileName": "worlds.meadow_2a7a2db0.bundle",
+      "uncompressedSizeBytes": 201326592,
+      "compressedSizeBytes": 134217728,
+      "assetCount": 9,
+      "directAssetCount": 4,
+      "dependencyAssetCount": 5,
+      "dependBundles": ["common_ui.bundle", "common_material.bundle"],
+      "referenceBundles": [],
+      "moduleOwner": "Worlds/Meadow",
+      "isSmall": false,
+      "isLarge": true
+    }
+  ],
+  "dependencyChains": [
+    {
+      "rootBundle": "ui_inventory.bundle",
+      "depth": 4,
+      "chain": [
+        "ui_inventory.bundle",
+        "common_ui.bundle",
+        "common_material.bundle",
+        "common_shader.bundle",
+        "shader_variants.bundle"
+      ]
+    }
+  ]
+}

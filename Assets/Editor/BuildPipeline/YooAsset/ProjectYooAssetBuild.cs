@@ -164,7 +164,7 @@ public static class ProjectYooAssetBuild
             MonoScriptsBundleName = "unitymonos.bundle"
         };
 
-        YooAsset.Editor.BuildResult result = new YooAsset.Editor.ScriptableBuildPipeline().Run(parameters, true);
+        YooAsset.Editor.BuildResult result = new ProjectYooAssetScriptableBuildPipeline().Run(parameters, true);
         if (!result.Success)
         {
             throw new InvalidOperationException(
@@ -173,9 +173,21 @@ public static class ProjectYooAssetBuild
                 ", Stack=" + result.ErrorStack);
         }
 
+        string bundleReportPath = string.Empty;
+        if (!HasArgument(args, "--bundle-report-disable"))
+        {
+            bundleReportPath = ProjectYooAssetBundleReportExporter.Export(
+                result,
+                parameters,
+                plan.planPath,
+                args,
+                ProjectYooAssetScriptableBuildPipeline.LastLayoutSnapshot);
+        }
+
         Debug.Log(
             "YooAsset build succeeded. OutputPackageDirectory=" + result.OutputPackageDirectory +
             ", Plan=" + plan.planPath +
+            ", BundleReport=" + bundleReportPath +
             ", Package=" + plan.packageName +
             ", Version=" + packageVersion);
     }
@@ -840,7 +852,7 @@ public static class ProjectYooAssetBuild
     {
         foreach (ProjectGroupSpec spec in CreateSpecsForOptionalRoot(
                      "angrymesh.meadow.environment.prefabs",
-                     MeadowEnvironmentPrefabRoot,
+                     LegacyMeadowEnvironmentPrefabRoot,
                      DefaultPackageSourceBytes))
         {
             yield return spec;
@@ -848,7 +860,7 @@ public static class ProjectYooAssetBuild
 
         foreach (ProjectGroupSpec spec in CreateSpecsForOptionalRoot(
                      "angrymesh.meadow.terrain.details",
-                     MeadowTerrainDetailsPrefabRoot,
+                     LegacyMeadowTerrainDetailsPrefabRoot,
                      DefaultPackageSourceBytes))
         {
             yield return spec;
