@@ -30,7 +30,17 @@ public static class ProjectYooAssetBuild
     private const string CommonShaderRoot = "Common/Shaders";
     private const string CommonFontsRoot = "Common/Fonts";
     private const string CommonFunctionsRoot = "Common/Functions";
+    private const string SharedRuntimeShaderRoot = "Assets/Game/Shared/StylizedPackCommon/Runtime/Shaders";
+    private const string SharedAspGlobalSettingsRoot = "Assets/Game/Shared/StylizedPackCommon/Runtime/ASP Global Settings";
     private const string SharedTextureRoot = "Assets/Game/Shared/StylizedPackCommon/Art/Sources/Textures";
+    private const string MeadowRuntimeRoot = "Assets/Game/Worlds/Meadow/Runtime";
+    private const string QianxiaGeneratedRuntimeRoot = "Assets/Game/Characters/Qianxia/Runtime/Generated";
+    private static readonly string[] StandaloneArtDependencyRoots =
+    {
+        "Assets/Game/Characters/Qianxia/Art/Meshs",
+        "Assets/Game/Characters/Qianxia/Art/Textures"
+    };
+
     private const string LegacyMeadowEnvironmentPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Environment";
     private const string LegacyMeadowTerrainDetailsPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Terrain Details";
     private const string MeadowLegacyConfigRoot = "Configs/Post Processing/Meadow Environment";
@@ -87,6 +97,16 @@ public static class ProjectYooAssetBuild
         }
 
         BuildYooAssetContent(args, plan);
+    }
+
+    public static void ValidatePrefabBundleFromCommandLine()
+    {
+        string[] args = Environment.GetCommandLineArgs();
+        ConfigureBatchmodeLogging();
+
+        string bundleFile = GetArgumentValue(args, "--asset-bundle-file");
+        string dependencyList = GetArgumentValue(args, "--asset-bundle-dependencies");
+        ValidatePrefabBundle(bundleFile, SplitCommandLineList(dependencyList));
     }
 
     private static void ConfigureBatchmodeLogging()
@@ -190,6 +210,105 @@ public static class ProjectYooAssetBuild
             ", BundleReport=" + bundleReportPath +
             ", Package=" + plan.packageName +
             ", Version=" + packageVersion);
+    }
+
+    private static void ValidatePrefabBundle(string bundleFile, IEnumerable<string> dependencyFiles)
+    {
+        string normalizedBundleFile = Path.GetFullPath(NormalizeAssetPath(bundleFile));
+        if (!File.Exists(normalizedBundleFile))
+            throw new FileNotFoundException("AssetBundle file not found.", normalizedBundleFile);
+
+        List<AssetBundle> loadedBundles = new List<AssetBundle>();
+        List<string> issues = new List<string>();
+        try
+        {
+            foreach (string dependencyFile in dependencyFiles)
+            {
+                string normalizedDependencyFile = Path.GetFullPath(NormalizeAssetPath(dependencyFile));
+                if (!File.Exists(normalizedDependencyFile))
+                    throw new FileNotFoundException("AssetBundle dependency file not found.", normalizedDependencyFile);
+
+                AssetBundle dependencyBundle = AssetBundle.LoadFromFile(normalizedDependencyFile);
+                if (dependencyBundle == null)
+                    throw new InvalidOperationException("Failed to load AssetBundle dependency: " + normalizedDependencyFile);
+
+                loadedBundles.Add(dependencyBundle);
+            }
+
+            AssetBundle bundle = AssetBundle.LoadFromFile(normalizedBundleFile);
+            if (bundle == null)
+                throw new InvalidOperationException("Failed to load AssetBundle: " + normalizedBundleFile);
+
+            loadedBundles.Add(bundle);
+            GameObject[] prefabs = bundle.LoadAllAssets<GameObject>();
+            if (prefabs.Length == 0)
+                throw new InvalidOperationException("No prefab GameObject assets were loaded from AssetBundle: " + normalizedBundleFile);
+
+            int meshFilterCount = 0;
+            int skinnedMeshCount = 0;
+            int rendererCount = 0;
+            int materialSlotCount = 0;
+
+            foreach (GameObject prefab in prefabs)
+            {
+                foreach (MeshFilter meshFilter in prefab.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    meshFilterCount++;
+                    if (meshFilter.sharedMesh == null)
+                        issues.Add(prefab.name + "/" + GetTransformPath(meshFilter.transform) + " missing MeshFilter.sharedMesh");
+                }
+
+                foreach (SkinnedMeshRenderer skinnedMeshRenderer in prefab.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+                {
+                    skinnedMeshCount++;
+                    if (skinnedMeshRenderer.sharedMesh == null)
+                        issues.Add(prefab.name + "/" + GetTransformPath(skinnedMeshRenderer.transform) + " missing SkinnedMeshRenderer.sharedMesh");
+                }
+
+                foreach (Renderer renderer in prefab.GetComponentsInChildren<Renderer>(true))
+                {
+                    rendererCount++;
+                    Material[] materials = renderer.sharedMaterials;
+                    for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                    {
+                        materialSlotCount++;
+                        Material material = materials[materialIndex];
+                        string owner = prefab.name + "/" + GetTransformPath(renderer.transform) + " material[" + materialIndex + "]";
+                        if (material == null)
+                        {
+                            issues.Add(owner + " is missing Material");
+                            continue;
+                        }
+
+                        Shader shader = material.shader;
+                        if (shader == null)
+                        {
+                            issues.Add(owner + " is missing Shader");
+                            continue;
+                        }
+
+                        if (string.Equals(shader.name, "Hidden/InternalErrorShader", StringComparison.OrdinalIgnoreCase))
+                            issues.Add(owner + " uses Hidden/InternalErrorShader");
+                    }
+                }
+            }
+
+            if (issues.Count > 0)
+                throw new InvalidOperationException("Prefab bundle validation failed:\n" + string.Join("\n", issues));
+
+            Debug.Log("Prefab bundle validation succeeded. Bundle=" + normalizedBundleFile +
+                ", Prefabs=" + prefabs.Length +
+                ", MeshFilters=" + meshFilterCount +
+                ", SkinnedMeshes=" + skinnedMeshCount +
+                ", Renderers=" + rendererCount +
+                ", MaterialSlots=" + materialSlotCount +
+                ", Dependencies=" + (loadedBundles.Count - 1));
+        }
+        finally
+        {
+            for (int index = loadedBundles.Count - 1; index >= 0; index--)
+                loadedBundles[index].Unload(true);
+        }
     }
 
     private static YooAssetBuildPlan BuildPlan(
@@ -370,13 +489,6 @@ public static class ProjectYooAssetBuild
             if (!WouldCollectorFilterIncludeAsset(assetPath, spec.assetClass))
                 continue;
 
-            Type mainAssetType = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
-            if (mainAssetType == null)
-            {
-                plan.warnings.Add("YooAsset folder collector downgraded to explicit assets because Unity cannot resolve asset type: " + assetPath);
-                return false;
-            }
-
             if (!plannedAssets.Contains(assetPath))
             {
                 plan.warnings.Add("YooAsset folder collector downgraded to explicit assets because the folder contains filtered asset: " + assetPath);
@@ -472,13 +584,14 @@ public static class ProjectYooAssetBuild
     private static List<ProjectGroupSpec> CreateGameAssetSpecs(string buildRoot)
     {
         string gameAssetsRoot = ResolveGameAssetsRoot(buildRoot);
-        string[] excludeRoots = CreateGameAssetExcludeRoots(gameAssetsRoot);
-        if (!AssetDatabase.IsValidFolder(gameAssetsRoot))
-            return new List<ProjectGroupSpec>();
-
         List<ProjectGroupSpec> specs = new List<ProjectGroupSpec>();
-        specs.AddRange(CreateStaticRuntimeSpecs(gameAssetsRoot));
         specs.AddRange(CreateSharedRuntimeSpecs(gameAssetsRoot));
+
+        if (!AssetDatabase.IsValidFolder(gameAssetsRoot))
+            return specs;
+
+        string[] excludeRoots = CreateGameAssetExcludeRoots(gameAssetsRoot);
+        specs.AddRange(CreateStaticRuntimeSpecs(gameAssetsRoot));
         specs.AddRange(CreateCommonRuntimeSpecs(gameAssetsRoot));
         specs.AddRange(CreateWorldRuntimeSpecs(gameAssetsRoot));
         specs.AddRange(CreateLegacyMeadowSpecs(gameAssetsRoot));
@@ -488,58 +601,75 @@ public static class ProjectYooAssetBuild
 
     private static IEnumerable<ProjectGroupSpec> CreateContentModuleStaticRuntimeSpecs(string buildRoot)
     {
-        string gameContentRoot = ResolveGameContentRoot(buildRoot);
-        if (!AssetDatabase.IsValidFolder(gameContentRoot))
-            yield break;
-
-        foreach (string runtimeRoot in EnumerateContentModuleRuntimeRoots(gameContentRoot))
-        {
-            string groupKey = GetContentModuleGroupKey(gameContentRoot, runtimeRoot);
-            foreach (string staticRoot in EnumerateStaticRuntimeFolders(runtimeRoot))
-            {
-                yield return CreateStaticSpec(
-                    "game.static." + groupKey + "." + SanitizeAssetPath(staticRoot),
-                    staticRoot);
-            }
-        }
+        if (AssetDatabase.IsValidFolder(SharedRuntimeShaderRoot))
+            yield return CreateStaticSpec("angrymesh.static.common.shaders", SharedRuntimeShaderRoot);
     }
 
     private static List<ProjectGroupSpec> CreateContentModuleRuntimeSpecs(string buildRoot)
     {
-        string gameContentRoot = ResolveGameContentRoot(buildRoot);
-        if (!AssetDatabase.IsValidFolder(gameContentRoot))
-            return new List<ProjectGroupSpec>();
-
         List<ProjectGroupSpec> specs = new List<ProjectGroupSpec>();
-        foreach (string runtimeRoot in EnumerateContentModuleRuntimeRoots(gameContentRoot))
+        AddMainSpecIfValid(specs, "game.runtime.shared.stylizedpackcommon.asp.global.settings", SharedAspGlobalSettingsRoot);
+
+        string sharedRoot = AssetPathCombine(MeadowRuntimeRoot, SharedDirectoryName);
+        AddMainSpecIfValid(specs, "angrymesh.worlds.meadow.shared.configs", ResolveRuntimeMainCollectorRoot(AssetPathCombine(sharedRoot, "Configs")));
+        AddMainSpecIfValid(specs, "angrymesh.worlds.meadow.shared.prefabs", AssetPathCombine(sharedRoot, "Prefabs"));
+
+        string seasonsRoot = AssetPathCombine(MeadowRuntimeRoot, SeasonsDirectoryName);
+        if (AssetDatabase.IsValidFolder(seasonsRoot))
         {
-            string groupPrefix = "game.runtime." + GetContentModuleGroupKey(gameContentRoot, runtimeRoot);
-            specs.AddRange(CreateSpecsFromPackageFolders(
-                groupPrefix,
-                runtimeRoot,
-                Array.Empty<string>(),
-                DefaultPackageSourceBytes));
+            foreach (string seasonFolder in AssetDatabase.GetSubFolders(seasonsRoot).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+            {
+                string seasonName = SanitizeSegment(Path.GetFileName(seasonFolder));
+                foreach (string packageFolder in AssetDatabase.GetSubFolders(seasonFolder).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+                {
+                    string packageName = SanitizeSegment(Path.GetFileName(packageFolder));
+                    AddMainSpecIfValid(
+                        specs,
+                        "angrymesh.worlds.meadow.season." + seasonName + "." + packageName,
+                        ResolveRuntimeMainCollectorRoot(packageFolder));
+                }
+            }
         }
+
+        AddMainSpecIfValid(specs, "angrymesh.worlds.meadow.scenes.root", AssetPathCombine(MeadowRuntimeRoot, ScenesDirectoryName), ScenePackageSourceBytes);
 
         return specs;
     }
 
+    private static string ResolveRuntimeMainCollectorRoot(string packageFolder)
+    {
+        string normalizedFolder = NormalizeAssetPath(packageFolder);
+        if (!string.Equals(Path.GetFileName(normalizedFolder), "Configs", StringComparison.OrdinalIgnoreCase))
+            return normalizedFolder;
+
+        string urpPostProcessingRoot = AssetPathCombine(normalizedFolder, "Post Processing/URP");
+        return AssetDatabase.IsValidFolder(urpPostProcessingRoot)
+            ? urpPostProcessingRoot
+            : normalizedFolder;
+    }
+
+    private static void AddMainSpecIfValid(
+        List<ProjectGroupSpec> specs,
+        string groupName,
+        string root,
+        long maxSourceBytes = DefaultPackageSourceBytes)
+    {
+        string normalizedRoot = NormalizeAssetPath(root);
+        if (!AssetDatabase.IsValidFolder(normalizedRoot))
+            return;
+
+        specs.Add(new ProjectGroupSpec(
+            groupName,
+            new[] { normalizedRoot },
+            Array.Empty<string>(),
+            null,
+            maxSourceBytes));
+    }
+
     private static IEnumerable<ProjectGroupSpec> CreateContentModuleRuntimeDependencySpecs(string buildRoot)
     {
-        string gameContentRoot = ResolveGameContentRoot(buildRoot);
-        if (!AssetDatabase.IsValidFolder(gameContentRoot))
-            yield break;
-
-        foreach (string runtimeRoot in EnumerateContentModuleRuntimeRoots(gameContentRoot))
-        {
-            foreach (string dependencyRoot in EnumerateAssetParentFolders(
-                         runtimeRoot,
-                         CollectorAssetClass.Depend,
-                         Array.Empty<string>()))
-            {
-                yield return CreateDependencySpec("game.dependencies." + SanitizeAssetPath(dependencyRoot), dependencyRoot);
-            }
-        }
+        if (AssetDatabase.IsValidFolder(QianxiaGeneratedRuntimeRoot))
+            yield return CreateDependencySpec("game.dependencies.runtime.characters.qianxia.generated", QianxiaGeneratedRuntimeRoot);
     }
 
     private static IEnumerable<ProjectGroupSpec> CreateContentModuleArtDependencySpecs(string buildRoot)
@@ -553,11 +683,24 @@ public static class ProjectYooAssetBuild
             string groupKey = GetContentModuleGroupKey(gameContentRoot, artRoot);
             foreach (string dependencyRoot in EnumerateDependencyFolders(artRoot))
             {
+                if (!ShouldCreateStandaloneArtDependencyCollector(dependencyRoot))
+                    continue;
+
                 yield return CreateDependencySpec(
                     "game.dependencies." + groupKey + "." + SanitizeSegment(Path.GetFileName(dependencyRoot)),
                     dependencyRoot);
             }
         }
+    }
+
+    private static bool ShouldCreateStandaloneArtDependencyCollector(string dependencyRoot)
+    {
+        string normalizedRoot = NormalizeAssetPath(dependencyRoot).TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(normalizedRoot))
+            return false;
+
+        return StandaloneArtDependencyRoots.Any(root =>
+            string.Equals(normalizedRoot, NormalizeAssetPath(root).TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ResolveGameContentRoot(string buildRoot)
@@ -1284,6 +1427,36 @@ public static class ProjectYooAssetBuild
         return string.Empty;
     }
 
+    private static IEnumerable<string> SplitCommandLineList(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            yield break;
+
+        string[] parts = value.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+        for (int index = 0; index < parts.Length; index++)
+        {
+            string part = parts[index].Trim().Trim('"');
+            if (!string.IsNullOrWhiteSpace(part))
+                yield return part;
+        }
+    }
+
+    private static string GetTransformPath(Transform transform)
+    {
+        if (transform == null)
+            return "<null>";
+
+        Stack<string> names = new Stack<string>();
+        Transform current = transform;
+        while (current != null)
+        {
+            names.Push(current.name);
+            current = current.parent;
+        }
+
+        return string.Join("/", names);
+    }
+
     private static long GetFileSizeSafe(string assetPath)
     {
         try
@@ -1681,6 +1854,9 @@ public static class ProjectYooAssetCollectorRuleUtility
     public static bool IsMainAsset(string assetPath)
     {
         string normalizedPath = Normalize(assetPath);
+        if (normalizedPath.IndexOf("/Configs/Post Processing/Standard/", StringComparison.OrdinalIgnoreCase) >= 0)
+            return false;
+
         if (IsStaticAsset(normalizedPath) || IsDependencyAsset(normalizedPath))
             return false;
 

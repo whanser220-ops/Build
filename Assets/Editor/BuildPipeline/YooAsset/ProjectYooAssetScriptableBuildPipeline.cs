@@ -134,9 +134,14 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
     }
 }
 
-public sealed class ProjectSbpBundleLayoutCaptureState : IContextObject
+public interface IProjectSbpBundleLayoutCaptureState : IContextObject
 {
-    public ProjectSbpBundleLayoutSnapshot Snapshot = new ProjectSbpBundleLayoutSnapshot();
+    ProjectSbpBundleLayoutSnapshot Snapshot { get; set; }
+}
+
+public sealed class ProjectSbpBundleLayoutCaptureState : IProjectSbpBundleLayoutCaptureState
+{
+    public ProjectSbpBundleLayoutSnapshot Snapshot { get; set; } = new ProjectSbpBundleLayoutSnapshot();
 }
 
 public sealed class ProjectSbpBundleLayoutCaptureTask : UnityEditor.Build.Pipeline.Interfaces.IBuildTask
@@ -151,7 +156,7 @@ public sealed class ProjectSbpBundleLayoutCaptureTask : UnityEditor.Build.Pipeli
     private IBuildResults _results;
 
     [InjectContext]
-    private ProjectSbpBundleLayoutCaptureState _captureState;
+    private IProjectSbpBundleLayoutCaptureState _captureState;
 #pragma warning restore 649
 
     public ReturnCode Run()

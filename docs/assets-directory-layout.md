@@ -100,7 +100,9 @@ Assets/Game/
 
 - 主资源从 `Assets/Game/**/Runtime/**` 收集。
 - `Art` 默认没有运行时地址，不作为代码直接加载入口。
-- `Art` 中的模型、材质、贴图、动画、音频等通过依赖关系进入包；需要公共化时由构建分析提升为依赖包或静态公共包。
+- `Art` 中的模型、材质、贴图、动画、音频等默认不生成独立 Collector，由 Unity/SBP 按引用关系内联进引用它们的 Runtime / Prefab bundle。
+- 只有明确需要公共化、跨包共享或单独更新的 `Art` 子目录才生成独立依赖 Collector；当前默认保留 `Assets/Game/Characters/Qianxia/Art/Meshs` 与 `Assets/Game/Characters/Qianxia/Art/Textures`。
+- Meadow 的 Post Processing 配置 Collector 指向 `Configs/Post Processing/URP`；旧 `Standard` 配置不进入 YooAsset 包。
 - 目录提供默认模块边界，最终 AssetBundle 粒度仍由加载生命周期、更新频率、依赖关系和显式 Pack Rule 决定。
 - `Runtime` 中可以有 `Prefabs/`、`Scenes/`、`Data/`、`Configs/`、`Generated/` 等子目录，但不要把底层 DCC 源文件放入 `Runtime`。
 
@@ -108,7 +110,8 @@ YooAsset 当前已支持：
 
 ```text
 Assets/Game/**/Runtime/**       -> 主资源 Collector
-Assets/Game/**/Art/**           -> 依赖资源 Collector
+Assets/Game/**/Art/**           -> 默认不收集，作为 Runtime/Prefab 引用依赖内联
+显式白名单 Art 子目录             -> 独立依赖资源 Collector
 历史 `Assets/GameAssets/**` / `Assets/GameResources/**` 路径只作为工具兼容入口，不作为当前物理目录。
 ```
 
