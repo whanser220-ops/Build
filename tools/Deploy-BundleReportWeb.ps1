@@ -37,6 +37,30 @@ function Assert-IsUnderPath {
     }
 }
 
+function Invoke-Icacls {
+    param([Parameter(Mandatory = $true)][string[]]$Arguments)
+
+    & icacls.exe @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "icacls failed with exit code $LASTEXITCODE."
+    }
+}
+
+function Protect-SshKeyFile {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if ($env:OS -ne "Windows_NT") {
+        return
+    }
+
+    $fullPath = Resolve-FullPath $Path
+    $currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+
+    Invoke-Icacls -Arguments @($fullPath, "/inheritance:r")
+    Invoke-Icacls -Arguments @($fullPath, "/remove:g", "*S-1-5-32-545", "*S-1-1-0", "*S-1-5-11")
+    Invoke-Icacls -Arguments @($fullPath, "/grant:r", "*${currentSid}:F")
+}
+
 $repoRoot = Resolve-FullPath (Join-Path $PSScriptRoot "..")
 $appDirFull = Resolve-FullPath $AppDir
 $reportRootFull = Resolve-FullPath $ReportRoot
@@ -54,6 +78,8 @@ if ([string]::IsNullOrWhiteSpace($SshKeyPath)) {
 if (-not (Test-Path -LiteralPath $SshKeyPath)) {
     throw "SSH key was not found: $SshKeyPath"
 }
+
+Protect-SshKeyFile -Path $SshKeyPath
 
 if (-not (Test-Path -LiteralPath $appDirFull)) {
     throw "App directory was not found: $appDirFull"
