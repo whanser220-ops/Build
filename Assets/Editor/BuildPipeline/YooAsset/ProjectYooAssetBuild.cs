@@ -129,6 +129,9 @@ public static class ProjectYooAssetBuild
         if (string.IsNullOrWhiteSpace(buildRoot))
             buildRoot = DefaultBuildRoot;
 
+        if (HasArgument(args, "--yooasset-force-refresh-assets"))
+            ForceRefreshBuildAssets(buildRoot);
+
         string planOutput = GetArgumentValue(args, "--yooasset-plan-output");
         if (string.IsNullOrWhiteSpace(planOutput))
             planOutput = Path.Combine(DefaultPlanRoot, buildTarget.ToString(), AngryMeshTag, PlanFileName);
@@ -1504,6 +1507,39 @@ public static class ProjectYooAssetBuild
         return !string.IsNullOrWhiteSpace(normalizedRoot) &&
                (string.Equals(normalizedPath, normalizedRoot, StringComparison.OrdinalIgnoreCase) ||
                 normalizedPath.StartsWith(normalizedRoot + "/", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void ForceRefreshBuildAssets(string buildRoot)
+    {
+        List<string> importRoots = new List<string>();
+        string normalizedBuildRoot = NormalizeAssetPath(buildRoot).TrimEnd('/');
+        if (string.IsNullOrWhiteSpace(normalizedBuildRoot))
+            normalizedBuildRoot = DefaultBuildRoot;
+
+        string gameContentRoot = ResolveGameContentRoot(normalizedBuildRoot);
+        if (AssetDatabase.IsValidFolder(gameContentRoot))
+            importRoots.Add(gameContentRoot);
+
+        string gameAssetsRoot = ResolveGameAssetsRoot(normalizedBuildRoot);
+        if (AssetDatabase.IsValidFolder(gameAssetsRoot))
+            importRoots.Add(gameAssetsRoot);
+
+        if (importRoots.Count == 0 && AssetDatabase.IsValidFolder(normalizedBuildRoot))
+            importRoots.Add(normalizedBuildRoot);
+
+        ImportAssetOptions importOptions =
+            ImportAssetOptions.ForceUpdate |
+            ImportAssetOptions.ForceSynchronousImport |
+            ImportAssetOptions.ImportRecursive;
+
+        AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+        foreach (string importRoot in importRoots.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            Debug.Log("Force refreshing YooAsset build asset root: " + importRoot);
+            AssetDatabase.ImportAsset(importRoot, importOptions);
+        }
+
+        AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
     }
 
     private static string NormalizeAssetPath(string path)
