@@ -121,8 +121,8 @@ public static class ProjectYooAssetBuild
         SwitchBuildTargetIfNeeded(buildTarget);
 
         bool includeSamples = HasArgument(args, "--yooasset-include-samples");
-        bool includeSourceAssets = !HasArgument(args, "--yooasset-exclude-source-assets") ||
-                                   HasArgument(args, "--yooasset-include-source-assets");
+        bool includeSourceAssets = HasArgument(args, "--yooasset-include-source-assets") &&
+                                   !HasArgument(args, "--yooasset-exclude-source-assets");
         string packageName = ResolvePackageName(args);
 
         string buildRoot = NormalizeAssetPath(GetArgumentValue(args, "--yooasset-build-root"));
@@ -332,9 +332,9 @@ public static class ProjectYooAssetBuild
         specs.AddRange(CreateGameAssetSpecs(buildRoot));
         specs.AddRange(CreateContentModuleRuntimeDependencySpecs(buildRoot));
         specs.AddRange(CreateGameAssetDependencySpecs(buildRoot));
+        specs.AddRange(CreateContentModuleArtDependencySpecs(buildRoot, includeSourceAssets));
         if (includeSourceAssets)
         {
-            specs.AddRange(CreateContentModuleArtDependencySpecs(buildRoot));
             specs.AddRange(CreateGameResourceSpecs());
         }
 
@@ -672,7 +672,9 @@ public static class ProjectYooAssetBuild
             yield return CreateDependencySpec("game.dependencies.runtime.characters.qianxia.generated", QianxiaGeneratedRuntimeRoot);
     }
 
-    private static IEnumerable<ProjectGroupSpec> CreateContentModuleArtDependencySpecs(string buildRoot)
+    private static IEnumerable<ProjectGroupSpec> CreateContentModuleArtDependencySpecs(
+        string buildRoot,
+        bool includeSourceAssets)
     {
         string gameContentRoot = ResolveGameContentRoot(buildRoot);
         if (!AssetDatabase.IsValidFolder(gameContentRoot))
@@ -1474,6 +1476,11 @@ public static class ProjectYooAssetBuild
     {
         string normalized = NormalizeAssetPath(assetPath);
         return normalized.IndexOf("/" + segment + "/", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static bool IsUnderSourcesFolder(string assetPath)
+    {
+        return ContainsPathSegment(assetPath, "Sources");
     }
 
     private static bool IsUnderAnyRoot(string assetPath, IReadOnlyList<string> roots)

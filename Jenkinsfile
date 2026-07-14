@@ -48,7 +48,7 @@ properties([
         booleanParam(
             name: 'BUNDLE_REPORT_DEPLOY_ENABLED',
             defaultValue: true,
-            description: 'Deploy the YooAsset bundle report web app after a successful formal build.'
+            description: 'Deploy the YooAsset bundle report web app.'
         ),
         string(
             name: 'BUNDLE_REPORT_HOST',
@@ -63,7 +63,12 @@ properties([
         string(
             name: 'BUNDLE_REPORT_SSH_CREDENTIALS_ID',
             defaultValue: 'bundle-report-ssh-key',
-            description: 'Jenkins SSH private key credential ID for bundle report deployment.'
+            description: 'Jenkins SSH private key credential ID for bundle report deployment. Ignored when BUNDLE_REPORT_SSH_KEY_PATH is set.'
+        ),
+        string(
+            name: 'BUNDLE_REPORT_SSH_KEY_PATH',
+            defaultValue: '',
+            description: 'Optional private key file path on the Jenkins agent, used as a fallback without storing the PEM path in source.'
         )
     ])
 ])
@@ -177,8 +182,9 @@ if not exist "%UNITY_EXE%" (
   echo Unity not found: %UNITY_EXE%
   exit /b 1
 )
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Invoke-Unity.ps1" -ProjectPath . -batchmode -quit -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment -logFile "%UNITY_LOG%" --ci-output "%WINDOWS_EXE%" --yooasset-target StandaloneWindows64 --yooasset-include-source-assets --yooasset-package-name DefaultPackage --yooasset-package-version "%BUILD_NUMBER%" --yooasset-build-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build" --yooasset-plan-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset\\StandaloneWindows64\\angrymesh\\yooasset_build_plan.json" --bundle-report-output "%WORKSPACE%\\%BUNDLE_REPORT_ROOT%\\StandaloneWindows64\\DefaultPackage\\%BUILD_NUMBER%\\bundle_report.json"
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Invoke-Unity.ps1" -ProjectPath . -batchmode -quit -executeMethod Unity6.Ci.CiPlayerBuild.BuildWindowsDevelopment -logFile "%UNITY_LOG%" --ci-output "%WINDOWS_EXE%" --yooasset-target StandaloneWindows64 --yooasset-exclude-source-assets --yooasset-package-name DefaultPackage --yooasset-package-version "%BUILD_NUMBER%" --yooasset-build-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build" --yooasset-plan-output "%WORKSPACE%\\.workspace\\artifacts\\yooasset\\StandaloneWindows64\\angrymesh\\yooasset_build_plan.json" --bundle-report-output "%WORKSPACE%\\%BUNDLE_REPORT_ROOT%\\StandaloneWindows64\\DefaultPackage\\%BUILD_NUMBER%\\bundle_report.json"
 set UNITY_EXIT=%ERRORLEVEL%
+if "%UNITY_EXIT%"=="0" if exist "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build\\StandaloneWindows64\\DefaultPackage\\OutputCache" rmdir /s /q "%WORKSPACE%\\.workspace\\artifacts\\yooasset-build\\StandaloneWindows64\\DefaultPackage\\OutputCache"
 if exist "%WORKSPACE%\\%UNITY_LOG%" type "%WORKSPACE%\\%UNITY_LOG%"
 exit /b %UNITY_EXIT%
 '''
@@ -200,9 +206,9 @@ PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreferen
 @echo on
 cd "%BUNDLE_REPORT_WEB_DIR%"
 set NEXT_PUBLIC_BASE_PATH=%BUNDLE_REPORT_BASE_PATH%
-npm ci
-npm run typecheck
-npm run build
+call npm ci
+call npm run typecheck
+call npm run build
 '''
                     }
 
@@ -212,22 +218,35 @@ npm run build
                             if (!deployEnabled) {
                                 echo 'Skipping bundle report web deploy because BUNDLE_REPORT_DEPLOY_ENABLED=false.'
                             } else {
-                                def reportHost = params.BUNDLE_REPORT_HOST?.trim() ?: '1.117.232.198'
-                                def reportUser = params.BUNDLE_REPORT_SSH_USER?.trim() ?: 'ubuntu'
-                                def reportCredentialsId = params.BUNDLE_REPORT_SSH_CREDENTIALS_ID?.trim() ?: 'bundle-report-ssh-key'
-
-                                withCredentials([sshUserPrivateKey(
-                                    credentialsId: reportCredentialsId,
-                                    keyFileVariable: 'BUNDLE_REPORT_SSH_KEY'
-                                )]) {
-                                    withEnv([
-                                        "BUNDLE_REPORT_DEPLOY_HOST=${reportHost}",
-                                        "BUNDLE_REPORT_DEPLOY_USER=${reportUser}"
-                                    ]) {
-                                        bat '''
+                                echo 'Bundle report web deploy is enabled. Deployment failures are non-blocking for the Unity build.'
+                                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                                    def reportHost = params.BUNDLE_REPORT_HOST?.trim() ?: '1.117.232.198'
+                                    def reportUser = params.BUNDLE_REPORT_SSH_USER?.trim() ?: 'ubuntu'
+                                    def reportCredentialsId = params.BUNDLE_REPORT_SSH_CREDENTIALS_ID?.trim() ?: 'bundle-report-ssh-key'
+                                    def reportSshKeyPath = params.BUNDLE_REPORT_SSH_KEY_PATH?.trim()
+                                    def deployWithKey = { sshKeyPath ->
+                                        withEnv([
+                                            "BUNDLE_REPORT_DEPLOY_HOST=${reportHost}",
+                                            "BUNDLE_REPORT_DEPLOY_USER=${reportUser}",
+                                            "BUNDLE_REPORT_SSH_KEY=${sshKeyPath}"
+                                        ]) {
+                                            bat '''
 @echo on
 PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Deploy-BundleReportWeb.ps1" -AppDir "%WORKSPACE%\\%BUNDLE_REPORT_WEB_DIR%" -ReportRoot "%WORKSPACE%\\%BUNDLE_REPORT_ROOT%" -SshHost "%BUNDLE_REPORT_DEPLOY_HOST%" -SshUser "%BUNDLE_REPORT_DEPLOY_USER%" -SshKeyPath "%BUNDLE_REPORT_SSH_KEY%" -BasePath "%BUNDLE_REPORT_BASE_PATH%" -SkipBuild
 '''
+                                        }
+                                    }
+
+                                    if (reportSshKeyPath) {
+                                        echo 'Using BUNDLE_REPORT_SSH_KEY_PATH for bundle report deployment.'
+                                        deployWithKey(reportSshKeyPath)
+                                    } else {
+                                        withCredentials([sshUserPrivateKey(
+                                            credentialsId: reportCredentialsId,
+                                            keyFileVariable: 'BUNDLE_REPORT_SSH_KEY'
+                                        )]) {
+                                            deployWithKey(env.BUNDLE_REPORT_SSH_KEY)
+                                        }
                                     }
                                 }
                             }

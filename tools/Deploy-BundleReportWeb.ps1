@@ -37,6 +37,30 @@ function Assert-IsUnderPath {
     }
 }
 
+function Invoke-Icacls {
+    param([Parameter(Mandatory = $true)][string[]]$Arguments)
+
+    & icacls.exe @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "icacls failed with exit code $LASTEXITCODE."
+    }
+}
+
+function Protect-SshKeyFile {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if ($env:OS -ne "Windows_NT") {
+        return
+    }
+
+    $fullPath = Resolve-FullPath $Path
+    $currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+
+    Invoke-Icacls -Arguments @($fullPath, "/inheritance:r")
+    Invoke-Icacls -Arguments @($fullPath, "/remove:g", "*S-1-5-32-545", "*S-1-1-0", "*S-1-5-11")
+    Invoke-Icacls -Arguments @($fullPath, "/grant:r", "*${currentSid}:F")
+}
+
 $repoRoot = Resolve-FullPath (Join-Path $PSScriptRoot "..")
 $appDirFull = Resolve-FullPath $AppDir
 $reportRootFull = Resolve-FullPath $ReportRoot
@@ -54,6 +78,8 @@ if ([string]::IsNullOrWhiteSpace($SshKeyPath)) {
 if (-not (Test-Path -LiteralPath $SshKeyPath)) {
     throw "SSH key was not found: $SshKeyPath"
 }
+
+Protect-SshKeyFile -Path $SshKeyPath
 
 if (-not (Test-Path -LiteralPath $appDirFull)) {
     throw "App directory was not found: $appDirFull"
@@ -136,11 +162,25 @@ APP_ARCHIVE='/tmp/$appArchiveName'
 DATA_ARCHIVE='/tmp/$dataArchiveName'
 REMOTE_USER='$SshUser'
 
-sudo rm -rf "`$REMOTE_APP_DIR"
+sudo rm -rf "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR"
 sudo mkdir -p "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR"
 sudo chown -R "`$REMOTE_USER":"`$REMOTE_USER" "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR"
-unzip -oq "`$APP_ARCHIVE" -d "`$REMOTE_APP_DIR"
-unzip -oq "`$DATA_ARCHIVE" -d "`$REMOTE_DATA_DIR"
+
+unzip_allow_warnings() {
+  archive="`$1"
+  destination="`$2"
+  set +e
+  unzip -oq "`$archive" -d "`$destination"
+  rc="`$?"
+  set -e
+  if [ "`$rc" -gt 1 ]; then
+    exit "`$rc"
+  fi
+}
+
+unzip_allow_warnings "`$APP_ARCHIVE" "`$REMOTE_APP_DIR"
+unzip_allow_warnings "`$DATA_ARCHIVE" "`$REMOTE_DATA_DIR"
+chmod -R u+rwX "`$REMOTE_APP_DIR" "`$REMOTE_DATA_DIR"
 
 REMOTE_DATA_DIR="`$REMOTE_DATA_DIR" node <<'NODE'
 const fs = require('fs');
@@ -201,11 +241,7 @@ server {
     listen 80;
     server_name $SshHost;
 
-    location = $BasePath {
-        return 301 $BasePath/;
-    }
-
-    location $BasePath/ {
+    location $BasePath {
         proxy_pass http://127.0.0.1:$RemotePort;
         proxy_http_version 1.1;
         proxy_set_header Host \`$host;
@@ -224,8 +260,14 @@ rm -f "`$APP_ARCHIVE" "`$DATA_ARCHIVE"
 "@
 
 $remoteScriptPath = Join-Path $stagingRoot "remote-deploy.sh"
-Set-Content -LiteralPath $remoteScriptPath -Value $remoteScript -Encoding UTF8
-Get-Content -Raw -LiteralPath $remoteScriptPath | & ssh @sshOptions $sshTarget "bash -s"
+$remoteScriptContent = ($remoteScript -replace "`r`n", "`n") -replace "`r", "`n"
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($remoteScriptPath, $remoteScriptContent, $utf8NoBom)
+
+$remoteScriptName = Split-Path $remoteScriptPath -Leaf
+& scp @sshOptions $remoteScriptPath "${sshTarget}:/tmp/$remoteScriptName"
+if ($LASTEXITCODE -ne 0) { throw "scp remote deploy script failed." }
+& ssh @sshOptions $sshTarget "bash /tmp/$remoteScriptName; status=`$?; rm -f /tmp/$remoteScriptName; exit `$status"
 if ($LASTEXITCODE -ne 0) { throw "remote deploy failed." }
 
 Write-Host "Bundle report web deployed: http://$SshHost$BasePath"
