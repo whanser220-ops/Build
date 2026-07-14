@@ -73,19 +73,19 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
 
         string builtinShadersBundleName = scriptableBuildParameters.BuiltinShadersBundleName;
         string monoScriptsBundleName = scriptableBuildParameters.MonoScriptsBundleName;
-        ProjectSbpBundleLayoutCaptureState captureState = new ProjectSbpBundleLayoutCaptureState();
         IList<UnityEditor.Build.Pipeline.Interfaces.IBuildTask> sbpTasks = CreateSbpTasksWithLayoutCapture(
             builtinShadersBundleName,
-            monoScriptsBundleName,
-            captureState);
+            monoScriptsBundleName);
 
+        ProjectSbpBundleLayoutCaptureState captureState = new ProjectSbpBundleLayoutCaptureState();
         IBundleBuildResults buildResults;
         IBundleBuildParameters buildParameters = scriptableBuildParameters.GetBundleBuildParameters();
         ReturnCode exitCode = ContentPipeline.BuildAssetBundles(
             buildParameters,
             buildContent,
             out buildResults,
-            sbpTasks);
+            sbpTasks,
+            captureState);
 
         if (exitCode < 0)
         {
@@ -119,8 +119,7 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
 
     private static IList<UnityEditor.Build.Pipeline.Interfaces.IBuildTask> CreateSbpTasksWithLayoutCapture(
         string builtinShadersBundleName,
-        string monoScriptsBundleName,
-        ProjectSbpBundleLayoutCaptureState captureState)
+        string monoScriptsBundleName)
     {
         List<UnityEditor.Build.Pipeline.Interfaces.IBuildTask> tasks = SBPBuildTasks
             .Create(builtinShadersBundleName, monoScriptsBundleName)
@@ -130,25 +129,23 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
         if (archiveTaskIndex < 0)
             throw new InvalidOperationException("Could not find SBP ArchiveAndCompressBundles task.");
 
-        tasks.Insert(archiveTaskIndex, new ProjectSbpBundleLayoutCaptureTask(captureState));
+        tasks.Insert(archiveTaskIndex, new ProjectSbpBundleLayoutCaptureTask());
         return tasks;
     }
 }
 
-public sealed class ProjectSbpBundleLayoutCaptureState
+public interface IProjectSbpBundleLayoutCaptureState : IContextObject
+{
+    ProjectSbpBundleLayoutSnapshot Snapshot { get; set; }
+}
+
+public sealed class ProjectSbpBundleLayoutCaptureState : IProjectSbpBundleLayoutCaptureState
 {
     public ProjectSbpBundleLayoutSnapshot Snapshot { get; set; } = new ProjectSbpBundleLayoutSnapshot();
 }
 
 public sealed class ProjectSbpBundleLayoutCaptureTask : UnityEditor.Build.Pipeline.Interfaces.IBuildTask
 {
-    private readonly ProjectSbpBundleLayoutCaptureState _captureState;
-
-    public ProjectSbpBundleLayoutCaptureTask(ProjectSbpBundleLayoutCaptureState captureState)
-    {
-        _captureState = captureState ?? throw new ArgumentNullException(nameof(captureState));
-    }
-
     public int Version => 1;
 
 #pragma warning disable 649
@@ -157,10 +154,16 @@ public sealed class ProjectSbpBundleLayoutCaptureTask : UnityEditor.Build.Pipeli
 
     [InjectContext(ContextUsage.In)]
     private IBuildResults _results;
+
+    [InjectContext]
+    private IProjectSbpBundleLayoutCaptureState _captureState;
 #pragma warning restore 649
 
     public ReturnCode Run()
     {
+        if (_captureState == null)
+            return ReturnCode.Success;
+
         _captureState.Snapshot = ProjectSbpBundleLayoutSnapshot.Create(_writeData, _results);
         return ReturnCode.Success;
     }
