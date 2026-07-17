@@ -44,31 +44,6 @@ properties([
 //depot/Assets/Game/Worlds/Meadow/Runtime/Seasons/... //${P4_CLIENT}/Assets/Game/Worlds/Meadow/Runtime/Seasons/...
 //depot/Assets/Game/Worlds/Meadow/Runtime/Shared/... //${P4_CLIENT}/Assets/Game/Worlds/Meadow/Runtime/Shared/...''',
             description: 'Perforce client view for Unity assets. Use ${P4_CLIENT} as the client placeholder.'
-        ),
-        booleanParam(
-            name: 'BUNDLE_REPORT_DEPLOY_ENABLED',
-            defaultValue: true,
-            description: 'Deploy the YooAsset bundle report web app.'
-        ),
-        string(
-            name: 'BUNDLE_REPORT_HOST',
-            defaultValue: '1.117.232.198',
-            description: 'Bundle report web server host.'
-        ),
-        string(
-            name: 'BUNDLE_REPORT_SSH_USER',
-            defaultValue: 'ubuntu',
-            description: 'SSH user for bundle report deployment.'
-        ),
-        string(
-            name: 'BUNDLE_REPORT_SSH_CREDENTIALS_ID',
-            defaultValue: 'bundle-report-ssh-key',
-            description: 'Jenkins SSH private key credential ID for bundle report deployment. Ignored when BUNDLE_REPORT_SSH_KEY_PATH is set.'
-        ),
-        string(
-            name: 'BUNDLE_REPORT_SSH_KEY_PATH',
-            defaultValue: '',
-            description: 'Optional private key file path on the Jenkins agent, used as a fallback without storing the PEM path in source.'
         )
     ])
 ])
@@ -100,9 +75,7 @@ def runWindowsPlayerBuild = {
                 'WINDOWS_ZIP=.workspace\\builds\\windows\\Unity6-Windows-Development.zip',
                 'P4_SYNC_LOG=Logs\\p4-sync.log',
                 'BUILD_MANIFEST=.workspace\\build-manifest.json',
-                'BUNDLE_REPORT_ROOT=.workspace\\artifacts\\bundle-report',
-                'BUNDLE_REPORT_WEB_DIR=tools\\bundle-report-web',
-                'BUNDLE_REPORT_BASE_PATH=/bundle-report'
+                'BUNDLE_REPORT_ROOT=.workspace\\artifacts\\bundle-report'
             ]) {
                 stage('Checkout') {
                         if (env.JENKINSFILE_BOOTSTRAPPED != 'true') {
@@ -165,7 +138,6 @@ PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Sync-PerforceAss
 @echo on
 if exist ".workspace\\builds" rmdir /s /q ".workspace\\builds"
 if exist ".workspace\\artifacts\\yooasset-build" rmdir /s /q ".workspace\\artifacts\\yooasset-build"
-if exist ".workspace\\artifacts\\bundle-report-web" rmdir /s /q ".workspace\\artifacts\\bundle-report-web"
 if exist "Assets\\StreamingAssets\\yoo" rmdir /s /q "Assets\\StreamingAssets\\yoo"
 if exist "Logs\\build-windows.log" del /f /q "Logs\\build-windows.log"
 if not exist ".workspace\\builds\\windows" mkdir ".workspace\\builds\\windows"
@@ -199,58 +171,6 @@ PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreferen
 
                     stage('Archive Bundle Reports') {
                         archiveArtifacts artifacts: '.workspace/artifacts/bundle-report/**, .workspace/artifacts/yooasset-build/**/*.report', allowEmptyArchive: false
-                    }
-
-                    stage('Build Bundle Report Web') {
-                        bat '''
-@echo on
-cd "%BUNDLE_REPORT_WEB_DIR%"
-set NEXT_PUBLIC_BASE_PATH=%BUNDLE_REPORT_BASE_PATH%
-call npm ci
-call npm run typecheck
-call npm run build
-'''
-                    }
-
-                    stage('Deploy Bundle Report Web') {
-                        script {
-                            def deployEnabled = params.BUNDLE_REPORT_DEPLOY_ENABLED == null ? true : params.BUNDLE_REPORT_DEPLOY_ENABLED
-                            if (!deployEnabled) {
-                                echo 'Skipping bundle report web deploy because BUNDLE_REPORT_DEPLOY_ENABLED=false.'
-                            } else {
-                                echo 'Bundle report web deploy is enabled. Deployment failures are non-blocking for the Unity build.'
-                                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                                    def reportHost = params.BUNDLE_REPORT_HOST?.trim() ?: '1.117.232.198'
-                                    def reportUser = params.BUNDLE_REPORT_SSH_USER?.trim() ?: 'ubuntu'
-                                    def reportCredentialsId = params.BUNDLE_REPORT_SSH_CREDENTIALS_ID?.trim() ?: 'bundle-report-ssh-key'
-                                    def reportSshKeyPath = params.BUNDLE_REPORT_SSH_KEY_PATH?.trim()
-                                    def deployWithKey = { sshKeyPath ->
-                                        withEnv([
-                                            "BUNDLE_REPORT_DEPLOY_HOST=${reportHost}",
-                                            "BUNDLE_REPORT_DEPLOY_USER=${reportUser}",
-                                            "BUNDLE_REPORT_SSH_KEY=${sshKeyPath}"
-                                        ]) {
-                                            bat '''
-@echo on
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -File "tools\\Deploy-BundleReportWeb.ps1" -AppDir "%WORKSPACE%\\%BUNDLE_REPORT_WEB_DIR%" -ReportRoot "%WORKSPACE%\\%BUNDLE_REPORT_ROOT%" -SshHost "%BUNDLE_REPORT_DEPLOY_HOST%" -SshUser "%BUNDLE_REPORT_DEPLOY_USER%" -SshKeyPath "%BUNDLE_REPORT_SSH_KEY%" -BasePath "%BUNDLE_REPORT_BASE_PATH%" -SkipBuild
-'''
-                                        }
-                                    }
-
-                                    if (reportSshKeyPath) {
-                                        echo 'Using BUNDLE_REPORT_SSH_KEY_PATH for bundle report deployment.'
-                                        deployWithKey(reportSshKeyPath)
-                                    } else {
-                                        withCredentials([sshUserPrivateKey(
-                                            credentialsId: reportCredentialsId,
-                                            keyFileVariable: 'BUNDLE_REPORT_SSH_KEY'
-                                        )]) {
-                                            deployWithKey(env.BUNDLE_REPORT_SSH_KEY)
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }
