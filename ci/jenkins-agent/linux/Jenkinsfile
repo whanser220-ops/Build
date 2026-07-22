@@ -47,11 +47,27 @@ du -sh /workspace/Library || true
         stage('Build Windows Player') {
             steps {
                 script {
+                    def gitRepositoryUrl = params.GIT_REPOSITORY_URL ?: 'https://github.com/whanser220-ops/Build.git'
+                    def gitRef = params.GIT_REF ?: 'Main'
+                    def p4SyncEnabled = (params.P4_SYNC_ENABLED == null) ? 'true' : params.P4_SYNC_ENABLED.toString()
+                    def p4Port = params.P4_PORT ?: 'ssl:1.117.232.198:1666'
+                    def p4CredentialsId = params.P4_CREDENTIALS_ID ?: 'perforce-jenkins'
+                    def p4Client = params.P4_CLIENT ?: 'jenkins_unity_linux_agent_art'
+                    def p4AssetCl = params.P4_ASSET_CL ?: ''
+
                     withCredentials([usernamePassword(
-                        credentialsId: params.P4_CREDENTIALS_ID,
+                        credentialsId: p4CredentialsId,
                         usernameVariable: 'P4_USERNAME',
                         passwordVariable: 'P4_PASSWORD'
                     )]) {
+                        withEnv([
+                            "GIT_REPOSITORY_URL=${gitRepositoryUrl}",
+                            "GIT_REF=${gitRef}",
+                            "P4_SYNC_ENABLED=${p4SyncEnabled}",
+                            "P4_PORT=${p4Port}",
+                            "P4_CLIENT=${p4Client}",
+                            "P4_ASSET_CL=${p4AssetCl}"
+                        ]) {
                         sh '''
 set -eux
 export P4_PORT="${P4_PORT}"
@@ -100,6 +116,7 @@ PY
 export P4_SYNC_ENABLED=false
 build-unity-windows.sh
 '''
+                        }
                     }
                 }
             }
