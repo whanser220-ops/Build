@@ -22,6 +22,9 @@ UserSettings/
 .p4tickets
 .p4tickets.txt
 
+# Local Unity license material
+/ci/jenkins-agent/linux/unity-personal-license.b64
+
 # IDE
 .idea/
 .vs/

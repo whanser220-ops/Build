@@ -1,0 +1,84 @@
+pipeline {
+    agent { label 'unity-linux-agent' }
+
+    options {
+        timestamps()
+        timeout(time: 180, unit: 'MINUTES')
+    }
+
+    parameters {
+        string(name: 'GIT_REPOSITORY_URL', defaultValue: 'https://github.com/whanser220-ops/Build.git', description: 'Git repository cloned by the container agent.')
+        string(name: 'GIT_REF', defaultValue: 'Main', description: 'Git branch, tag, or ref fetched by the container agent.')
+        booleanParam(name: 'P4_SYNC_ENABLED', defaultValue: true, description: 'Sync Unity assets from Perforce before building.')
+        string(name: 'P4_PORT', defaultValue: 'ssl:1.117.232.198:1666', description: 'Perforce server address.')
+        string(name: 'P4_CREDENTIALS_ID', defaultValue: 'perforce-jenkins', description: 'Jenkins username/password credential ID for Perforce.')
+        string(name: 'UNITY_LICENSE_CREDENTIALS_ID', defaultValue: 'unity-personal-license-b64', description: 'Jenkins secret text credential containing base64-encoded Unity Personal Unity_lic.ulf.')
+        string(name: 'UNITY_ACCOUNT_CREDENTIALS_ID', defaultValue: '', description: 'Optional Jenkins username/password credential ID for the Unity account used to reactivate the Personal license in Linux.')
+        string(name: 'P4_CLIENT', defaultValue: 'jenkins_unity_linux_agent_art', description: 'Perforce workspace/client used by the Linux container agent.')
+        string(name: 'P4_ASSET_CL', defaultValue: '', description: 'Optional Perforce changelist to pin the asset sync. Leave empty for latest.')
+    }
+
+    environment {
+        UNITY_PROJECT_PATH = "${WORKSPACE}"
+        UNITY_LICENSE_MODE = 'personal'
+        BUILD_MANIFEST = '.workspace/build-manifest.json'
+        P4_SYNC_LOG = 'Logs/p4-sync.log'
+        // WORKSPACE must be inside the Docker volume mounted for the agent
+        // container, for example /home/jenkins/agent/workspace/<job>.
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                sh 'git --version'
+                sh 'git lfs version'
+                sh 'p4 -V | head -20'
+            }
+        }
+
+        stage('Build Windows Player') {
+            steps {
+                script {
+                    def buildCredentials = [
+                    usernamePassword(
+                        credentialsId: params.P4_CREDENTIALS_ID,
+                        usernameVariable: 'P4_USERNAME',
+                        passwordVariable: 'P4_PASSWORD'
+                    ),
+                    string(
+                        credentialsId: params.UNITY_LICENSE_CREDENTIALS_ID,
+                        variable: 'UNITY_LICENSE_B64'
+                    )
+                    ]
+
+                    if (params.UNITY_ACCOUNT_CREDENTIALS_ID?.trim()) {
+                        buildCredentials.add(usernamePassword(
+                            credentialsId: params.UNITY_ACCOUNT_CREDENTIALS_ID,
+                            usernameVariable: 'UNITY_EMAIL',
+                            passwordVariable: 'UNITY_PASSWORD'
+                        ))
+                    }
+
+                    withCredentials(buildCredentials) {
+                    sh '''
+set -eux
+export P4_PORT="${P4_PORT}"
+export P4_CLIENT_NAME="${P4_CLIENT}"
+export P4_ASSET_CL="${P4_ASSET_CL}"
+export P4_SYNC_ENABLED="${P4_SYNC_ENABLED}"
+export GIT_REPOSITORY_URL="${GIT_REPOSITORY_URL}"
+export GIT_REF="${GIT_REF}"
+bootstrap-unity-workspace.sh
+'''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'Logs/*.log,.workspace/build-manifest.json,.workspace/builds/windows/*.zip,.workspace/artifacts/yooasset/**/*.json', allowEmptyArchive: true
+        }
+    }
+}
