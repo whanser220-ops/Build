@@ -70,12 +70,12 @@ du -sh /workspace/Library || true
                         ]) {
                         sh '''
 set -eux
-export P4_PORT="${P4_PORT}"
-export P4_CLIENT_NAME="${P4_CLIENT}"
-export P4_ASSET_CL="${P4_ASSET_CL}"
-export P4_SYNC_ENABLED="${P4_SYNC_ENABLED}"
-export GIT_REPOSITORY_URL="${GIT_REPOSITORY_URL}"
-export GIT_REF="${GIT_REF}"
+export P4_PORT="${P4_PORT:-ssl:1.117.232.198:1666}"
+export P4_CLIENT_NAME="${P4_CLIENT:-jenkins_unity_linux_agent_art}"
+export P4_ASSET_CL="${P4_ASSET_CL:-}"
+export P4_SYNC_ENABLED="${P4_SYNC_ENABLED:-true}"
+export GIT_REPOSITORY_URL="${GIT_REPOSITORY_URL:-https://github.com/whanser220-ops/Build.git}"
+export GIT_REF="${GIT_REF:-Main}"
 
 export BOOTSTRAP_ONLY=true
 bootstrap-unity-workspace.sh
