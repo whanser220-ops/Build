@@ -116,7 +116,7 @@ EditorBuildSettings:
 EOF
 
 unset BOOTSTRAP_ONLY
-if [[ "${P4_SYNC_ENABLED}" != "false" ]]; then
+if [ "${P4_SYNC_ENABLED}" != "false" ]; then
     report-build-progress.sh --event stage --stage-id p4-sync --stage "Perforce asset sync" --percent 30 --state running --message "Syncing Perforce assets." || true
     sync-perforce-assets.sh
 else
