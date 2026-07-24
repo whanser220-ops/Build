@@ -164,7 +164,6 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
         if (archiveTaskIndex < 0)
             throw new InvalidOperationException("Could not find SBP ArchiveAndCompressBundles task.");
 
-        tasks[archiveTaskIndex] = new ProjectInstrumentedArchiveAndCompressBundles();
         tasks.Insert(archiveTaskIndex, new ProjectSbpBundleLayoutCaptureTask());
         return tasks;
     }
