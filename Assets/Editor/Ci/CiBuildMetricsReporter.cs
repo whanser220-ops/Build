@@ -19,11 +19,14 @@ namespace Unity6.Ci
 
     public static class CiBuildMetricsReporter
     {
-        private const int RequestTimeoutMs = 2000;
+        private const int RequestTimeoutMs = 5000;
         private static readonly object PendingLock = new object();
         private static readonly object EditorContextLock = new object();
         private static readonly ManualResetEventSlim PendingIdle = new ManualResetEventSlim(true);
+        private static readonly AutoResetEvent PendingSignal = new AutoResetEvent(false);
+        private static readonly Queue<PendingRequest> PendingRequests = new Queue<PendingRequest>();
         private static int _pendingRequests;
+        private static Thread _workerThread;
         private static string _cachedBuildTarget = string.Empty;
         private static string _cachedUnityVersion = string.Empty;
         private static string _cachedPlatform = string.Empty;
@@ -206,7 +209,7 @@ namespace Unity6.Ci
             });
         }
 
-        public static void Flush(int timeoutMs = 8000)
+        public static void Flush(int timeoutMs = 30000)
         {
             try
             {
@@ -226,18 +229,67 @@ namespace Unity6.Ci
                 return;
 
             string payload = CreatePayload(metricEvent);
-            IncrementPending();
-            ThreadPool.QueueUserWorkItem(_ =>
+            EnqueueRequest(url, token, payload);
+        }
+
+        private static void EnqueueRequest(string url, string token, string payload)
+        {
+            lock (PendingLock)
             {
+                PendingRequests.Enqueue(new PendingRequest(url, token, payload));
+                _pendingRequests++;
+                PendingIdle.Reset();
+                EnsureWorkerLocked();
+            }
+
+            PendingSignal.Set();
+        }
+
+        private static void EnsureWorkerLocked()
+        {
+            if (_workerThread != null && _workerThread.IsAlive)
+                return;
+
+            _workerThread = new Thread(ProcessQueue)
+            {
+                IsBackground = true,
+                Name = "CI Build Metrics Reporter"
+            };
+            _workerThread.Start();
+        }
+
+        private static void ProcessQueue()
+        {
+            while (true)
+            {
+                PendingRequest request = null;
+                lock (PendingLock)
+                {
+                    if (PendingRequests.Count > 0)
+                    {
+                        request = PendingRequests.Dequeue();
+                    }
+                    else if (_pendingRequests == 0)
+                    {
+                        PendingIdle.Set();
+                    }
+                }
+
+                if (request == null)
+                {
+                    PendingSignal.WaitOne();
+                    continue;
+                }
+
                 try
                 {
-                    Send(url, token, payload);
+                    Send(request.Url, request.Token, request.Payload);
                 }
                 finally
                 {
                     DecrementPending();
                 }
-            });
+            }
         }
 
         private static void Send(string url, string token, string payload)
@@ -266,21 +318,12 @@ namespace Unity6.Ci
             }
         }
 
-        private static void IncrementPending()
-        {
-            lock (PendingLock)
-            {
-                _pendingRequests++;
-                PendingIdle.Reset();
-            }
-        }
-
         private static void DecrementPending()
         {
             lock (PendingLock)
             {
                 _pendingRequests = Math.Max(0, _pendingRequests - 1);
-                if (_pendingRequests == 0)
+                if (_pendingRequests == 0 && PendingRequests.Count == 0)
                     PendingIdle.Set();
             }
         }
@@ -486,6 +529,20 @@ namespace Unity6.Ci
             public int? assetCount;
             public bool? cached;
             public List<CiBuildMetricAssetType> assetTypes = new List<CiBuildMetricAssetType>();
+        }
+
+        private sealed class PendingRequest
+        {
+            public readonly string Url;
+            public readonly string Token;
+            public readonly string Payload;
+
+            public PendingRequest(string url, string token, string payload)
+            {
+                Url = url;
+                Token = token;
+                Payload = payload;
+            }
         }
     }
 }
