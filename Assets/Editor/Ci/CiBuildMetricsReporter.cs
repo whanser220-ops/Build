@@ -21,8 +21,29 @@ namespace Unity6.Ci
     {
         private const int RequestTimeoutMs = 2000;
         private static readonly object PendingLock = new object();
+        private static readonly object EditorContextLock = new object();
         private static readonly ManualResetEventSlim PendingIdle = new ManualResetEventSlim(true);
         private static int _pendingRequests;
+        private static string _cachedBuildTarget = string.Empty;
+        private static string _cachedUnityVersion = string.Empty;
+        private static string _cachedPlatform = string.Empty;
+
+        public static void CaptureEditorContext()
+        {
+            try
+            {
+                lock (EditorContextLock)
+                {
+                    _cachedBuildTarget = EditorUserBuildSettings.activeBuildTarget.ToString();
+                    _cachedUnityVersion = Application.unityVersion;
+                    _cachedPlatform = Application.platform.ToString();
+                }
+            }
+            catch
+            {
+                // Build metrics must never fail the Unity build.
+            }
+        }
 
         public static void ReportRunStarted(string message = "")
         {
@@ -287,16 +308,22 @@ namespace Unity6.Ci
                 JsonField("message", metricEvent.message),
                 JsonField("gitRef", GetEnv("GIT_REF", string.Empty)),
                 JsonField("gitCommit", ResolveGitCommit()),
-                JsonField("buildTarget", EditorUserBuildSettings.activeBuildTarget.ToString()),
+                JsonField("buildTarget", GetEnv("BUILD_TARGET", GetCachedEditorContextValue(ref _cachedBuildTarget))),
                 JsonField("packageName", GetEnv("YOOASSET_PACKAGE_NAME", "DefaultPackage")),
                 "\"metadata\":{" +
-                    JsonField("unityVersion", Application.unityVersion) + "," +
-                    JsonField("platform", Application.platform.ToString()) +
+                    JsonField("unityVersion", GetEnv("UNITY_VERSION", GetCachedEditorContextValue(ref _cachedUnityVersion))) + "," +
+                    JsonField("platform", GetCachedEditorContextValue(ref _cachedPlatform)) +
                 "}",
                 JsonAssetTypesField(metricEvent.assetTypes)
             };
 
             return "{" + string.Join(",", fields) + "}";
+        }
+
+        private static string GetCachedEditorContextValue(ref string value)
+        {
+            lock (EditorContextLock)
+                return value ?? string.Empty;
         }
 
         private static string ResolveRunId()

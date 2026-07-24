@@ -64,6 +64,7 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
 {
     public void Run(YooAsset.Editor.BuildContext context)
     {
+        CiBuildMetricsReporter.CaptureEditorContext();
         BuildMapContext buildMapContext = context.GetContextObject<BuildMapContext>();
         BuildParametersContext buildParametersContext = context.GetContextObject<BuildParametersContext>();
         ScriptableBuildParameters scriptableBuildParameters = buildParametersContext.Parameters as ScriptableBuildParameters;

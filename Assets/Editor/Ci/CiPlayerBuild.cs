@@ -18,6 +18,7 @@ namespace Unity6.Ci
             Stopwatch runStopwatch = Stopwatch.StartNew();
             try
             {
+                CiBuildMetricsReporter.CaptureEditorContext();
                 ConfigureBatchmodeLogging();
                 CiBuildMetricsReporter.ReportRunStarted("Unity editor batchmode started.");
                 CiBuildMetricsReporter.ReportStageStarted("unity-editor-start", "Unity editor start", "Unity editor batchmode started.");
