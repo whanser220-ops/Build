@@ -143,6 +143,15 @@ build-unity-windows.sh
     }
 
     post {
+        failure {
+            withCredentials([string(credentialsId: 'build-progress-ingest-token', variable: 'BUILD_PROGRESS_TOKEN')]) {
+                withEnv(["BUILD_PROGRESS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"]) {
+                    sh '''
+report-build-progress.sh --event failure --stage-id pipeline-failure --stage "Pipeline failure" --percent 100 --state failure --result FAILURE --message "Unity Linux Docker build failed." --log-file "Logs/p4-sync.log" --tail-lines 40 || true
+'''
+                }
+            }
+        }
         always {
             archiveArtifacts artifacts: 'Logs/*.log,.workspace/build-manifest.json,.workspace/artifacts/yooasset/**/*.json', allowEmptyArchive: true
         }
