@@ -17,6 +17,7 @@ namespace Unity6.Ci
             try
             {
                 ConfigureBatchmodeLogging();
+                CiBuildProgressReporter.ReportStage("unity-editor-start", "Unity editor start", 40, "Unity editor batchmode started.");
 
                 string outputPath = ResolveOutputPath(Environment.GetCommandLineArgs());
                 string[] scenes = GetEnabledScenePaths();
@@ -25,6 +26,7 @@ namespace Unity6.Ci
             }
             catch (Exception exception)
             {
+                CiBuildProgressReporter.ReportFailure("unity-editor", "Unity editor build", 100, exception);
                 Debug.LogException(exception);
                 EditorApplication.Exit(1);
                 throw;
@@ -37,9 +39,11 @@ namespace Unity6.Ci
             if (!string.IsNullOrEmpty(outputDirectory))
                 Directory.CreateDirectory(outputDirectory);
 
+            CiBuildProgressReporter.ReportStage("build-target-switch", "Switch build target", 45, "Switching Unity build target.");
             SwitchBuildTargetIfNeeded(BuildTarget.StandaloneWindows64);
 
             Debug.Log("Building YooAsset content for CI player build.");
+            CiBuildProgressReporter.ReportStage("yooasset-prepare", "YooAsset prepare collectors", 50, "Preparing YooAsset collectors.");
             ProjectYooAssetBuild.BuildFromCommandLine();
 
             Debug.Log("Starting Windows development player build.");
@@ -54,6 +58,7 @@ namespace Unity6.Ci
                 options = BuildOptions.Development | BuildOptions.AllowDebugging
             };
 
+            CiBuildProgressReporter.ReportStage("build-player", "BuildPipeline.BuildPlayer", 85, "Building Windows development player.");
             BuildReport report = BuildPipeline.BuildPlayer(options);
             BuildSummary summary = report.summary;
 
@@ -69,6 +74,7 @@ namespace Unity6.Ci
                 "Windows player build succeeded. Output=" + summary.outputPath +
                 ", SizeBytes=" + summary.totalSize +
                 ", Warnings=" + summary.totalWarnings);
+            CiBuildProgressReporter.ReportStage("build-player-complete", "BuildPipeline.BuildPlayer complete", 90, "Windows player build succeeded.");
         }
 
         private static void ConfigureBatchmodeLogging()

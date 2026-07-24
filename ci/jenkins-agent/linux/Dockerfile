@@ -46,6 +46,7 @@ RUN chmod 0755 /usr/local/bin/jenkins-agent-entrypoint.sh \
     /usr/local/bin/activate-unity-license.sh \
     /usr/local/bin/bootstrap-unity-workspace.sh \
     /usr/local/bin/build-unity-windows.sh \
+    /usr/local/bin/report-build-progress.sh \
     /usr/local/bin/sync-perforce-assets.sh
 
 WORKDIR ${JENKINS_AGENT_WORKDIR}

@@ -1,7 +1,7 @@
 pipeline {
     agent {
         node {
-            label 'unity-linux-docker'
+            label 'unity-linux-agent'
             customWorkspace '/workspace'
         }
     }
@@ -27,13 +27,18 @@ pipeline {
         UNITY_LICENSE_MODE = 'personal'
         BUILD_MANIFEST = '.workspace/build-manifest.json'
         P4_SYNC_LOG = 'Logs/p4-sync.log'
+        BUILD_PROGRESS_URL = 'http://1.117.232.198/api/build-progress/events'
+        BUILD_PROGRESS_JOB = 'unity-linux-docker-build'
     }
 
     stages {
         stage('Agent') {
             steps {
-                sh '''
+                withCredentials([string(credentialsId: 'build-progress-ingest-token', variable: 'BUILD_PROGRESS_TOKEN')]) {
+                    withEnv(["BUILD_PROGRESS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"]) {
+                        sh '''
 set -eux
+report-build-progress.sh --event stage --stage-id agent --stage "Agent ready" --percent 5 --state running --message "Jenkins Unity Linux agent is online." || true
 java -version
 /opt/unity/Editor/Unity -version
 git lfs version
@@ -41,6 +46,8 @@ p4 -V | head -20
 du -sh /workspace || true
 du -sh /workspace/Library || true
 '''
+                    }
+                }
             }
         }
 
@@ -55,18 +62,25 @@ du -sh /workspace/Library || true
                     def p4Client = params.P4_CLIENT ?: 'jenkins_unity_linux_agent_art'
                     def p4AssetCl = params.P4_ASSET_CL ?: ''
 
-                    withCredentials([usernamePassword(
-                        credentialsId: p4CredentialsId,
-                        usernameVariable: 'P4_USERNAME',
-                        passwordVariable: 'P4_PASSWORD'
-                    )]) {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: p4CredentialsId,
+                            usernameVariable: 'P4_USERNAME',
+                            passwordVariable: 'P4_PASSWORD'
+                        ),
+                        string(
+                            credentialsId: 'build-progress-ingest-token',
+                            variable: 'BUILD_PROGRESS_TOKEN'
+                        )
+                    ]) {
                         withEnv([
                             "GIT_REPOSITORY_URL=${gitRepositoryUrl}",
                             "GIT_REF=${gitRef}",
                             "P4_SYNC_ENABLED=${p4SyncEnabled}",
                             "P4_PORT=${p4Port}",
                             "P4_CLIENT=${p4Client}",
-                            "P4_ASSET_CL=${p4AssetCl}"
+                            "P4_ASSET_CL=${p4AssetCl}",
+                            "BUILD_PROGRESS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"
                         ]) {
                         sh '''
 set -eux
@@ -77,8 +91,10 @@ export P4_SYNC_ENABLED="${P4_SYNC_ENABLED:-true}"
 export GIT_REPOSITORY_URL="${GIT_REPOSITORY_URL:-https://github.com/whanser220-ops/Build.git}"
 export GIT_REF="${GIT_REF:-Main}"
 
+report-build-progress.sh --event stage --stage-id bootstrap --stage "Bootstrap workspace" --percent 10 --state running --message "Bootstrapping Unity workspace." || true
 export BOOTSTRAP_ONLY=true
 bootstrap-unity-workspace.sh
+report-build-progress.sh --event stage --stage-id bootstrap --stage "Bootstrap workspace" --percent 15 --state running --message "Unity workspace bootstrapped." || true
 
 cat > ProjectSettings/EditorBuildSettings.asset <<'EOF'
 %YAML 1.1
@@ -95,8 +111,10 @@ EditorBuildSettings:
 EOF
 
 unset BOOTSTRAP_ONLY
+report-build-progress.sh --event stage --stage-id p4-sync --stage "Perforce asset sync" --percent 30 --state running --message "Syncing Perforce assets." || true
 sync-perforce-assets.sh
 
+report-build-progress.sh --event stage --stage-id sanitize-source-art --stage "Sanitize source art filenames" --percent 33 --state running --message "Removing unsupported non-ASCII source art filenames." || true
 python3 - <<'PY'
 import os
 root = '/workspace/Assets/Game/Characters/Qianxia/Art'
@@ -114,6 +132,7 @@ for path in removed:
 PY
 
 export P4_SYNC_ENABLED=false
+report-build-progress.sh --event stage --stage-id unity-build-script --stage "Unity build script" --percent 35 --state running --message "Starting Unity build wrapper." || true
 build-unity-windows.sh
 '''
                         }

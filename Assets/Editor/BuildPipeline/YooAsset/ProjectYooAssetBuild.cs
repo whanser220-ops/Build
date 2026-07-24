@@ -6,6 +6,7 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Unity6.Ci;
 using YooAsset;
 using YooAsset.Editor;
 
@@ -116,6 +117,7 @@ public static class ProjectYooAssetBuild
 
     private static YooAssetBuildPlan PrepareCollectors(string[] args)
     {
+        CiBuildProgressReporter.ReportStage("yooasset-prepare", "YooAsset prepare collectors", 50, "Preparing YooAsset collector settings.");
         BuildTarget buildTarget = ResolveBuildTarget(args);
         ConfigureBuildTargetSettings(buildTarget, args);
         SwitchBuildTargetIfNeeded(buildTarget);
@@ -139,6 +141,7 @@ public static class ProjectYooAssetBuild
         YooAssetBuildPlan plan = BuildPlan(buildRoot, buildTarget, packageName, includeSamples, includeSourceAssets);
         plan.planPath = Path.GetFullPath(planOutput).Replace("\\", "/");
         WritePlan(plan.planPath, plan);
+        CiBuildProgressReporter.ReportStage("yooasset-plan", "YooAsset build plan written", 60, "YooAsset build plan was written.");
 
         if (plan.errors.Count > 0)
             throw new InvalidOperationException("YooAsset plan contains errors. See plan: " + plan.planPath);
@@ -187,6 +190,7 @@ public static class ProjectYooAssetBuild
             MonoScriptsBundleName = "unitymonos.bundle"
         };
 
+        CiBuildProgressReporter.ReportStage("yooasset-sbp-build", "YooAsset SBP build", 65, "Starting YooAsset Scriptable Build Pipeline.");
         YooAsset.Editor.BuildResult result = new ProjectYooAssetScriptableBuildPipeline().Run(parameters, true);
         if (!result.Success)
         {
@@ -205,6 +209,7 @@ public static class ProjectYooAssetBuild
                 plan.planPath,
                 args,
                 ProjectYooAssetScriptableBuildPipeline.LastLayoutSnapshot);
+            CiBuildProgressReporter.ReportStage("bundle-report-export", "YooAsset bundle report exported", 75, "YooAsset bundle report exported.");
         }
 
         Debug.Log(
