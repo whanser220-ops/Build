@@ -12,43 +12,92 @@ windows_exe="${WINDOWS_EXE:-.workspace/builds/windows/Unity6-Windows-Development
 windows_zip="${WINDOWS_ZIP:-.workspace/builds/windows/Unity6-Windows-Development.zip}"
 yooasset_build_output="${YOOASSET_BUILD_OUTPUT:-${project_path}/.workspace/artifacts/yooasset-build}"
 yooasset_plan_output="${YOOASSET_PLAN_OUTPUT:-${project_path}/.workspace/artifacts/yooasset/StandaloneWindows64/angrymesh/yooasset_build_plan.json}"
-last_progress_percent="0"
-last_progress_stage="initializing"
 
-report_progress() {
-    local event_type="${1:-stage}"
-    local stage_id="${2:-}"
-    local stage_name="${3:-$stage_id}"
-    local percent="${4:-$last_progress_percent}"
-    local state="${5:-running}"
-    local result="${6:-}"
-    local message="${7:-}"
-    shift 7 || true
+run_started_ms=""
+active_stage_id=""
+active_stage_name=""
+active_stage_started_ms=""
 
-    last_progress_percent="$percent"
-    last_progress_stage="$stage_name"
-
-    report-build-progress.sh \
-        --event "$event_type" \
-        --stage-id "$stage_id" \
-        --stage "$stage_name" \
-        --percent "$percent" \
-        --state "$state" \
-        --result "$result" \
-        --message "$message" \
-        "$@" || true
+now_ms() {
+    date +%s%3N
 }
 
-report_failure() {
-    local exit_code="${1:-1}"
-    report_progress failure "$last_progress_stage" "$last_progress_stage" "$last_progress_percent" failure FAILURE \
-        "Unity container build failed with exit code ${exit_code}." \
-        --log-file "$unity_log" --tail-lines 40
+duration_since_ms() {
+    local started="${1:-}"
+    if [[ -z "$started" ]]; then
+        echo ""
+        return
+    fi
+
+    echo "$(( $(now_ms) - started ))"
+}
+
+metric_event() {
+    report-build-metrics.sh "$@" || true
+}
+
+stage_start() {
+    active_stage_id="${1:-}"
+    active_stage_name="${2:-$active_stage_id}"
+    active_stage_started_ms="$(now_ms)"
+
+    metric_event \
+        --event stage_started \
+        --stage-id "$active_stage_id" \
+        --stage "$active_stage_name" \
+        --state running \
+        --message "${3:-}"
+}
+
+stage_finish() {
+    local state="${1:-success}"
+    local result="${2:-SUCCESS}"
+    local message="${3:-}"
+    local event_type="stage_finished"
+    local duration_ms
+
+    if [[ -z "$active_stage_id" ]]; then
+        return
+    fi
+
+    if [[ "$state" == "failure" ]]; then
+        event_type="stage_failed"
+    fi
+
+    duration_ms="$(duration_since_ms "$active_stage_started_ms")"
+    metric_event \
+        --event "$event_type" \
+        --stage-id "$active_stage_id" \
+        --stage "$active_stage_name" \
+        --state "$state" \
+        --result "$result" \
+        --duration-ms "$duration_ms" \
+        --message "$message"
+
+    active_stage_id=""
+    active_stage_name=""
+    active_stage_started_ms=""
+}
+
+finish_run() {
+    local state="${1:-success}"
+    local result="${2:-SUCCESS}"
+    local message="${3:-}"
+    local duration_ms
+
+    duration_ms="$(duration_since_ms "$run_started_ms")"
+    metric_event \
+        --event run_finished \
+        --state "$state" \
+        --result "$result" \
+        --duration-ms "$duration_ms" \
+        --message "$message"
 }
 
 on_error() {
     local exit_code=$?
-    report_failure "$exit_code"
+    stage_finish failure FAILURE "Unity container build failed with exit code ${exit_code}."
+    finish_run failure FAILURE "Unity container build failed with exit code ${exit_code}."
     exit "$exit_code"
 }
 
@@ -56,37 +105,48 @@ trap on_error ERR
 
 cd "${project_path}"
 
+run_started_ms="$(now_ms)"
+metric_event \
+    --event run_started \
+    --state running \
+    --message "Unity Linux build container run started."
+
+stage_start agent-ready "Agent ready" "Validating Unity Linux build container."
 if [[ ! -x "${unity_executable}" ]]; then
     echo "Unity executable not found or not executable: ${unity_executable}" >&2
     exit 1
 fi
+stage_finish success SUCCESS "Unity Linux build container is ready."
 
-report_progress stage agent-ready "Agent ready" 5 running "" "Unity Linux build container is ready."
-
-report_progress stage unity-license "Activate Unity license" 12 running "" "Activating Unity license."
+stage_start unity-license "Activate Unity license" "Activating Unity license."
 activate-unity-license.sh
+stage_finish success SUCCESS "Unity license activation completed."
 
 if [[ "${RUN_GIT_LFS_PULL:-true}" != "false" && -d .git ]]; then
-    report_progress stage git-lfs "Git LFS pull" 20 running "" "Pulling Git LFS content."
+    stage_start git-lfs "Git LFS pull" "Pulling Git LFS content."
     git lfs install --local --force
     git lfs pull
+    stage_finish success SUCCESS "Git LFS content pulled."
 fi
 
 if [[ "${P4_SYNC_ENABLED:-true}" != "false" ]]; then
-    report_progress stage p4-sync "Perforce asset sync" 30 running "" "Syncing Perforce assets."
+    stage_start p4-sync "Perforce asset sync" "Syncing Perforce assets."
     sync-perforce-assets.sh
+    stage_finish success SUCCESS "Perforce asset sync completed."
 else
     echo "Skipping Perforce asset sync because P4_SYNC_ENABLED=false."
-    report_progress stage p4-sync "Perforce asset sync" 30 running "" "Perforce asset sync skipped."
+    stage_start p4-sync "Perforce asset sync" "Perforce asset sync skipped."
+    stage_finish success SUCCESS "Perforce asset sync skipped."
 fi
 
-report_progress stage cleanup "Clean build outputs" 35 running "" "Cleaning Unity build outputs."
+stage_start cleanup "Clean build outputs" "Cleaning Unity build outputs."
 rm -rf ".workspace/builds" ".workspace/artifacts/yooasset-build" "Assets/StreamingAssets/yoo"
 rm -f "${unity_log}"
 mkdir -p "$(dirname "${unity_log}")" ".workspace/builds/windows" "$(dirname "${yooasset_plan_output}")"
 windows_zip_absolute="${project_path}/${windows_zip}"
+stage_finish success SUCCESS "Unity build outputs cleaned."
 
-report_progress stage unity-start "Unity editor start" 40 running "" "Starting Unity batchmode player build."
+stage_start unity-process "Unity editor build" "Starting Unity batchmode player build."
 set +e
 "${unity_executable}" \
     -batchmode \
@@ -105,12 +165,14 @@ set +e
 unity_pid=$!
 
 while kill -0 "${unity_pid}" >/dev/null 2>&1; do
-    sleep 5
+    sleep 15
     if kill -0 "${unity_pid}" >/dev/null 2>&1; then
-        report-build-progress.sh \
-            --event heartbeat \
+        metric_event \
+            --event stage_heartbeat \
+            --stage-id "$active_stage_id" \
+            --stage "$active_stage_name" \
             --state running \
-            --message "Unity batchmode process is still running." || true
+            --message "Unity batchmode process is still running."
     fi
 done
 
@@ -123,31 +185,35 @@ if [[ -f "${unity_log}" ]]; then
 fi
 
 if [[ "${unity_exit}" -ne 0 ]]; then
-    report_failure "${unity_exit}"
+    stage_finish failure FAILURE "Unity batchmode exited with ${unity_exit}."
+    finish_run failure FAILURE "Unity batchmode exited with ${unity_exit}."
     exit "${unity_exit}"
 fi
+
+stage_finish success SUCCESS "Unity batchmode player build completed."
 
 if [[ ! -f "${windows_exe}" ]]; then
     echo "Windows player executable was not found: ${windows_exe}" >&2
     exit 1
 fi
 
-report_progress stage package-player "Package Windows player" 95 running "" "Packaging Windows player archive."
+stage_start package-player "Package Windows player" "Packaging Windows player archive."
 rm -f "${windows_zip}"
 (
     cd "${windows_build_dir}"
     zip -qr "${windows_zip_absolute}" .
 )
+zip_size="$(stat -c '%s' "${windows_zip_absolute}" 2>/dev/null || echo 0)"
+stage_finish success SUCCESS "Windows player archive created."
 
-report-build-progress.sh \
-    --event artifact \
+metric_event \
+    --event artifact_created \
     --stage-id package-player \
     --stage "Package Windows player" \
-    --percent 98 \
-    --state running \
-    --message "Windows player archive created." \
-    --artifact "$windows_zip_absolute" \
-    --artifact-name "Unity6-Windows-Development.zip" || true
+    --state success \
+    --result SUCCESS \
+    --size-bytes "$zip_size" \
+    --message "Windows player archive created."
 
-report_progress success complete "Build complete" 100 success SUCCESS "Unity container build completed successfully."
+finish_run success SUCCESS "Unity container build completed successfully."
 echo "Windows player archive: ${windows_zip_absolute}"

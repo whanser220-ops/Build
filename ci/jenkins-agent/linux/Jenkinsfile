@@ -1,7 +1,7 @@
 pipeline {
     agent {
         node {
-            label 'unity-linux-agent'
+            label 'unity6-cloud-agent'
             customWorkspace '/workspace'
         }
     }
@@ -27,24 +27,25 @@ pipeline {
         UNITY_LICENSE_MODE = 'personal'
         BUILD_MANIFEST = '.workspace/build-manifest.json'
         P4_SYNC_LOG = 'Logs/p4-sync.log'
-        BUILD_PROGRESS_URL = 'http://1.117.232.198/api/build-progress/events'
-        BUILD_PROGRESS_JOB = 'unity-linux-docker-build'
+        BUILD_METRICS_URL = 'http://1.117.232.198/api/build-metrics/events'
+        BUILD_METRICS_JOB = 'unity-linux-docker-build'
     }
 
     stages {
         stage('Agent') {
             steps {
-                withCredentials([string(credentialsId: 'build-progress-ingest-token', variable: 'BUILD_PROGRESS_TOKEN')]) {
-                    withEnv(["BUILD_PROGRESS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"]) {
+                withCredentials([string(credentialsId: 'build-metrics-ingest-token', variable: 'BUILD_METRICS_INGEST_TOKEN')]) {
+                    withEnv(["BUILD_METRICS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"]) {
                         sh '''
 set -eux
-report-build-progress.sh --event stage --stage-id agent --stage "Agent ready" --percent 5 --state running --message "Jenkins Unity Linux agent is online." || true
+report-build-metrics.sh --event stage_started --stage-id agent --stage "Agent ready" --state running --message "Jenkins Unity Linux agent is online." || true
 java -version
 /opt/unity/Editor/Unity -version
 git lfs version
 p4 -V | head -20
 du -sh /workspace || true
 du -sh /workspace/Library || true
+report-build-metrics.sh --event stage_finished --stage-id agent --stage "Agent ready" --state success --result SUCCESS --message "Jenkins Unity Linux agent is ready." || true
 '''
                     }
                 }
@@ -69,8 +70,8 @@ du -sh /workspace/Library || true
                             passwordVariable: 'P4_PASSWORD'
                         ),
                         string(
-                            credentialsId: 'build-progress-ingest-token',
-                            variable: 'BUILD_PROGRESS_TOKEN'
+                            credentialsId: 'build-metrics-ingest-token',
+                            variable: 'BUILD_METRICS_INGEST_TOKEN'
                         ),
                         sshUserPrivateKey(
                             credentialsId: 'build-github-deploy-key',
@@ -84,7 +85,7 @@ du -sh /workspace/Library || true
                             "P4_PORT=${p4Port}",
                             "P4_CLIENT=${p4Client}",
                             "P4_ASSET_CL=${p4AssetCl}",
-                            "BUILD_PROGRESS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"
+                            "BUILD_METRICS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"
                         ]) {
                         sh '''
 set -eux
@@ -96,10 +97,10 @@ export GIT_REPOSITORY_URL="${GIT_REPOSITORY_URL:-git@github.com:whanser220-ops/B
 export GIT_REF="${GIT_REF:-Main}"
 export GIT_SSH_COMMAND="ssh -i ${GIT_SSH_KEY} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 
-report-build-progress.sh --event stage --stage-id bootstrap --stage "Bootstrap workspace" --percent 10 --state running --message "Bootstrapping Unity workspace." || true
+report-build-metrics.sh --event stage_started --stage-id bootstrap --stage "Bootstrap workspace" --state running --message "Bootstrapping Unity workspace." || true
 export BOOTSTRAP_ONLY=true
 bootstrap-unity-workspace.sh
-report-build-progress.sh --event stage --stage-id bootstrap --stage "Bootstrap workspace" --percent 15 --state running --message "Unity workspace bootstrapped." || true
+report-build-metrics.sh --event stage_finished --stage-id bootstrap --stage "Bootstrap workspace" --state success --result SUCCESS --message "Unity workspace bootstrapped." || true
 
 cat > ProjectSettings/EditorBuildSettings.asset <<'EOF'
 %YAML 1.1
@@ -117,13 +118,15 @@ EOF
 
 unset BOOTSTRAP_ONLY
 if [ "${P4_SYNC_ENABLED}" != "false" ]; then
-    report-build-progress.sh --event stage --stage-id p4-sync --stage "Perforce asset sync" --percent 30 --state running --message "Syncing Perforce assets." || true
+    report-build-metrics.sh --event stage_started --stage-id p4-sync --stage "Perforce asset sync" --state running --message "Syncing Perforce assets." || true
     sync-perforce-assets.sh
+    report-build-metrics.sh --event stage_finished --stage-id p4-sync --stage "Perforce asset sync" --state success --result SUCCESS --message "Perforce asset sync completed." || true
 else
-    report-build-progress.sh --event stage --stage-id p4-sync --stage "Perforce asset sync" --percent 30 --state running --message "Perforce asset sync skipped." || true
+    report-build-metrics.sh --event stage_started --stage-id p4-sync --stage "Perforce asset sync" --state running --message "Perforce asset sync skipped." || true
+    report-build-metrics.sh --event stage_finished --stage-id p4-sync --stage "Perforce asset sync" --state success --result SUCCESS --message "Perforce asset sync skipped." || true
 fi
 
-report-build-progress.sh --event stage --stage-id sanitize-source-art --stage "Sanitize source art filenames" --percent 33 --state running --message "Removing unsupported non-ASCII source art filenames." || true
+report-build-metrics.sh --event stage_started --stage-id sanitize-source-art --stage "Sanitize source art filenames" --state running --message "Removing unsupported non-ASCII source art filenames." || true
 python3 - <<'PY'
 import os
 root = '/workspace/Assets/Game/Characters/Qianxia/Art'
@@ -139,10 +142,12 @@ print('Removed non-ASCII Qianxia source art files:')
 for path in removed:
     print(' - ' + path)
 PY
+report-build-metrics.sh --event stage_finished --stage-id sanitize-source-art --stage "Sanitize source art filenames" --state success --result SUCCESS --message "Unsupported source art filename cleanup completed." || true
 
 export P4_SYNC_ENABLED=false
-report-build-progress.sh --event stage --stage-id unity-build-script --stage "Unity build script" --percent 35 --state running --message "Starting Unity build wrapper." || true
+report-build-metrics.sh --event stage_started --stage-id unity-build-script --stage "Unity build script" --state running --message "Starting Unity build wrapper." || true
 build-unity-windows.sh
+report-build-metrics.sh --event stage_finished --stage-id unity-build-script --stage "Unity build script" --state success --result SUCCESS --message "Unity build wrapper completed." || true
 '''
                         }
                     }
@@ -153,10 +158,10 @@ build-unity-windows.sh
 
     post {
         failure {
-            withCredentials([string(credentialsId: 'build-progress-ingest-token', variable: 'BUILD_PROGRESS_TOKEN')]) {
-                withEnv(["BUILD_PROGRESS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"]) {
+            withCredentials([string(credentialsId: 'build-metrics-ingest-token', variable: 'BUILD_METRICS_INGEST_TOKEN')]) {
+                withEnv(["BUILD_METRICS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"]) {
                     sh '''
-report-build-progress.sh --event failure --stage-id pipeline-failure --stage "Pipeline failure" --percent 100 --state failure --result FAILURE --message "Unity Linux Docker build failed." --log-file "Logs/p4-sync.log" --tail-lines 40 || true
+report-build-metrics.sh --event run_finished --stage-id pipeline-failure --stage "Pipeline failure" --state failure --result FAILURE --message "Unity Linux Docker build failed." || true
 '''
                 }
             }

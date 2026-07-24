@@ -9,6 +9,7 @@ using UnityEngine.Rendering;
 using Unity6.Ci;
 using YooAsset;
 using YooAsset.Editor;
+using Stopwatch = System.Diagnostics.Stopwatch;
 
 public static class ProjectYooAssetBuild
 {
@@ -117,41 +118,80 @@ public static class ProjectYooAssetBuild
 
     private static YooAssetBuildPlan PrepareCollectors(string[] args)
     {
-        CiBuildProgressReporter.ReportStage("yooasset-prepare", "YooAsset prepare collectors", 50, "Preparing YooAsset collector settings.");
-        BuildTarget buildTarget = ResolveBuildTarget(args);
-        ConfigureBuildTargetSettings(buildTarget, args);
-        SwitchBuildTargetIfNeeded(buildTarget);
+        return MeasureStage(
+            "yooasset-prepare",
+            "YooAsset prepare collectors",
+            "Preparing YooAsset collector settings.",
+            "YooAsset collector settings prepared.",
+            () =>
+            {
+                BuildTarget buildTarget = ResolveBuildTarget(args);
+                MeasureStage(
+                    "build-target-settings",
+                    "Build target settings",
+                    "Configuring Unity build target settings.",
+                    "Unity build target settings configured.",
+                    () =>
+                    {
+                        ConfigureBuildTargetSettings(buildTarget, args);
+                        SwitchBuildTargetIfNeeded(buildTarget);
+                    });
 
-        bool includeSamples = HasArgument(args, "--yooasset-include-samples");
-        bool includeSourceAssets = HasArgument(args, "--yooasset-include-source-assets") &&
-                                   !HasArgument(args, "--yooasset-exclude-source-assets");
-        string packageName = ResolvePackageName(args);
+                bool includeSamples = HasArgument(args, "--yooasset-include-samples");
+                bool includeSourceAssets = HasArgument(args, "--yooasset-include-source-assets") &&
+                                           !HasArgument(args, "--yooasset-exclude-source-assets");
+                string packageName = ResolvePackageName(args);
 
-        string buildRoot = NormalizeAssetPath(GetArgumentValue(args, "--yooasset-build-root"));
-        if (string.IsNullOrWhiteSpace(buildRoot))
-            buildRoot = DefaultBuildRoot;
+                string buildRoot = NormalizeAssetPath(GetArgumentValue(args, "--yooasset-build-root"));
+                if (string.IsNullOrWhiteSpace(buildRoot))
+                    buildRoot = DefaultBuildRoot;
 
-        if (HasArgument(args, "--yooasset-force-refresh-assets"))
-            ForceRefreshBuildAssets(buildRoot);
+                if (HasArgument(args, "--yooasset-force-refresh-assets"))
+                {
+                    MeasureStage(
+                        "resource-import-refresh",
+                        "AssetDatabase refresh",
+                        "Refreshing Unity assets before YooAsset build.",
+                        "Unity asset refresh completed.",
+                        () => ForceRefreshBuildAssets(buildRoot));
+                }
 
-        string planOutput = GetArgumentValue(args, "--yooasset-plan-output");
-        if (string.IsNullOrWhiteSpace(planOutput))
-            planOutput = Path.Combine(DefaultPlanRoot, buildTarget.ToString(), AngryMeshTag, PlanFileName);
+                string planOutput = GetArgumentValue(args, "--yooasset-plan-output");
+                if (string.IsNullOrWhiteSpace(planOutput))
+                    planOutput = Path.Combine(DefaultPlanRoot, buildTarget.ToString(), AngryMeshTag, PlanFileName);
 
-        YooAssetBuildPlan plan = BuildPlan(buildRoot, buildTarget, packageName, includeSamples, includeSourceAssets);
-        plan.planPath = Path.GetFullPath(planOutput).Replace("\\", "/");
-        WritePlan(plan.planPath, plan);
-        CiBuildProgressReporter.ReportStage("yooasset-plan", "YooAsset build plan written", 60, "YooAsset build plan was written.");
+                YooAssetBuildPlan plan = MeasureStage(
+                    "dependency-analysis",
+                    "YooAsset dependency analysis",
+                    "Analyzing YooAsset collectors and dependencies.",
+                    "YooAsset dependency analysis completed.",
+                    () => BuildPlan(buildRoot, buildTarget, packageName, includeSamples, includeSourceAssets));
+                plan.planPath = Path.GetFullPath(planOutput).Replace("\\", "/");
+                MeasureStage(
+                    "yooasset-plan-write",
+                    "YooAsset build plan write",
+                    "Writing YooAsset build plan.",
+                    "YooAsset build plan written.",
+                    () => WritePlan(plan.planPath, plan));
 
-        if (plan.errors.Count > 0)
-            throw new InvalidOperationException("YooAsset plan contains errors. See plan: " + plan.planPath);
+                if (plan.errors.Count > 0)
+                    throw new InvalidOperationException("YooAsset plan contains errors. See plan: " + plan.planPath);
 
-        ApplyPlan(plan);
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
+                MeasureStage(
+                    "yooasset-apply-collectors",
+                    "YooAsset collector apply",
+                    "Applying YooAsset collector settings.",
+                    "YooAsset collector settings applied.",
+                    () =>
+                    {
+                        ApplyPlan(plan);
+                        AssetDatabase.SaveAssets();
+                        AssetDatabase.Refresh();
+                    });
 
-        Debug.Log("Prepared ANGRY MESH YooAsset collectors. Plan: " + plan.planPath);
-        return plan;
+                Debug.Log("Prepared ANGRY MESH YooAsset collectors. Plan: " + plan.planPath);
+                return plan;
+            });
     }
 
     private static void BuildYooAssetContent(string[] args, YooAssetBuildPlan plan)
@@ -190,8 +230,12 @@ public static class ProjectYooAssetBuild
             MonoScriptsBundleName = "unitymonos.bundle"
         };
 
-        CiBuildProgressReporter.ReportStage("yooasset-sbp-build", "YooAsset SBP build", 65, "Starting YooAsset Scriptable Build Pipeline.");
-        YooAsset.Editor.BuildResult result = new ProjectYooAssetScriptableBuildPipeline().Run(parameters, true);
+        YooAsset.Editor.BuildResult result = MeasureStage(
+            "yooasset-sbp-build",
+            "YooAsset SBP build",
+            "Starting YooAsset Scriptable Build Pipeline.",
+            "YooAsset Scriptable Build Pipeline completed.",
+            () => new ProjectYooAssetScriptableBuildPipeline().Run(parameters, true));
         if (!result.Success)
         {
             throw new InvalidOperationException(
@@ -203,14 +247,20 @@ public static class ProjectYooAssetBuild
         string bundleReportPath = string.Empty;
         if (!HasArgument(args, "--bundle-report-disable"))
         {
-            bundleReportPath = ProjectYooAssetBundleReportExporter.Export(
-                result,
-                parameters,
-                plan.planPath,
-                args,
-                ProjectYooAssetScriptableBuildPipeline.LastLayoutSnapshot);
-            CiBuildProgressReporter.ReportStage("bundle-report-export", "YooAsset bundle report exported", 75, "YooAsset bundle report exported.");
+            bundleReportPath = MeasureStage(
+                "bundle-report-export",
+                "YooAsset bundle report export",
+                "Exporting YooAsset bundle report.",
+                "YooAsset bundle report exported.",
+                () => ProjectYooAssetBundleReportExporter.Export(
+                    result,
+                    parameters,
+                    plan.planPath,
+                    args,
+                    ProjectYooAssetScriptableBuildPipeline.LastLayoutSnapshot));
         }
+
+        ReportAssetTypeSummary(ProjectYooAssetScriptableBuildPipeline.LastLayoutSnapshot);
 
         Debug.Log(
             "YooAsset build succeeded. OutputPackageDirectory=" + result.OutputPackageDirectory +
@@ -218,6 +268,107 @@ public static class ProjectYooAssetBuild
             ", BundleReport=" + bundleReportPath +
             ", Package=" + plan.packageName +
             ", Version=" + packageVersion);
+    }
+
+    private static void MeasureStage(
+        string stageId,
+        string stageName,
+        string startedMessage,
+        string finishedMessage,
+        Action action)
+    {
+        MeasureStage<object>(
+            stageId,
+            stageName,
+            startedMessage,
+            finishedMessage,
+            () =>
+            {
+                action();
+                return null;
+            });
+    }
+
+    private static T MeasureStage<T>(
+        string stageId,
+        string stageName,
+        string startedMessage,
+        string finishedMessage,
+        Func<T> action)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        CiBuildMetricsReporter.ReportStageStarted(stageId, stageName, startedMessage);
+        try
+        {
+            T result = action();
+            CiBuildMetricsReporter.ReportStageFinished(stageId, stageName, stopwatch.ElapsedMilliseconds, message: finishedMessage);
+            return result;
+        }
+        catch
+        {
+            CiBuildMetricsReporter.ReportStageFinished(
+                stageId,
+                stageName,
+                stopwatch.ElapsedMilliseconds,
+                "failure",
+                "FAILURE",
+                stageName + " failed.");
+            throw;
+        }
+    }
+
+    private static void ReportAssetTypeSummary(ProjectSbpBundleLayoutSnapshot layoutSnapshot)
+    {
+        if (layoutSnapshot == null || layoutSnapshot.assetCopies == null || layoutSnapshot.assetCopies.Count == 0)
+            return;
+
+        Dictionary<string, AssetTypeAccumulator> byType =
+            new Dictionary<string, AssetTypeAccumulator>(StringComparer.OrdinalIgnoreCase);
+
+        for (int i = 0; i < layoutSnapshot.assetCopies.Count; i++)
+        {
+            ProjectSbpBundleLayoutAssetCopy copy = layoutSnapshot.assetCopies[i];
+            if (copy == null || string.IsNullOrWhiteSpace(copy.assetGuid))
+                continue;
+
+            string assetPath = AssetDatabase.GUIDToAssetPath(copy.assetGuid);
+            string assetType = "Unknown";
+            if (!string.IsNullOrWhiteSpace(assetPath))
+            {
+                Type type = AssetDatabase.GetMainAssetTypeAtPath(assetPath);
+                if (type != null)
+                    assetType = type.Name;
+            }
+
+            if (!byType.TryGetValue(assetType, out AssetTypeAccumulator accumulator))
+            {
+                accumulator = new AssetTypeAccumulator();
+                byType.Add(assetType, accumulator);
+            }
+
+            accumulator.assetGuids.Add(copy.assetGuid);
+            accumulator.sizeBytes += Math.Max(0L, copy.sizeBytes);
+        }
+
+        List<CiBuildMetricAssetType> rows = byType
+            .Select(pair => new CiBuildMetricAssetType
+            {
+                assetType = pair.Key,
+                count = pair.Value.assetGuids.Count,
+                sizeBytes = pair.Value.sizeBytes
+            })
+            .OrderByDescending(item => item.sizeBytes)
+            .ThenByDescending(item => item.count)
+            .Take(80)
+            .ToList();
+
+        CiBuildMetricsReporter.ReportAssetTypes(rows);
+    }
+
+    private sealed class AssetTypeAccumulator
+    {
+        public readonly HashSet<string> assetGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public long sizeBytes;
     }
 
     private static void ValidatePrefabBundle(string bundleFile, IEnumerable<string> dependencyFiles)

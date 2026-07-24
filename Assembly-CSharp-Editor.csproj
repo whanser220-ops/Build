@@ -63,8 +63,10 @@
     <Compile Include="Assets\Editor\AssetImport\ProjectAssetImportRuleSetEditor.cs" />
     <Compile Include="Assets\Editor\Characters\Qianxia\RenTextureApplyUtility.cs" />
     <Compile Include="Assets\Editor\BuildPipeline\YooAsset\ProjectYooAssetScriptableBuildPipeline.cs" />
+    <Compile Include="Assets\Editor\BuildPipeline\YooAsset\ProjectInstrumentedArchiveAndCompressBundles.cs" />
     <Compile Include="Assets\Editor\AssetImport\ProjectAssetImportRuleSet.cs" />
     <Compile Include="Assets\Editor\BuildPipeline\YooAsset\ProjectYooAssetBuild.cs" />
+    <Compile Include="Assets\Editor\Ci\CiBuildMetricsReporter.cs" />
     <Compile Include="Assets\Editor\Ci\CiPlayerBuild.cs" />
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.0.46f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
