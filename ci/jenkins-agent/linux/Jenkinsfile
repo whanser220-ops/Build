@@ -111,8 +111,12 @@ EditorBuildSettings:
 EOF
 
 unset BOOTSTRAP_ONLY
-report-build-progress.sh --event stage --stage-id p4-sync --stage "Perforce asset sync" --percent 30 --state running --message "Syncing Perforce assets." || true
-sync-perforce-assets.sh
+if [[ "${P4_SYNC_ENABLED}" != "false" ]]; then
+    report-build-progress.sh --event stage --stage-id p4-sync --stage "Perforce asset sync" --percent 30 --state running --message "Syncing Perforce assets." || true
+    sync-perforce-assets.sh
+else
+    report-build-progress.sh --event stage --stage-id p4-sync --stage "Perforce asset sync" --percent 30 --state running --message "Perforce asset sync skipped." || true
+fi
 
 report-build-progress.sh --event stage --stage-id sanitize-source-art --stage "Sanitize source art filenames" --percent 33 --state running --message "Removing unsupported non-ASCII source art filenames." || true
 python3 - <<'PY'
