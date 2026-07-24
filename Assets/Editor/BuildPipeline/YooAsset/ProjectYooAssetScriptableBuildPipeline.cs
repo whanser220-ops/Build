@@ -12,6 +12,7 @@ using UnityEngine;
 using Unity6.Ci;
 using YooAsset.Editor;
 using SbpPreferences = UnityEditor.Build.Pipeline.Utilities.ScriptableBuildPipeline;
+using Stopwatch = System.Diagnostics.Stopwatch;
 
 public sealed class ProjectYooAssetScriptableBuildPipeline
 {
@@ -81,18 +82,50 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
         ProjectSbpBundleLayoutCaptureState captureState = new ProjectSbpBundleLayoutCaptureState();
         IBundleBuildResults buildResults;
         IBundleBuildParameters buildParameters = scriptableBuildParameters.GetBundleBuildParameters();
-        CiBuildProgressReporter.ReportStage("yooasset-sbp-content", "YooAsset ContentPipeline.BuildAssetBundles", 68, "Building AssetBundles with Scriptable Build Pipeline.");
-        ReturnCode exitCode = ContentPipeline.BuildAssetBundles(
-            buildParameters,
-            buildContent,
-            out buildResults,
-            sbpTasks,
-            captureState);
+        Stopwatch sbpStopwatch = Stopwatch.StartNew();
+        CiBuildMetricsReporter.ReportStageStarted(
+            "yooasset-sbp-content",
+            "YooAsset ContentPipeline.BuildAssetBundles",
+            "Building AssetBundles with Scriptable Build Pipeline.");
+        ReturnCode exitCode;
+        try
+        {
+            exitCode = ContentPipeline.BuildAssetBundles(
+                buildParameters,
+                buildContent,
+                out buildResults,
+                sbpTasks,
+                captureState);
+        }
+        catch
+        {
+            CiBuildMetricsReporter.ReportStageFinished(
+                "yooasset-sbp-content",
+                "YooAsset ContentPipeline.BuildAssetBundles",
+                sbpStopwatch.ElapsedMilliseconds,
+                "failure",
+                "FAILURE",
+                "YooAsset ContentPipeline.BuildAssetBundles failed.");
+            throw;
+        }
 
         if (exitCode < 0)
         {
+            CiBuildMetricsReporter.ReportStageFinished(
+                "yooasset-sbp-content",
+                "YooAsset ContentPipeline.BuildAssetBundles",
+                sbpStopwatch.ElapsedMilliseconds,
+                "failure",
+                "FAILURE",
+                "YooAsset ContentPipeline.BuildAssetBundles failed.");
             throw new InvalidOperationException($"UnityEngine build failed. ReturnCode: {exitCode}.");
         }
+
+        CiBuildMetricsReporter.ReportStageFinished(
+            "yooasset-sbp-content",
+            "YooAsset ContentPipeline.BuildAssetBundles",
+            sbpStopwatch.ElapsedMilliseconds,
+            message: "YooAsset ContentPipeline.BuildAssetBundles completed.");
 
         if (!string.IsNullOrEmpty(builtinShadersBundleName) &&
             buildResults.BundleInfos.ContainsKey(builtinShadersBundleName))
@@ -107,7 +140,6 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
         }
 
         ProjectYooAssetScriptableBuildPipeline.SetLastLayoutSnapshot(captureState.Snapshot);
-        CiBuildProgressReporter.ReportStage("yooasset-sbp-layout", "YooAsset bundle layout captured", 72, "Captured YooAsset bundle layout.");
 
         TaskBuilding_SBP.BuildResultContext buildResultContext = new TaskBuilding_SBP.BuildResultContext
         {
@@ -132,6 +164,7 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
         if (archiveTaskIndex < 0)
             throw new InvalidOperationException("Could not find SBP ArchiveAndCompressBundles task.");
 
+        tasks[archiveTaskIndex] = new ProjectInstrumentedArchiveAndCompressBundles();
         tasks.Insert(archiveTaskIndex, new ProjectSbpBundleLayoutCaptureTask());
         return tasks;
     }
@@ -167,7 +200,17 @@ public sealed class ProjectSbpBundleLayoutCaptureTask : UnityEditor.Build.Pipeli
         if (_captureState == null)
             return ReturnCode.Success;
 
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        CiBuildMetricsReporter.ReportStageStarted(
+            "yooasset-sbp-layout",
+            "YooAsset bundle layout capture",
+            "Capturing YooAsset bundle layout.");
         _captureState.Snapshot = ProjectSbpBundleLayoutSnapshot.Create(_writeData, _results);
+        CiBuildMetricsReporter.ReportStageFinished(
+            "yooasset-sbp-layout",
+            "YooAsset bundle layout capture",
+            stopwatch.ElapsedMilliseconds,
+            message: "YooAsset bundle layout captured.");
         return ReturnCode.Success;
     }
 }

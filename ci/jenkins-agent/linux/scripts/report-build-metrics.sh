@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-event_type="heartbeat"
+event_type="event"
 stage_id=""
 stage_name=""
-state=""
+bundle_name=""
+state="running"
 result=""
-percent=""
 message=""
-log_file=""
-tail_lines="30"
-artifact_path=""
-artifact_name=""
+duration_ms=""
+total_bundles=""
+completed_bundles=""
+size_bytes=""
+input_size_bytes=""
+asset_count=""
+cached=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -27,6 +30,10 @@ while [[ $# -gt 0 ]]; do
             stage_name="${2:-}"
             shift 2
             ;;
+        --bundle)
+            bundle_name="${2:-}"
+            shift 2
+            ;;
         --state)
             state="${2:-}"
             shift 2
@@ -35,28 +42,36 @@ while [[ $# -gt 0 ]]; do
             result="${2:-}"
             shift 2
             ;;
-        --percent)
-            percent="${2:-}"
-            shift 2
-            ;;
         --message)
             message="${2:-}"
             shift 2
             ;;
-        --log-file)
-            log_file="${2:-}"
+        --duration-ms)
+            duration_ms="${2:-}"
             shift 2
             ;;
-        --tail-lines)
-            tail_lines="${2:-30}"
+        --total-bundles)
+            total_bundles="${2:-}"
             shift 2
             ;;
-        --artifact)
-            artifact_path="${2:-}"
+        --completed-bundles)
+            completed_bundles="${2:-}"
             shift 2
             ;;
-        --artifact-name)
-            artifact_name="${2:-}"
+        --size-bytes)
+            size_bytes="${2:-}"
+            shift 2
+            ;;
+        --input-size-bytes)
+            input_size_bytes="${2:-}"
+            shift 2
+            ;;
+        --asset-count)
+            asset_count="${2:-}"
+            shift 2
+            ;;
+        --cached)
+            cached="${2:-}"
             shift 2
             ;;
         *)
@@ -65,8 +80,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-url="${BUILD_PROGRESS_URL:-}"
-token="${BUILD_PROGRESS_TOKEN:-}"
+url="${BUILD_METRICS_URL:-}"
+token="${BUILD_METRICS_INGEST_TOKEN:-}"
 
 if [[ -z "$url" || -z "$token" ]]; then
     exit 0
@@ -76,38 +91,14 @@ if ! command -v curl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
     exit 0
 fi
 
-run_id="${BUILD_PROGRESS_RUN_ID:-${JOB_NAME:-local}-${BUILD_NUMBER:-local}}"
-job_name="${BUILD_PROGRESS_JOB:-${JOB_NAME:-unity-linux-docker-build}}"
+run_id="${BUILD_METRICS_RUN_ID:-${JOB_NAME:-local}-${BUILD_NUMBER:-local}}"
+job_name="${BUILD_METRICS_JOB:-${JOB_NAME:-unity-linux-docker-build}}"
 build_number="${BUILD_NUMBER:-}"
 git_ref="${GIT_REF:-${BRANCH_NAME:-}}"
 git_commit="${GIT_COMMIT:-}"
 
 if [[ -z "$git_commit" && -d .git ]]; then
     git_commit="$(git rev-parse --short HEAD 2>/dev/null || true)"
-fi
-
-log_tail=""
-if [[ -n "$log_file" && -f "$log_file" ]]; then
-    log_tail="$(tail -n "$tail_lines" "$log_file" 2>/dev/null || true)"
-    log_tail="${log_tail: -12000}"
-fi
-
-artifact_json="[]"
-if [[ -n "$artifact_path" ]]; then
-    artifact_size=0
-    if [[ -f "$artifact_path" ]]; then
-        artifact_size="$(stat -c '%s' "$artifact_path" 2>/dev/null || echo 0)"
-    fi
-
-    if [[ -z "$artifact_name" ]]; then
-        artifact_name="$(basename "$artifact_path")"
-    fi
-
-    artifact_json="$(jq -cn \
-        --arg name "$artifact_name" \
-        --arg path "$artifact_path" \
-        --arg sizeBytes "$artifact_size" \
-        '[{name: $name, path: $path, sizeBytes: ($sizeBytes | tonumber? // 0)}]')"
 fi
 
 payload="$(jq -cn \
@@ -117,17 +108,22 @@ payload="$(jq -cn \
     --arg eventType "$event_type" \
     --arg stageId "$stage_id" \
     --arg stageName "$stage_name" \
+    --arg bundleName "$bundle_name" \
     --arg state "$state" \
     --arg result "$result" \
-    --arg percent "$percent" \
     --arg message "$message" \
-    --arg logTail "$log_tail" \
+    --arg durationMs "$duration_ms" \
+    --arg totalBundles "$total_bundles" \
+    --arg completedBundles "$completed_bundles" \
+    --arg sizeBytes "$size_bytes" \
+    --arg inputSizeBytes "$input_size_bytes" \
+    --arg assetCount "$asset_count" \
+    --arg cached "$cached" \
     --arg gitRef "$git_ref" \
     --arg gitCommit "$git_commit" \
     --arg nodeName "${NODE_NAME:-}" \
     --arg workspace "${WORKSPACE:-${UNITY_PROJECT_PATH:-}}" \
     --arg executorNumber "${EXECUTOR_NUMBER:-}" \
-    --argjson artifacts "$artifact_json" \
     '{
         runId: $runId,
         jobName: $jobName,
@@ -135,14 +131,19 @@ payload="$(jq -cn \
         eventType: $eventType,
         stageId: $stageId,
         stageName: $stageName,
+        bundleName: $bundleName,
         state: $state,
         result: $result,
-        percent: ($percent | tonumber? // null),
         message: $message,
-        logTail: $logTail,
+        durationMs: ($durationMs | tonumber? // null),
+        totalBundles: ($totalBundles | tonumber? // null),
+        completedBundles: ($completedBundles | tonumber? // null),
+        sizeBytes: ($sizeBytes | tonumber? // null),
+        inputSizeBytes: ($inputSizeBytes | tonumber? // null),
+        assetCount: ($assetCount | tonumber? // null),
+        cached: (if $cached == "true" then true elif $cached == "false" then false else null end),
         gitRef: $gitRef,
         gitCommit: $gitCommit,
-        artifacts: $artifacts,
         metadata: {
             nodeName: $nodeName,
             workspace: $workspace,
