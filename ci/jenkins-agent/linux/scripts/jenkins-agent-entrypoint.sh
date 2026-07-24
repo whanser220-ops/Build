@@ -48,8 +48,19 @@ if [[ ! -s "${JENKINS_AGENT_JAR}" || "${JENKINS_AGENT_JAR_REFRESH:-false}" == "t
     jar_url="${JENKINS_AGENT_JAR_URL:-${JENKINS_URL%/}/jnlpJars/agent.jar}"
     tmp_jar="${JENKINS_AGENT_JAR}.tmp"
     echo "Downloading Jenkins agent jar from ${jar_url}"
-    curl -fsSL "${jar_url}" -o "${tmp_jar}"
-    mv "${tmp_jar}" "${JENKINS_AGENT_JAR}"
+    for attempt in 1 2 3 4 5; do
+        rm -f "${tmp_jar}"
+        if curl --http1.1 --connect-timeout 10 --max-time 60 --retry 2 --retry-all-errors --retry-delay 2 -fsSL "${jar_url}" -o "${tmp_jar}"; then
+            mv "${tmp_jar}" "${JENKINS_AGENT_JAR}"
+            break
+        fi
+        echo "Jenkins agent jar download failed on attempt ${attempt}; retrying." >&2
+        sleep 2
+    done
+    if [[ ! -s "${JENKINS_AGENT_JAR}" ]]; then
+        echo "Failed to download Jenkins agent jar from ${jar_url}." >&2
+        exit 3
+    fi
 fi
 
 java_args=(
