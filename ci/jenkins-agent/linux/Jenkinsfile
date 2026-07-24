@@ -1,0 +1,163 @@
+pipeline {
+    agent {
+        node {
+            label 'unity-linux-agent'
+            customWorkspace '/workspace'
+        }
+    }
+
+    options {
+        timestamps()
+        timeout(time: 180, unit: 'MINUTES')
+        skipDefaultCheckout(true)
+    }
+
+    parameters {
+        string(name: 'GIT_REPOSITORY_URL', defaultValue: 'https://github.com/whanser220-ops/Build.git', description: 'Git repository cloned inside the Docker volume workspace.')
+        string(name: 'GIT_REF', defaultValue: 'Main', description: 'Git branch, tag, or ref fetched inside the Docker volume workspace.')
+        booleanParam(name: 'P4_SYNC_ENABLED', defaultValue: true, description: 'Sync Unity assets from Perforce before building.')
+        string(name: 'P4_PORT', defaultValue: 'ssl:1.117.232.198:1666', description: 'Perforce server address.')
+        string(name: 'P4_CREDENTIALS_ID', defaultValue: 'perforce-jenkins', description: 'Jenkins username/password credential ID for Perforce.')
+        string(name: 'P4_CLIENT', defaultValue: 'jenkins_unity_linux_agent_art', description: 'Perforce workspace/client used by the Linux container agent.')
+        string(name: 'P4_ASSET_CL', defaultValue: '', description: 'Optional Perforce changelist to pin the asset sync. Leave empty for latest.')
+    }
+
+    environment {
+        UNITY_PROJECT_PATH = '/workspace'
+        UNITY_LICENSE_MODE = 'personal'
+        BUILD_MANIFEST = '.workspace/build-manifest.json'
+        P4_SYNC_LOG = 'Logs/p4-sync.log'
+        BUILD_PROGRESS_URL = 'http://1.117.232.198/api/build-progress/events'
+        BUILD_PROGRESS_JOB = 'unity-linux-docker-build'
+    }
+
+    stages {
+        stage('Agent') {
+            steps {
+                withCredentials([string(credentialsId: 'build-progress-ingest-token', variable: 'BUILD_PROGRESS_TOKEN')]) {
+                    withEnv(["BUILD_PROGRESS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"]) {
+                        sh '''
+set -eux
+report-build-progress.sh --event stage --stage-id agent --stage "Agent ready" --percent 5 --state running --message "Jenkins Unity Linux agent is online." || true
+java -version
+/opt/unity/Editor/Unity -version
+git lfs version
+p4 -V | head -20
+du -sh /workspace || true
+du -sh /workspace/Library || true
+'''
+                    }
+                }
+            }
+        }
+
+        stage('Build Windows Player') {
+            steps {
+                script {
+                    def gitRepositoryUrl = params.GIT_REPOSITORY_URL ?: 'https://github.com/whanser220-ops/Build.git'
+                    def gitRef = params.GIT_REF ?: 'Main'
+                    def p4SyncEnabled = (params.P4_SYNC_ENABLED == null) ? 'true' : params.P4_SYNC_ENABLED.toString()
+                    def p4Port = params.P4_PORT ?: 'ssl:1.117.232.198:1666'
+                    def p4CredentialsId = params.P4_CREDENTIALS_ID ?: 'perforce-jenkins'
+                    def p4Client = params.P4_CLIENT ?: 'jenkins_unity_linux_agent_art'
+                    def p4AssetCl = params.P4_ASSET_CL ?: ''
+
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: p4CredentialsId,
+                            usernameVariable: 'P4_USERNAME',
+                            passwordVariable: 'P4_PASSWORD'
+                        ),
+                        string(
+                            credentialsId: 'build-progress-ingest-token',
+                            variable: 'BUILD_PROGRESS_TOKEN'
+                        )
+                    ]) {
+                        withEnv([
+                            "GIT_REPOSITORY_URL=${gitRepositoryUrl}",
+                            "GIT_REF=${gitRef}",
+                            "P4_SYNC_ENABLED=${p4SyncEnabled}",
+                            "P4_PORT=${p4Port}",
+                            "P4_CLIENT=${p4Client}",
+                            "P4_ASSET_CL=${p4AssetCl}",
+                            "BUILD_PROGRESS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"
+                        ]) {
+                        sh '''
+set -eux
+export P4_PORT="${P4_PORT:-ssl:1.117.232.198:1666}"
+export P4_CLIENT_NAME="${P4_CLIENT:-jenkins_unity_linux_agent_art}"
+export P4_ASSET_CL="${P4_ASSET_CL:-}"
+export P4_SYNC_ENABLED="${P4_SYNC_ENABLED:-true}"
+export GIT_REPOSITORY_URL="${GIT_REPOSITORY_URL:-https://github.com/whanser220-ops/Build.git}"
+export GIT_REF="${GIT_REF:-Main}"
+
+report-build-progress.sh --event stage --stage-id bootstrap --stage "Bootstrap workspace" --percent 10 --state running --message "Bootstrapping Unity workspace." || true
+export BOOTSTRAP_ONLY=true
+bootstrap-unity-workspace.sh
+report-build-progress.sh --event stage --stage-id bootstrap --stage "Bootstrap workspace" --percent 15 --state running --message "Unity workspace bootstrapped." || true
+
+cat > ProjectSettings/EditorBuildSettings.asset <<'EOF'
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Game/Worlds/Meadow/Runtime/Scenes/Scene_MeadowEnvironment_01_Summer.unity
+    guid: 08ab2a5dde032ba428d3d349acd1dc09
+  m_configObjects: {}
+EOF
+
+unset BOOTSTRAP_ONLY
+if [[ "${P4_SYNC_ENABLED}" != "false" ]]; then
+    report-build-progress.sh --event stage --stage-id p4-sync --stage "Perforce asset sync" --percent 30 --state running --message "Syncing Perforce assets." || true
+    sync-perforce-assets.sh
+else
+    report-build-progress.sh --event stage --stage-id p4-sync --stage "Perforce asset sync" --percent 30 --state running --message "Perforce asset sync skipped." || true
+fi
+
+report-build-progress.sh --event stage --stage-id sanitize-source-art --stage "Sanitize source art filenames" --percent 33 --state running --message "Removing unsupported non-ASCII source art filenames." || true
+python3 - <<'PY'
+import os
+root = '/workspace/Assets/Game/Characters/Qianxia/Art'
+removed = []
+if os.path.isdir(root):
+    for dirpath, _, filenames in os.walk(root):
+        for name in filenames:
+            if any(ord(ch) > 127 for ch in name):
+                path = os.path.join(dirpath, name)
+                os.remove(path)
+                removed.append(path)
+print('Removed non-ASCII Qianxia source art files:')
+for path in removed:
+    print(' - ' + path)
+PY
+
+export P4_SYNC_ENABLED=false
+report-build-progress.sh --event stage --stage-id unity-build-script --stage "Unity build script" --percent 35 --state running --message "Starting Unity build wrapper." || true
+build-unity-windows.sh
+'''
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        failure {
+            withCredentials([string(credentialsId: 'build-progress-ingest-token', variable: 'BUILD_PROGRESS_TOKEN')]) {
+                withEnv(["BUILD_PROGRESS_RUN_ID=${env.JOB_NAME}-${env.BUILD_NUMBER}"]) {
+                    sh '''
+report-build-progress.sh --event failure --stage-id pipeline-failure --stage "Pipeline failure" --percent 100 --state failure --result FAILURE --message "Unity Linux Docker build failed." --log-file "Logs/p4-sync.log" --tail-lines 40 || true
+'''
+                }
+            }
+        }
+        always {
+            archiveArtifacts artifacts: 'Logs/*.log,.workspace/build-manifest.json,.workspace/artifacts/yooasset/**/*.json', allowEmptyArchive: true
+        }
+    }
+}

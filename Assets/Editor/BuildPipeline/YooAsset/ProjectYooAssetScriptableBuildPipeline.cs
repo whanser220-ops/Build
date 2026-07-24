@@ -9,6 +9,7 @@ using UnityEditor.Build.Pipeline.Injector;
 using UnityEditor.Build.Pipeline.Interfaces;
 using UnityEditor.Build.Pipeline.Tasks;
 using UnityEngine;
+using Unity6.Ci;
 using YooAsset.Editor;
 using SbpPreferences = UnityEditor.Build.Pipeline.Utilities.ScriptableBuildPipeline;
 
@@ -80,6 +81,7 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
         ProjectSbpBundleLayoutCaptureState captureState = new ProjectSbpBundleLayoutCaptureState();
         IBundleBuildResults buildResults;
         IBundleBuildParameters buildParameters = scriptableBuildParameters.GetBundleBuildParameters();
+        CiBuildProgressReporter.ReportStage("yooasset-sbp-content", "YooAsset ContentPipeline.BuildAssetBundles", 68, "Building AssetBundles with Scriptable Build Pipeline.");
         ReturnCode exitCode = ContentPipeline.BuildAssetBundles(
             buildParameters,
             buildContent,
@@ -105,6 +107,7 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
         }
 
         ProjectYooAssetScriptableBuildPipeline.SetLastLayoutSnapshot(captureState.Snapshot);
+        CiBuildProgressReporter.ReportStage("yooasset-sbp-layout", "YooAsset bundle layout captured", 72, "Captured YooAsset bundle layout.");
 
         TaskBuilding_SBP.BuildResultContext buildResultContext = new TaskBuilding_SBP.BuildResultContext
         {
