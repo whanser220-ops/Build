@@ -211,7 +211,7 @@ public static class ProjectYooAssetBuild
             PackageName = plan.packageName,
             PackageVersion = packageVersion,
             PackageNote = "CI YooAsset build",
-            ClearBuildCacheFiles = HasArgument(args, "--yooasset-clear-build-cache"),
+            ClearBuildCacheFiles = true,
             UseAssetDependencyDB = true,
             EnableSharePackRule = false,
             SingleReferencedPackAlone = false,

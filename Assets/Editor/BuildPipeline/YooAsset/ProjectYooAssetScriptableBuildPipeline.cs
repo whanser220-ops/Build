@@ -83,6 +83,7 @@ public sealed class ProjectYooAssetTaskBuildingSbp : YooAsset.Editor.IBuildTask
         ProjectSbpBundleLayoutCaptureState captureState = new ProjectSbpBundleLayoutCaptureState();
         IBundleBuildResults buildResults;
         IBundleBuildParameters buildParameters = scriptableBuildParameters.GetBundleBuildParameters();
+        buildParameters.UseCache = false;
         Stopwatch sbpStopwatch = Stopwatch.StartNew();
         CiBuildMetricsReporter.ReportStageStarted(
             "yooasset-sbp-content",
