@@ -47,7 +47,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Tests\BuildPipeline\EditMode\ProjectFbxAutoImporterTests.cs" />
-    <Compile Include="Assets\Tests\BuildPipeline\EditMode\ProjectYooAssetBundleReportTests.cs" />
     <None Include="Assets\Tests\BuildPipeline\EditMode\Project.BuildPipeline.EditMode.Tests.asmdef" />
     <Reference Include="UnityEngine">
       <HintPath>C:\Program Files\Unity\Hub\Editor\6000.0.46f1\Editor\Data\Managed\UnityEngine\UnityEngine.dll</HintPath>
