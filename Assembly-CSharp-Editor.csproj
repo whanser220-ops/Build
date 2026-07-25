@@ -48,7 +48,6 @@
   <ItemGroup>
     <Compile Include="Assets\Editor\Characters\Qianxia\RenMaterialImportUtility.cs" />
     <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaMeadowSceneMigrationUtility.cs" />
-    <Compile Include="Assets\Editor\BuildPipeline\YooAsset\ProjectYooAssetBundleReport.cs" />
     <Compile Include="Assets\ThirdParty\UnityTutorialInfo\TutorialInfo\Scripts\Editor\ReadmeEditor.cs" />
     <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaLodPrefabBuilder.cs" />
     <Compile Include="Assets\Editor\Characters\Qianxia\QianxiaCrowdTextureApplyUtility.cs" />

@@ -244,28 +244,11 @@ public static class ProjectYooAssetBuild
                 ", Stack=" + result.ErrorStack);
         }
 
-        string bundleReportPath = string.Empty;
-        if (!HasArgument(args, "--bundle-report-disable"))
-        {
-            bundleReportPath = MeasureStage(
-                "bundle-report-export",
-                "YooAsset bundle report export",
-                "Exporting YooAsset bundle report.",
-                "YooAsset bundle report exported.",
-                () => ProjectYooAssetBundleReportExporter.Export(
-                    result,
-                    parameters,
-                    plan.planPath,
-                    args,
-                    ProjectYooAssetScriptableBuildPipeline.LastLayoutSnapshot));
-        }
-
         ReportAssetTypeSummary(ProjectYooAssetScriptableBuildPipeline.LastLayoutSnapshot);
 
         Debug.Log(
             "YooAsset build succeeded. OutputPackageDirectory=" + result.OutputPackageDirectory +
             ", Plan=" + plan.planPath +
-            ", BundleReport=" + bundleReportPath +
             ", Package=" + plan.packageName +
             ", Version=" + packageVersion);
     }
