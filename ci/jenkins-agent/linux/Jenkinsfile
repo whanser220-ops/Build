@@ -13,7 +13,7 @@ pipeline {
     }
 
     parameters {
-        string(name: 'GIT_REPOSITORY_URL', defaultValue: 'git@github.com:whanser220-ops/Build.git', description: 'Git repository cloned inside the Docker volume workspace.')
+        string(name: 'GIT_REPOSITORY_URL', defaultValue: 'ssh://git@ssh.github.com:443/whanser220-ops/Build.git', description: 'Git repository cloned inside the Docker volume workspace.')
         string(name: 'GIT_REF', defaultValue: 'Main', description: 'Git branch, tag, or ref fetched inside the Docker volume workspace.')
         booleanParam(name: 'P4_SYNC_ENABLED', defaultValue: true, description: 'Sync Unity assets from Perforce before building.')
         string(name: 'P4_PORT', defaultValue: 'ssl:1.117.232.198:1666', description: 'Perforce server address.')
@@ -55,7 +55,7 @@ report-build-metrics.sh --event stage_finished --stage-id agent --stage "Agent r
         stage('Build Windows Player') {
             steps {
                 script {
-                    def gitRepositoryUrl = params.GIT_REPOSITORY_URL ?: 'git@github.com:whanser220-ops/Build.git'
+                    def gitRepositoryUrl = params.GIT_REPOSITORY_URL ?: 'ssh://git@ssh.github.com:443/whanser220-ops/Build.git'
                     def gitRef = params.GIT_REF ?: 'Main'
                     def p4SyncEnabled = (params.P4_SYNC_ENABLED == null) ? 'true' : params.P4_SYNC_ENABLED.toString()
                     def p4Port = params.P4_PORT ?: 'ssl:1.117.232.198:1666'
@@ -93,7 +93,7 @@ export P4_PORT="${P4_PORT:-ssl:1.117.232.198:1666}"
 export P4_CLIENT_NAME="${P4_CLIENT:-jenkins_unity_linux_agent_art}"
 export P4_ASSET_CL="${P4_ASSET_CL:-}"
 export P4_SYNC_ENABLED="${P4_SYNC_ENABLED:-true}"
-export GIT_REPOSITORY_URL="${GIT_REPOSITORY_URL:-git@github.com:whanser220-ops/Build.git}"
+export GIT_REPOSITORY_URL="${GIT_REPOSITORY_URL:-ssh://git@ssh.github.com:443/whanser220-ops/Build.git}"
 export GIT_REF="${GIT_REF:-Main}"
 export GIT_SSH_COMMAND="ssh -i ${GIT_SSH_KEY} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 
