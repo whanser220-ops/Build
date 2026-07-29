@@ -212,7 +212,6 @@ if [[ -n "${p4_asset_cl}" ]]; then
 fi
 
 run_p4 sync --parallel=threads=8,min=100,minsize=1048576 "//${p4_client}/...${pin}"
-run_p4 clean "//${p4_client}/..."
 
 synced_change="${p4_asset_cl}"
 if [[ -z "${synced_change}" ]]; then
