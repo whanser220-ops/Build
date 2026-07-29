@@ -119,7 +119,7 @@ EOF
 unset BOOTSTRAP_ONLY
 if [ "${P4_SYNC_ENABLED}" != "false" ]; then
     report-build-metrics.sh --event stage_started --stage-id p4-sync --stage "Perforce asset sync" --state running --message "Syncing Perforce assets." || true
-    sync-perforce-assets.sh
+    bash ci/jenkins-agent/linux/scripts/sync-perforce-assets.sh
     report-build-metrics.sh --event stage_finished --stage-id p4-sync --stage "Perforce asset sync" --state success --result SUCCESS --message "Perforce asset sync completed." || true
 else
     report-build-metrics.sh --event stage_started --stage-id p4-sync --stage "Perforce asset sync" --state running --message "Perforce asset sync skipped." || true
