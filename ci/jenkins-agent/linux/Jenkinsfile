@@ -99,6 +99,9 @@ export GIT_SSH_COMMAND="ssh -i ${GIT_SSH_KEY} -o IdentitiesOnly=yes -o StrictHos
 
 report-build-metrics.sh --event stage_started --stage-id bootstrap --stage "Bootstrap workspace" --state running --message "Bootstrapping Unity workspace." || true
 export BOOTSTRAP_ONLY=true
+if [ -d .git ]; then
+    git -c filter.lfs.smudge= -c filter.lfs.process= -c filter.lfs.required=false reset --hard || true
+fi
 bootstrap-unity-workspace.sh
 report-build-metrics.sh --event stage_finished --stage-id bootstrap --stage "Bootstrap workspace" --state success --result SUCCESS --message "Unity workspace bootstrapped." || true
 
