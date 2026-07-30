@@ -40,7 +40,10 @@ git_without_lfs_filters=(
     -c filter.lfs.process=
     -c filter.lfs.required=false
 )
-GIT_LFS_SKIP_SMUDGE=1 git "${git_without_lfs_filters[@]}" checkout -B "${local_branch}" FETCH_HEAD
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+    GIT_LFS_SKIP_SMUDGE=1 git "${git_without_lfs_filters[@]}" reset --hard
+fi
+GIT_LFS_SKIP_SMUDGE=1 git "${git_without_lfs_filters[@]}" checkout -f -B "${local_branch}" FETCH_HEAD
 GIT_LFS_SKIP_SMUDGE=1 git "${git_without_lfs_filters[@]}" reset --hard FETCH_HEAD
 
 # Keep ignored Perforce assets and Unity caches; they are reconciled by p4 sync
