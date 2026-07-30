@@ -12,6 +12,7 @@ namespace Unity6.Ci
     {
         private const string OutputArgument = "--ci-output";
         private const string DefaultWindowsOutput = ".workspace/builds/windows/Unity6-Windows-Development/Unity6.exe";
+        private const string DefaultBootScenePath = "Assets/Bootstrap/Scenes/Scene_Boot.unity";
 
         public static void BuildWindowsDevelopment()
         {
@@ -129,7 +130,17 @@ namespace Unity6.Ci
                 .ToArray();
 
             if (scenes.Length == 0)
+            {
+                if (AssetDatabase.LoadAssetAtPath<SceneAsset>(DefaultBootScenePath) != null)
+                {
+                    Debug.LogWarning(
+                        "No enabled scenes were found in EditorBuildSettings. " +
+                        "Falling back to Boot scene: " + DefaultBootScenePath);
+                    return new[] { DefaultBootScenePath };
+                }
+
                 throw new InvalidOperationException("No enabled scenes were found in EditorBuildSettings.");
+            }
 
             return scenes;
         }
