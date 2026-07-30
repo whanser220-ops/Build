@@ -42,9 +42,9 @@ public sealed class RuntimeFreeCameraController : MonoBehaviour
 
     private void Update()
     {
-        float deltaTime = Time.deltaTime;
+        float deltaTime = Time.unscaledDeltaTime;
         if (deltaTime <= 0.0f)
-            return;
+            deltaTime = 1.0f / 60.0f;
 
         UpdateCursorCaptureState();
         UpdateLook(deltaTime);
@@ -60,11 +60,25 @@ public sealed class RuntimeFreeCameraController : MonoBehaviour
             return;
         }
 
+#if ENABLE_LEGACY_INPUT_MANAGER
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            SetMouseLookCaptured(false);
+            return;
+        }
+#endif
+
         Mouse mouse = Mouse.current;
-        if (_isMouseLookCaptured || mouse == null)
+        if (_isMouseLookCaptured)
             return;
 
-        if (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame)
+        bool mousePressed = mouse != null && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame);
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        mousePressed |= Input.GetMouseButtonDown(0) || Input.GetMouseButtonDown(1);
+#endif
+
+        if (mousePressed)
             SetMouseLookCaptured(true);
     }
 
@@ -74,6 +88,11 @@ public sealed class RuntimeFreeCameraController : MonoBehaviour
 
         if (_isMouseLookCaptured && Mouse.current != null)
             lookInput += Mouse.current.delta.ReadValue() * _mouseSensitivity;
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        if (_isMouseLookCaptured)
+            lookInput += new Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y")) * _mouseSensitivity;
+#endif
 
         if (Gamepad.current != null)
             lookInput += Gamepad.current.rightStick.ReadValue() * (_gamepadSensitivity * deltaTime);
@@ -104,13 +123,23 @@ public sealed class RuntimeFreeCameraController : MonoBehaviour
 
         float speed = _moveSpeed;
         Keyboard keyboard = Keyboard.current;
+        bool fastMove = false;
+        bool slowMove = false;
         if (keyboard != null)
         {
-            if (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed)
-                speed *= _fastMoveMultiplier;
-            else if (keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed)
-                speed *= _slowMoveMultiplier;
+            fastMove = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
+            slowMove = keyboard.leftAltKey.isPressed || keyboard.rightAltKey.isPressed;
         }
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        fastMove |= Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        slowMove |= Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+#endif
+
+        if (fastMove)
+            speed *= _fastMoveMultiplier;
+        else if (slowMove)
+            speed *= _slowMoveMultiplier;
 
         transform.position += movement * (speed * deltaTime);
     }
@@ -134,6 +163,21 @@ public sealed class RuntimeFreeCameraController : MonoBehaviour
             if (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed || keyboard.qKey.isPressed || keyboard.cKey.isPressed)
                 input.y -= 1.0f;
         }
+
+#if ENABLE_LEGACY_INPUT_MANAGER
+        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))
+            input.x -= 1.0f;
+        if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow))
+            input.x += 1.0f;
+        if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow))
+            input.z -= 1.0f;
+        if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))
+            input.z += 1.0f;
+        if (Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.E))
+            input.y += 1.0f;
+        if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.C))
+            input.y -= 1.0f;
+#endif
 
         Gamepad gamepad = Gamepad.current;
         if (gamepad != null)
