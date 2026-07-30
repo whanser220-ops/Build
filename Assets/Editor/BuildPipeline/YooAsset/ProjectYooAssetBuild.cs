@@ -36,11 +36,20 @@ public static class ProjectYooAssetBuild
     private const string SharedAspGlobalSettingsRoot = "Assets/Game/Shared/StylizedPackCommon/Runtime/ASP Global Settings";
     private const string SharedTextureRoot = "Assets/Game/Shared/StylizedPackCommon/Art/Sources/Textures";
     private const string MeadowRuntimeRoot = "Assets/Game/Worlds/Meadow/Runtime";
+    private const string MeadowSummerScenePath = "Assets/Game/Worlds/Meadow/Runtime/Scenes/Scene_MeadowEnvironment_01_Summer.unity";
+    private const string MeadowAutumnScenePath = "Assets/Game/Worlds/Meadow/Runtime/Scenes/Scene_MeadowEnvironment_02_Autumn.unity";
+    private const string MeadowWinterScenePath = "Assets/Game/Worlds/Meadow/Runtime/Scenes/Scene_MeadowEnvironment_03_Winter.unity";
     private const string QianxiaGeneratedRuntimeRoot = "Assets/Game/Characters/Qianxia/Runtime/Generated";
     private static readonly string[] StandaloneArtDependencyRoots =
     {
         "Assets/Game/Characters/Qianxia/Art/Meshs",
         "Assets/Game/Characters/Qianxia/Art/Textures"
+    };
+    private static readonly string[] MeadowRuntimeScenePaths =
+    {
+        MeadowSummerScenePath,
+        MeadowAutumnScenePath,
+        MeadowWinterScenePath
     };
 
     private const string LegacyMeadowEnvironmentPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Environment";
@@ -773,7 +782,7 @@ public static class ProjectYooAssetBuild
             }
         }
 
-        AddMainSpecIfValid(specs, "angrymesh.worlds.meadow.scenes.root", AssetPathCombine(MeadowRuntimeRoot, ScenesDirectoryName), ScenePackageSourceBytes);
+        AddExplicitMainSpecIfValid(specs, "angrymesh.worlds.meadow.scenes.seasons", MeadowRuntimeScenePaths, ScenePackageSourceBytes);
 
         return specs;
     }
@@ -806,6 +815,33 @@ public static class ProjectYooAssetBuild
             Array.Empty<string>(),
             null,
             maxSourceBytes));
+    }
+
+    private static void AddExplicitMainSpecIfValid(
+        List<ProjectGroupSpec> specs,
+        string groupName,
+        IEnumerable<string> assetPaths,
+        long maxSourceBytes = DefaultPackageSourceBytes)
+    {
+        string[] normalizedAssets = assetPaths
+            .Select(NormalizeAssetPath)
+            .Where(path => ShouldIncludeAssetForClass(path, Array.Empty<string>(), CollectorAssetClass.Main))
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (normalizedAssets.Length == 0)
+            return;
+
+        specs.Add(new ProjectGroupSpec(
+            groupName,
+            Array.Empty<string>(),
+            Array.Empty<string>(),
+            normalizedAssets,
+            maxSourceBytes,
+            ECollectorType.MainAssetCollector,
+            null,
+            nameof(PackGroup),
+            CollectorAssetClass.Main));
     }
 
     private static IEnumerable<ProjectGroupSpec> CreateContentModuleRuntimeDependencySpecs(string buildRoot)

@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using YooAsset;
 
@@ -16,9 +15,6 @@ public sealed class AngryMeshYooAssetPrefabInstance : MonoBehaviour
     [SerializeField] private bool _destroyInstanceOnDisable = true;
     [SerializeField] private bool _instantiateAsChild = true;
     [SerializeField] private bool _logLifecycle;
-
-    private static readonly Dictionary<string, PackageInitializationState> PackageStates =
-        new Dictionary<string, PackageInitializationState>();
 
     private AssetHandle _loadHandle;
     private Coroutine _loadRoutine;
@@ -107,8 +103,9 @@ public sealed class AngryMeshYooAssetPrefabInstance : MonoBehaviour
 
     private IEnumerator LoadRoutine()
     {
-        PackageInitializationState packageState = GetOrCreatePackageState(PackageName);
-        yield return EnsurePackageInitialized(packageState);
+        YooAssetPackageBootstrap.PackageInitializationState packageState =
+            YooAssetPackageBootstrap.GetOrCreatePackageState(PackageName);
+        yield return YooAssetPackageBootstrap.EnsurePackageReady(packageState);
 
         if (!packageState.IsReady)
         {
@@ -134,74 +131,6 @@ public sealed class AngryMeshYooAssetPrefabInstance : MonoBehaviour
         _loadHandle = handle;
         _loadHandle.Completed += OnPrefabLoaded;
         _loadRoutine = null;
-    }
-
-    private static PackageInitializationState GetOrCreatePackageState(string packageName)
-    {
-        string resolvedPackageName = string.IsNullOrWhiteSpace(packageName) ? DefaultPackageName : packageName;
-
-        if (!YooAssets.IsInitialized)
-            YooAssets.Initialize();
-
-        if (PackageStates.TryGetValue(resolvedPackageName, out PackageInitializationState state))
-            return state;
-
-        ResourcePackage package;
-        if (!YooAssets.TryGetPackage(resolvedPackageName, out package))
-            package = YooAssets.CreatePackage(resolvedPackageName);
-
-        state = new PackageInitializationState(package);
-        PackageStates.Add(resolvedPackageName, state);
-        return state;
-    }
-
-    private static IEnumerator EnsurePackageInitialized(PackageInitializationState state)
-    {
-        if (state.IsReady || state.IsFailed)
-            yield break;
-
-        if (state.InitializeOperation == null)
-        {
-            OfflinePlayModeOptions options = new OfflinePlayModeOptions
-            {
-                BuiltinFileSystemParameters = FileSystemParameters.CreateDefaultBuiltinFileSystemParameters()
-            };
-            state.InitializeOperation = state.Package.InitializePackageAsync(options);
-        }
-
-        yield return state.InitializeOperation;
-        if (state.InitializeOperation.Status != EOperationStatus.Succeeded)
-        {
-            state.Fail(state.InitializeOperation.Error);
-            yield break;
-        }
-
-        if (state.VersionOperation == null)
-            state.VersionOperation = state.Package.RequestPackageVersionAsync();
-
-        yield return state.VersionOperation;
-        if (state.VersionOperation.Status != EOperationStatus.Succeeded)
-        {
-            state.Fail(state.VersionOperation.Error);
-            yield break;
-        }
-
-        if (state.ManifestOperation == null)
-        {
-            LoadPackageManifestOptions options = new LoadPackageManifestOptions(
-                state.VersionOperation.PackageVersion,
-                60);
-            state.ManifestOperation = state.Package.LoadPackageManifestAsync(options);
-        }
-
-        yield return state.ManifestOperation;
-        if (state.ManifestOperation.Status != EOperationStatus.Succeeded)
-        {
-            state.Fail(state.ManifestOperation.Error);
-            yield break;
-        }
-
-        state.MarkReady();
     }
 
     private void OnPrefabLoaded(AssetHandle handle)
@@ -247,33 +176,4 @@ public sealed class AngryMeshYooAssetPrefabInstance : MonoBehaviour
             Debug.Log("Loaded ANGRY MESH YooAsset prefab: " + _assetPath, this);
     }
 
-    private sealed class PackageInitializationState
-    {
-        public readonly ResourcePackage Package;
-        public InitializePackageOperation InitializeOperation;
-        public RequestPackageVersionOperation VersionOperation;
-        public LoadPackageManifestOperation ManifestOperation;
-        public string Error = string.Empty;
-        public bool IsReady;
-        public bool IsFailed;
-
-        public PackageInitializationState(ResourcePackage package)
-        {
-            Package = package;
-        }
-
-        public void MarkReady()
-        {
-            IsReady = true;
-            IsFailed = false;
-            Error = string.Empty;
-        }
-
-        public void Fail(string error)
-        {
-            IsFailed = true;
-            IsReady = false;
-            Error = error ?? string.Empty;
-        }
-    }
 }
