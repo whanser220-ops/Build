@@ -544,7 +544,7 @@ MonoBehaviour:
         CollectorGUID: 08ab2a5dde032ba428d3d349acd1dc09
         CollectorType: 0
         AddressRuleName: AddressDisable
-        PackRuleName: PackGroup
+        PackRuleName: PackSeparately
         FilterRuleName: ProjectYooAssetMainAssetFilter
         AssetTags: angrymesh.worlds.meadow.scenes.seasons;main
         UserData: main
@@ -552,7 +552,7 @@ MonoBehaviour:
         CollectorGUID: d6a09aa3643a4d5479a2512b455f0ca5
         CollectorType: 0
         AddressRuleName: AddressDisable
-        PackRuleName: PackGroup
+        PackRuleName: PackSeparately
         FilterRuleName: ProjectYooAssetMainAssetFilter
         AssetTags: angrymesh.worlds.meadow.scenes.seasons;main
         UserData: main
@@ -560,7 +560,7 @@ MonoBehaviour:
         CollectorGUID: 82131747748c3294d888ca8f72b77dc5
         CollectorType: 0
         AddressRuleName: AddressDisable
-        PackRuleName: PackGroup
+        PackRuleName: PackSeparately
         FilterRuleName: ProjectYooAssetMainAssetFilter
         AssetTags: angrymesh.worlds.meadow.scenes.seasons;main
         UserData: main

@@ -840,7 +840,7 @@ public static class ProjectYooAssetBuild
             maxSourceBytes,
             ECollectorType.MainAssetCollector,
             null,
-            nameof(PackGroup),
+            nameof(PackSeparately),
             CollectorAssetClass.Main));
     }
 
