@@ -34,7 +34,9 @@ public static class ProjectYooAssetBuild
     private const string CommonFunctionsRoot = "Common/Functions";
     private const string SharedRuntimeShaderRoot = "Assets/Game/Shared/StylizedPackCommon/Runtime/Shaders";
     private const string SharedAspGlobalSettingsRoot = "Assets/Game/Shared/StylizedPackCommon/Runtime/ASP Global Settings";
+    private const string SharedArtSourceRoot = "Assets/Game/Shared/StylizedPackCommon/Art/Sources";
     private const string SharedTextureRoot = "Assets/Game/Shared/StylizedPackCommon/Art/Sources/Textures";
+    private const string MeadowArtRoot = "Assets/Game/Worlds/Meadow/Art";
     private const string MeadowRuntimeRoot = "Assets/Game/Worlds/Meadow/Runtime";
     private const string MeadowSummerScenePath = "Assets/Game/Worlds/Meadow/Runtime/Scenes/Scene_MeadowEnvironment_01_Summer.unity";
     private const string MeadowAutumnScenePath = "Assets/Game/Worlds/Meadow/Runtime/Scenes/Scene_MeadowEnvironment_02_Autumn.unity";
@@ -44,6 +46,11 @@ public static class ProjectYooAssetBuild
     {
         "Assets/Game/Characters/Qianxia/Art/Meshs",
         "Assets/Game/Characters/Qianxia/Art/Textures"
+    };
+    private static readonly string[] StandaloneArtDependencyRootPrefixes =
+    {
+        SharedArtSourceRoot,
+        MeadowArtRoot
     };
     private static readonly string[] MeadowRuntimeScenePaths =
     {
@@ -848,6 +855,16 @@ public static class ProjectYooAssetBuild
     {
         if (AssetDatabase.IsValidFolder(QianxiaGeneratedRuntimeRoot))
             yield return CreateDependencySpec("game.dependencies.runtime.characters.qianxia.generated", QianxiaGeneratedRuntimeRoot);
+
+        if (AssetDatabase.IsValidFolder(MeadowRuntimeRoot))
+        {
+            foreach (string dependencyRoot in EnumerateDependencyFolders(MeadowRuntimeRoot))
+            {
+                yield return CreateDependencySpec(
+                    "game.dependencies." + SanitizeAssetPath(dependencyRoot),
+                    dependencyRoot);
+            }
+        }
     }
 
     private static IEnumerable<ProjectGroupSpec> CreateContentModuleArtDependencySpecs(
@@ -880,7 +897,8 @@ public static class ProjectYooAssetBuild
             return false;
 
         return StandaloneArtDependencyRoots.Any(root =>
-            string.Equals(normalizedRoot, NormalizeAssetPath(root).TrimEnd('/'), StringComparison.OrdinalIgnoreCase));
+                   string.Equals(normalizedRoot, NormalizeAssetPath(root).TrimEnd('/'), StringComparison.OrdinalIgnoreCase)) ||
+               StandaloneArtDependencyRootPrefixes.Any(root => IsUnderRoot(normalizedRoot, root));
     }
 
     private static string ResolveGameContentRoot(string buildRoot)
@@ -2057,14 +2075,26 @@ public static class ProjectYooAssetCollectorRuleUtility
 
     private static readonly HashSet<string> DependencyFolderNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
+        "Animation",
         "Animations",
         "Audio",
+        "Controller",
+        "Controllers",
+        "FBX",
+        "Fbx",
+        "Lightmap",
+        "Lightmaps",
+        "Lighting Data",
+        "LightingData",
         "Materials",
         "Meshes",
         "Meshs",
         "Models",
         "SourceAnimations",
         "Terrain Data",
+        "TerrainData",
+        "TerrainLayer",
+        "TerrainLayers",
         "Terrain Layers",
         "Textures"
     };
@@ -2090,9 +2120,17 @@ public static class ProjectYooAssetCollectorRuleUtility
 
         return extension.Equals(".asset", StringComparison.OrdinalIgnoreCase) &&
                (normalizedPath.IndexOf("/Sources/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                normalizedPath.IndexOf("/Lightmap/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                normalizedPath.IndexOf("/Lightmaps/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                normalizedPath.IndexOf("/Lighting Data/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                normalizedPath.IndexOf("/LightingData/", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 normalizedPath.IndexOf("/SourceAnimations/", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 normalizedPath.IndexOf("/Terrain Data/", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                normalizedPath.IndexOf("/Terrain Layers/", StringComparison.OrdinalIgnoreCase) >= 0);
+                normalizedPath.IndexOf("/TerrainData/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                normalizedPath.IndexOf("/TerrainLayer/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                normalizedPath.IndexOf("/TerrainLayers/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                normalizedPath.IndexOf("/Terrain Layers/", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                Path.GetFileNameWithoutExtension(normalizedPath).IndexOf("LightingData", StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     public static bool IsStaticAsset(string assetPath)

@@ -12,6 +12,7 @@ windows_exe="${WINDOWS_EXE:-.workspace/builds/windows/Unity6-Windows-Development
 windows_zip="${WINDOWS_ZIP:-.workspace/builds/windows/Unity6-Windows-Development.zip}"
 yooasset_build_output="${YOOASSET_BUILD_OUTPUT:-${project_path}/.workspace/artifacts/yooasset-build}"
 yooasset_plan_output="${YOOASSET_PLAN_OUTPUT:-${project_path}/.workspace/artifacts/yooasset/StandaloneWindows64/angrymesh/yooasset_build_plan.json}"
+bundle_report_output="${BUNDLE_REPORT_OUTPUT:-${project_path}/.workspace/artifacts/bundle-report/StandaloneWindows64/DefaultPackage/${build_number}/bundle_report.json}"
 
 run_started_ms=""
 active_stage_id=""
@@ -140,9 +141,9 @@ else
 fi
 
 stage_start cleanup "Clean build outputs" "Cleaning Unity build outputs."
-rm -rf ".workspace/builds" ".workspace/artifacts/yooasset-build" "Assets/StreamingAssets/yoo"
+rm -rf ".workspace/builds" ".workspace/artifacts/yooasset-build" ".workspace/artifacts/bundle-report" "Assets/StreamingAssets/yoo"
 rm -f "${unity_log}"
-mkdir -p "$(dirname "${unity_log}")" ".workspace/builds/windows" "$(dirname "${yooasset_plan_output}")"
+mkdir -p "$(dirname "${unity_log}")" ".workspace/builds/windows" "$(dirname "${yooasset_plan_output}")" "$(dirname "${bundle_report_output}")"
 windows_zip_absolute="${project_path}/${windows_zip}"
 stage_finish success SUCCESS "Unity build outputs cleaned."
 
@@ -158,10 +159,13 @@ set +e
     --ci-output "${windows_exe}" \
     --yooasset-target StandaloneWindows64 \
     --yooasset-exclude-source-assets \
+    --yooasset-force-refresh-assets \
+    --yooasset-clear-build-cache \
     --yooasset-package-name DefaultPackage \
     --yooasset-package-version "${build_number}" \
     --yooasset-build-output "${yooasset_build_output}" \
-    --yooasset-plan-output "${yooasset_plan_output}" &
+    --yooasset-plan-output "${yooasset_plan_output}" \
+    --bundle-report-output "${bundle_report_output}" &
 unity_pid=$!
 
 while kill -0 "${unity_pid}" >/dev/null 2>&1; do

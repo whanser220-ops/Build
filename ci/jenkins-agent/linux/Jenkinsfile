@@ -156,7 +156,7 @@ report-build-metrics.sh --event run_finished --stage-id pipeline-failure --stage
             }
         }
         always {
-            archiveArtifacts artifacts: 'Logs/*.log,.workspace/build-manifest.json,.workspace/artifacts/yooasset/**/*.json', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'Logs/*.log,.workspace/build-manifest.json,.workspace/artifacts/yooasset/**/*.json,.workspace/artifacts/bundle-report/**/*.json,.workspace/artifacts/yooasset-build/**/*.report', allowEmptyArchive: true
         }
     }
 }
