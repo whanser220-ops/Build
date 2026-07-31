@@ -13,6 +13,7 @@ windows_zip="${WINDOWS_ZIP:-.workspace/builds/windows/Unity6-Windows-Development
 yooasset_build_output="${YOOASSET_BUILD_OUTPUT:-${project_path}/.workspace/artifacts/yooasset-build}"
 yooasset_plan_output="${YOOASSET_PLAN_OUTPUT:-${project_path}/.workspace/artifacts/yooasset/StandaloneWindows64/angrymesh/yooasset_build_plan.json}"
 bundle_report_output="${BUNDLE_REPORT_OUTPUT:-${project_path}/.workspace/artifacts/bundle-report/StandaloneWindows64/DefaultPackage/${build_number}/bundle_report.json}"
+yooasset_report_archive_output="${YOOASSET_REPORT_ARCHIVE_OUTPUT:-${project_path}/.workspace/artifacts/yooasset/StandaloneWindows64/angrymesh/DefaultPackage_${build_number}.report.json}"
 
 run_started_ms=""
 active_stage_id=""
@@ -192,6 +193,15 @@ if [[ "${unity_exit}" -ne 0 ]]; then
     stage_finish failure FAILURE "Unity batchmode exited with ${unity_exit}."
     finish_run failure FAILURE "Unity batchmode exited with ${unity_exit}."
     exit "${unity_exit}"
+fi
+
+yooasset_native_report="${yooasset_build_output}/StandaloneWindows64/DefaultPackage/${build_number}/DefaultPackage_${build_number}.report"
+if [[ -f "${yooasset_native_report}" ]]; then
+    mkdir -p "$(dirname "${yooasset_report_archive_output}")"
+    cp -f "${yooasset_native_report}" "${yooasset_report_archive_output}"
+    echo "Archived YooAsset native build report JSON: ${yooasset_report_archive_output}"
+else
+    echo "YooAsset native build report was not found: ${yooasset_native_report}" >&2
 fi
 
 stage_finish success SUCCESS "Unity batchmode player build completed."
