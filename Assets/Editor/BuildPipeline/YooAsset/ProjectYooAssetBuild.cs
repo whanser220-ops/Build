@@ -261,6 +261,7 @@ public static class ProjectYooAssetBuild
         }
 
         ReportAssetTypeSummary(ProjectYooAssetScriptableBuildPipeline.LastLayoutSnapshot);
+        ArchiveNativeBuildReport(result, parameters, plan.planPath);
 
         Debug.Log(
             "YooAsset build succeeded. OutputPackageDirectory=" + result.OutputPackageDirectory +
@@ -286,6 +287,32 @@ public static class ProjectYooAssetBuild
                 action();
                 return null;
             });
+    }
+
+    private static void ArchiveNativeBuildReport(
+        YooAsset.Editor.BuildResult result,
+        ScriptableBuildParameters parameters,
+        string planPath)
+    {
+        string reportFileName = parameters.PackageName + "_" + parameters.PackageVersion + ".report";
+        string reportPath = Path.Combine(result.OutputPackageDirectory, reportFileName);
+        if (!File.Exists(reportPath))
+        {
+            Debug.LogWarning("YooAsset native build report was not found: " + reportPath);
+            return;
+        }
+
+        string planDirectory = Path.GetDirectoryName(planPath);
+        if (string.IsNullOrWhiteSpace(planDirectory))
+        {
+            Debug.LogWarning("Cannot archive YooAsset native build report because plan directory is empty.");
+            return;
+        }
+
+        Directory.CreateDirectory(planDirectory);
+        string archivePath = Path.Combine(planDirectory, reportFileName + ".json");
+        File.Copy(reportPath, archivePath, true);
+        Debug.Log("Archived YooAsset native build report JSON: " + archivePath.Replace("\\", "/"));
     }
 
     private static T MeasureStage<T>(
