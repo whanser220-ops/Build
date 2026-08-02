@@ -2090,6 +2090,28 @@ public static class ProjectYooAssetCollectorRuleUtility
         ".wav"
     };
 
+    private static readonly HashSet<string> TextureDependencyExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exr",
+        ".hdr",
+        ".jpg",
+        ".jpeg",
+        ".mask",
+        ".png",
+        ".psb",
+        ".psd",
+        ".tga",
+        ".tif",
+        ".tiff"
+    };
+
+    private static readonly HashSet<string> TextureNamePrefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "T",
+        "Tex",
+        "Texture"
+    };
+
     private static readonly HashSet<string> StaticExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ".asset",
@@ -2183,7 +2205,14 @@ public static class ProjectYooAssetCollectorRuleUtility
 
     public static string GetDependencyBucket(string assetPath)
     {
-        string fileName = Path.GetFileNameWithoutExtension(Normalize(assetPath));
+        string normalizedPath = Normalize(assetPath);
+        string fileName = Path.GetFileNameWithoutExtension(normalizedPath);
+        if (string.IsNullOrWhiteSpace(fileName))
+            return "other";
+
+        if (IsTextureDependencyAsset(normalizedPath))
+            fileName = StripTextureNamePrefix(fileName);
+
         if (string.IsNullOrWhiteSpace(fileName))
             return "other";
 
@@ -2194,6 +2223,27 @@ public static class ProjectYooAssetCollectorRuleUtility
             return first.ToString();
 
         return "other";
+    }
+
+    private static bool IsTextureDependencyAsset(string normalizedPath)
+    {
+        return TextureDependencyExtensions.Contains(Path.GetExtension(normalizedPath)) &&
+               normalizedPath.IndexOf("/Textures/", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static string StripTextureNamePrefix(string fileName)
+    {
+        int delimiterIndex = fileName.IndexOf('_');
+        if (delimiterIndex < 0)
+            delimiterIndex = fileName.IndexOf('-');
+
+        if (delimiterIndex <= 0 || delimiterIndex >= fileName.Length - 1)
+            return fileName;
+
+        string prefix = fileName.Substring(0, delimiterIndex);
+        return TextureNamePrefixes.Contains(prefix)
+            ? fileName.Substring(delimiterIndex + 1)
+            : fileName;
     }
 
     private static string Normalize(string path)
