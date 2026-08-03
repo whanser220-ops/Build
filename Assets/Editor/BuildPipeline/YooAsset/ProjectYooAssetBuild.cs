@@ -805,14 +805,7 @@ public static class ProjectYooAssetBuild
             foreach (string seasonFolder in AssetDatabase.GetSubFolders(seasonsRoot).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
             {
                 string seasonName = SanitizeSegment(Path.GetFileName(seasonFolder));
-                foreach (string packageFolder in AssetDatabase.GetSubFolders(seasonFolder).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-                {
-                    string packageName = SanitizeSegment(Path.GetFileName(packageFolder));
-                    AddMainSpecIfValid(
-                        specs,
-                        "angrymesh.worlds.meadow.season." + seasonName + "." + packageName,
-                        ResolveRuntimeMainCollectorRoot(packageFolder));
-                }
+                AddSeasonMainSpecIfValid(specs, "angrymesh.worlds.meadow.seasons." + seasonName, seasonFolder);
             }
         }
 
@@ -831,6 +824,49 @@ public static class ProjectYooAssetBuild
         return AssetDatabase.IsValidFolder(urpPostProcessingRoot)
             ? urpPostProcessingRoot
             : normalizedFolder;
+    }
+
+    private static void AddSeasonMainSpecIfValid(
+        List<ProjectGroupSpec> specs,
+        string groupName,
+        string seasonFolder)
+    {
+        string normalizedSeasonFolder = NormalizeAssetPath(seasonFolder);
+        if (!AssetDatabase.IsValidFolder(normalizedSeasonFolder))
+            return;
+
+        HashSet<string> explicitAssets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string assetPath in CollectDirectAssetPaths(normalizedSeasonFolder, Array.Empty<string>(), CollectorAssetClass.Main))
+            explicitAssets.Add(assetPath);
+
+        foreach (string packageFolder in AssetDatabase.GetSubFolders(normalizedSeasonFolder).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        {
+            string collectorRoot = ResolveRuntimeMainCollectorRoot(packageFolder);
+            if (!AssetDatabase.IsValidFolder(collectorRoot))
+                continue;
+
+            string[] guids = AssetDatabase.FindAssets(string.Empty, new[] { collectorRoot });
+            for (int guidIndex = 0; guidIndex < guids.Length; guidIndex++)
+            {
+                string assetPath = NormalizeAssetPath(AssetDatabase.GUIDToAssetPath(guids[guidIndex]));
+                if (ShouldIncludeAssetForClass(assetPath, Array.Empty<string>(), CollectorAssetClass.Main))
+                    explicitAssets.Add(assetPath);
+            }
+        }
+
+        if (explicitAssets.Count == 0)
+            return;
+
+        specs.Add(new ProjectGroupSpec(
+            groupName,
+            Array.Empty<string>(),
+            Array.Empty<string>(),
+            explicitAssets.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray(),
+            DefaultPackageSourceBytes,
+            ECollectorType.MainAssetCollector,
+            null,
+            nameof(PackGroup),
+            CollectorAssetClass.Main));
     }
 
     private static void AddMainSpecIfValid(
