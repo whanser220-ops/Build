@@ -796,8 +796,7 @@ public static class ProjectYooAssetBuild
         AddMainSpecIfValid(specs, "game.runtime.shared.stylizedpackcommon.asp.global.settings", SharedAspGlobalSettingsRoot);
 
         string sharedRoot = AssetPathCombine(MeadowRuntimeRoot, SharedDirectoryName);
-        AddMainSpecIfValid(specs, "angrymesh.worlds.meadow.shared.configs", ResolveRuntimeMainCollectorRoot(AssetPathCombine(sharedRoot, "Configs")));
-        AddMainSpecIfValid(specs, "angrymesh.worlds.meadow.shared.prefabs", AssetPathCombine(sharedRoot, "Prefabs"));
+        AddRuntimeMainSpecIfValid(specs, "angrymesh.worlds.meadow.shared", sharedRoot);
 
         string seasonsRoot = AssetPathCombine(MeadowRuntimeRoot, SeasonsDirectoryName);
         if (AssetDatabase.IsValidFolder(seasonsRoot))
@@ -805,7 +804,7 @@ public static class ProjectYooAssetBuild
             foreach (string seasonFolder in AssetDatabase.GetSubFolders(seasonsRoot).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
             {
                 string seasonName = SanitizeSegment(Path.GetFileName(seasonFolder));
-                AddSeasonMainSpecIfValid(specs, "angrymesh.worlds.meadow.seasons." + seasonName, seasonFolder);
+                AddRuntimeMainSpecIfValid(specs, "angrymesh.worlds.meadow.seasons." + seasonName, seasonFolder);
             }
         }
 
@@ -826,20 +825,20 @@ public static class ProjectYooAssetBuild
             : normalizedFolder;
     }
 
-    private static void AddSeasonMainSpecIfValid(
+    private static void AddRuntimeMainSpecIfValid(
         List<ProjectGroupSpec> specs,
         string groupName,
-        string seasonFolder)
+        string rootFolder)
     {
-        string normalizedSeasonFolder = NormalizeAssetPath(seasonFolder);
-        if (!AssetDatabase.IsValidFolder(normalizedSeasonFolder))
+        string normalizedRootFolder = NormalizeAssetPath(rootFolder);
+        if (!AssetDatabase.IsValidFolder(normalizedRootFolder))
             return;
 
         HashSet<string> explicitAssets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (string assetPath in CollectDirectAssetPaths(normalizedSeasonFolder, Array.Empty<string>(), CollectorAssetClass.Main))
+        foreach (string assetPath in CollectDirectAssetPaths(normalizedRootFolder, Array.Empty<string>(), CollectorAssetClass.Main))
             explicitAssets.Add(assetPath);
 
-        foreach (string packageFolder in AssetDatabase.GetSubFolders(normalizedSeasonFolder).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        foreach (string packageFolder in AssetDatabase.GetSubFolders(normalizedRootFolder).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
         {
             string collectorRoot = ResolveRuntimeMainCollectorRoot(packageFolder);
             if (!AssetDatabase.IsValidFolder(collectorRoot))
