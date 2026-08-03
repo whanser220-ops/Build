@@ -37,6 +37,7 @@ public static class ProjectYooAssetBuild
     private const string SharedArtSourceRoot = "Assets/Game/Shared/StylizedPackCommon/Art/Sources";
     private const string SharedTextureRoot = "Assets/Game/Shared/StylizedPackCommon/Art/Sources/Textures";
     private const string MeadowArtRoot = "Assets/Game/Worlds/Meadow/Art";
+    private const string MeadowTextureRoot = "Assets/Game/Worlds/Meadow/Art/Textures";
     private const string MeadowRuntimeRoot = "Assets/Game/Worlds/Meadow/Runtime";
     private const string MeadowSummerScenePath = "Assets/Game/Worlds/Meadow/Runtime/Scenes/Scene_MeadowEnvironment_01_Summer.unity";
     private const string MeadowAutumnScenePath = "Assets/Game/Worlds/Meadow/Runtime/Scenes/Scene_MeadowEnvironment_02_Autumn.unity";
@@ -52,13 +53,6 @@ public static class ProjectYooAssetBuild
         SharedArtSourceRoot,
         MeadowArtRoot
     };
-    private static readonly string[] MeadowRuntimeScenePaths =
-    {
-        MeadowSummerScenePath,
-        MeadowAutumnScenePath,
-        MeadowWinterScenePath
-    };
-
     private const string LegacyMeadowEnvironmentPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Environment";
     private const string LegacyMeadowTerrainDetailsPrefabRoot = "Assets/GameAssets/Prefabs/Meadow Terrain Details";
     private const string MeadowLegacyConfigRoot = "Configs/Post Processing/Meadow Environment";
@@ -804,13 +798,39 @@ public static class ProjectYooAssetBuild
             foreach (string seasonFolder in AssetDatabase.GetSubFolders(seasonsRoot).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
             {
                 string seasonName = SanitizeSegment(Path.GetFileName(seasonFolder));
-                AddRuntimeMainSpecIfValid(specs, "angrymesh.worlds.meadow.seasons." + seasonName, seasonFolder);
+                AddRuntimeMainSpecIfValid(
+                    specs,
+                    "angrymesh.worlds.meadow.seasons." + seasonName,
+                    seasonFolder);
+
+                string scenePath = GetMeadowScenePathForSeason(seasonName);
+                if (!string.IsNullOrWhiteSpace(scenePath))
+                {
+                    AddExplicitMainSpecIfValid(
+                        specs,
+                        "angrymesh.worlds.meadow.seasons." + seasonName + ".scene",
+                        new[] { scenePath },
+                        ScenePackageSourceBytes,
+                        nameof(PackGroup));
+                }
             }
         }
 
-        AddExplicitMainSpecIfValid(specs, "angrymesh.worlds.meadow.scenes.seasons", MeadowRuntimeScenePaths, ScenePackageSourceBytes);
-
         return specs;
+    }
+
+    private static string GetMeadowScenePathForSeason(string seasonName)
+    {
+        if (string.Equals(seasonName, "summer", StringComparison.OrdinalIgnoreCase))
+            return MeadowSummerScenePath;
+
+        if (string.Equals(seasonName, "autumn", StringComparison.OrdinalIgnoreCase))
+            return MeadowAutumnScenePath;
+
+        if (string.Equals(seasonName, "winter", StringComparison.OrdinalIgnoreCase))
+            return MeadowWinterScenePath;
+
+        return null;
     }
 
     private static string ResolveRuntimeMainCollectorRoot(string packageFolder)
@@ -890,7 +910,8 @@ public static class ProjectYooAssetBuild
         List<ProjectGroupSpec> specs,
         string groupName,
         IEnumerable<string> assetPaths,
-        long maxSourceBytes = DefaultPackageSourceBytes)
+        long maxSourceBytes = DefaultPackageSourceBytes,
+        string packRuleName = nameof(PackSeparately))
     {
         string[] normalizedAssets = assetPaths
             .Select(NormalizeAssetPath)
@@ -909,7 +930,7 @@ public static class ProjectYooAssetBuild
             maxSourceBytes,
             ECollectorType.MainAssetCollector,
             null,
-            nameof(PackSeparately),
+            packRuleName,
             CollectorAssetClass.Main));
     }
 
@@ -945,11 +966,32 @@ public static class ProjectYooAssetBuild
                 if (!ShouldCreateStandaloneArtDependencyCollector(dependencyRoot))
                     continue;
 
+                if (string.Equals(NormalizeAssetPath(dependencyRoot).TrimEnd('/'), MeadowTextureRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (string textureCategoryRoot in EnumerateMeadowTextureCategoryRoots())
+                    {
+                        yield return CreateDependencySpec(
+                            "game.dependencies." + groupKey + ".textures." + SanitizeSegment(Path.GetFileName(textureCategoryRoot)),
+                            textureCategoryRoot);
+                    }
+
+                    continue;
+                }
+
                 yield return CreateDependencySpec(
                     "game.dependencies." + groupKey + "." + SanitizeSegment(Path.GetFileName(dependencyRoot)),
                     dependencyRoot);
             }
         }
+    }
+
+    private static IEnumerable<string> EnumerateMeadowTextureCategoryRoots()
+    {
+        if (!AssetDatabase.IsValidFolder(MeadowTextureRoot))
+            yield break;
+
+        foreach (string categoryRoot in AssetDatabase.GetSubFolders(MeadowTextureRoot).OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+            yield return categoryRoot;
     }
 
     private static bool ShouldCreateStandaloneArtDependencyCollector(string dependencyRoot)
