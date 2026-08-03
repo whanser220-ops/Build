@@ -2122,6 +2122,13 @@ public sealed class ProjectYooAssetPackDependencyBucket : IBundlePackRule
 {
     public BundlePackRuleResult GetPackRuleResult(BundlePackRuleData data)
     {
+        if (ProjectYooAssetCollectorRuleUtility.ShouldPackDependencyAsWholeGroup(data.GroupName))
+        {
+            return new BundlePackRuleResult(
+                data.GroupName,
+                DefaultBundlePackRule.AssetBundleFileExtension);
+        }
+
         string bucket = ProjectYooAssetCollectorRuleUtility.GetDependencyBucket(data.AssetPath);
         return new BundlePackRuleResult(
             data.GroupName + "." + bucket,
@@ -2256,6 +2263,12 @@ public static class ProjectYooAssetCollectorRuleUtility
     public static bool IsDependencyFolderName(string folderName)
     {
         return DependencyFolderNames.Contains(folderName ?? string.Empty);
+    }
+
+    public static bool ShouldPackDependencyAsWholeGroup(string groupName)
+    {
+        return !string.IsNullOrWhiteSpace(groupName) &&
+               groupName.IndexOf(".textures", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     public static string GetDependencyBucket(string assetPath)
