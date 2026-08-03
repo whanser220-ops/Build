@@ -2122,10 +2122,11 @@ public sealed class ProjectYooAssetPackDependencyBucket : IBundlePackRule
 {
     public BundlePackRuleResult GetPackRuleResult(BundlePackRuleData data)
     {
-        if (ProjectYooAssetCollectorRuleUtility.ShouldPackDependencyAsWholeGroup(data.GroupName))
+        string dependencyBundleName = ProjectYooAssetCollectorRuleUtility.GetDependencyBundleName(data.GroupName);
+        if (!string.IsNullOrWhiteSpace(dependencyBundleName))
         {
             return new BundlePackRuleResult(
-                data.GroupName,
+                dependencyBundleName,
                 DefaultBundlePackRule.AssetBundleFileExtension);
         }
 
@@ -2210,6 +2211,20 @@ public static class ProjectYooAssetCollectorRuleUtility
         "Textures"
     };
 
+    private static readonly string[] TerrainDependencyGroupSuffixes =
+    {
+        ".terrain.data",
+        ".terrain.layers"
+    };
+
+    private static readonly string[] WholeGroupDependencySegments =
+    {
+        ".materials",
+        ".meshes",
+        ".meshs",
+        ".textures"
+    };
+
     public static bool IsMainAsset(string assetPath)
     {
         string normalizedPath = Normalize(assetPath);
@@ -2265,10 +2280,24 @@ public static class ProjectYooAssetCollectorRuleUtility
         return DependencyFolderNames.Contains(folderName ?? string.Empty);
     }
 
-    public static bool ShouldPackDependencyAsWholeGroup(string groupName)
+    public static string GetDependencyBundleName(string groupName)
     {
-        return !string.IsNullOrWhiteSpace(groupName) &&
-               groupName.IndexOf(".textures", StringComparison.OrdinalIgnoreCase) >= 0;
+        if (string.IsNullOrWhiteSpace(groupName))
+            return null;
+
+        foreach (string suffix in TerrainDependencyGroupSuffixes)
+        {
+            if (groupName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                return groupName.Substring(0, groupName.Length - suffix.Length) + ".terrain";
+        }
+
+        return ShouldPackDependencyAsWholeGroup(groupName) ? groupName : null;
+    }
+
+    private static bool ShouldPackDependencyAsWholeGroup(string groupName)
+    {
+        return WholeGroupDependencySegments.Any(
+            segment => groupName.IndexOf(segment, StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     public static string GetDependencyBucket(string assetPath)
